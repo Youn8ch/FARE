@@ -1,0 +1,10 @@
+version: "2026.07.0"
+released_at: "2026-07-14"
+sources:
+  - id: NET-COMPLIANCE-2026
+    name: 网络访问合规制度示例转录
+approvals:
+  - role: network-security-owner
+    approver: example-owner
+    approved_at: "2026-07-14"
+

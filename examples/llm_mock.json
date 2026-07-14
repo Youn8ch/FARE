@@ -1,0 +1,35 @@
+{
+  "version": "2026.07.0-demo",
+  "responses": {
+    "fare-eval-demo-001": {
+      "semantic": {
+        "analyzed_item_ids": ["fare-eval-demo-001-001"],
+        "claims": [
+          {
+            "claim_id": "claim-001",
+            "scope": "fare-eval-demo-001-001",
+            "field": "access_purpose",
+            "value": "生产应用内部 HTTPS 访问",
+            "source": "request_description",
+            "evidence": "生产应用内部 HTTPS 访问",
+            "confidence": 0.99
+          }
+        ],
+        "contradictions": [],
+        "candidate_rule_ids": [],
+        "policy_gaps": [],
+        "questions_for_requester": [],
+        "recommendations": []
+      },
+      "explanation": {
+        "items": [
+          {
+            "item_id": "fare-eval-demo-001-001",
+            "explanation": "权威网络事实完整，且未命中规则包中的拒绝规则。",
+            "recommendation": "按既有审批流程继续处理。"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,2 @@
+"""FARE service package."""
+

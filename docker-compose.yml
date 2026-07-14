@@ -1,0 +1,17 @@
+services:
+  fare:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      ACL_CLIENT_MODE: mock
+      LLM_CLIENT_MODE: mock
+      AUDIT_LOG_RETENTION_DAYS: "30"
+      MAX_CONCURRENT_EVALUATIONS: "4"
+    volumes:
+      - ./policies:/opt/fare/policies:ro
+      - fare-audit:/var/lib/fare/audit
+    restart: unless-stopped
+
+volumes:
+  fare-audit:
