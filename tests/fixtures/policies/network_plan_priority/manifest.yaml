@@ -1,0 +1,9 @@
+version: "test.network-plan-priority.1"
+released_at: "2026-08-05"
+sources:
+  - id: NETWORK-PLAN-PRIORITY-TEST-MATRIX
+    name: 网段规划裁决优先级测试矩阵
+approvals:
+  - role: test-policy-owner
+    approver: automated-test-suite
+    approved_at: "2026-08-05"

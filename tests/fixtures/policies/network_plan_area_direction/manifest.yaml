@@ -1,0 +1,4 @@
+version: "test.network-plan-area-direction.1"
+released_at: "2026-08-05"
+sources: [{id: AREA-DIRECTION-TEST, name: 区域方向测试矩阵}]
+approvals: [{role: test-policy-owner, approver: automated-test-suite, approved_at: "2026-08-05"}]

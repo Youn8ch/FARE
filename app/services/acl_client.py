@@ -23,9 +23,15 @@ class MockAclClient(AclClient):
     def __init__(self, fixture_path: Path | None = None) -> None:
         self.fixture_path = fixture_path
         self._fixture = self._load(fixture_path) if fixture_path else None
+        self.calls: list[str] = []
 
     async def analyze(self, combination: AccessCombination) -> AclRawResponse:
         await asyncio.sleep(0)
+        key = (
+            f"{combination.source_text}|{combination.destination_text}|"
+            f"{combination.protocol}|{combination.port.start}-{combination.port.end}"
+        )
+        self.calls.append(key)
         if not self._fixture:
             return AclRawResponse(
                 analysis="候选路径经过防火墙 MOCK-FW-01。",
@@ -35,10 +41,6 @@ class MockAclClient(AclClient):
                 ),
                 metadata={"mock": True},
             )
-        key = (
-            f"{combination.source_text}|{combination.destination_text}|"
-            f"{combination.protocol}|{combination.port.start}-{combination.port.end}"
-        )
         raw = self._fixture.get("responses", {}).get(key, self._fixture.get("default"))
         if raw is None:
             raise AclDependencyError(f"mock ACL fixture has no response for combination {key}")
@@ -75,4 +77,3 @@ class HttpAclClient(AclClient):
         raise AclDependencyError(
             "HTTP ACL adapter is disabled until the real ACL API contract is implemented"
         )
-

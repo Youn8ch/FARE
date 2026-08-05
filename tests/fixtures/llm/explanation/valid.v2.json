@@ -1,0 +1,14 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "Valid independent explanation fields",
+  "explanation": {
+    "items": [
+      {
+        "item_id": "@item:1",
+        "explanation": "结构化评估已完成，正式结论保持服务端规范值。",
+        "recommendation": "按规范流程继续处理并保留审计记录。",
+        "referenced_rule_ids": []
+      }
+    ]
+  }
+}

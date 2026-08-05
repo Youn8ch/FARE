@@ -27,6 +27,13 @@ packages = ["app"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+  "llm_guard: deterministic output-guard unit tests",
+  "llm_pipeline: offline LLM orchestration and fallback tests",
+  "llm_http: OpenAI-compatible HTTP boundary contract tests",
+  "llm_eval: explicitly selected LLM evaluation tests",
+  "network_plan_contract: approved real network planning API contract tests",
+]
 
 [tool.ruff]
 line-length = 100

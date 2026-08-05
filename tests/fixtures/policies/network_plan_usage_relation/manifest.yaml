@@ -1,0 +1,9 @@
+version: "test.network-plan-usage.1"
+released_at: "2026-08-05"
+sources:
+  - id: NETWORK-PLAN-USAGE-TEST-DICTIONARY
+    name: 网段规划用途编码测试字典
+approvals:
+  - role: test-policy-owner
+    approver: automated-test-suite
+    approved_at: "2026-08-05"

@@ -1,0 +1,44 @@
+rules:
+  - id: USAGE-GENERAL-VM-PROD-DB-001
+    name: 通用虚拟机到生产数据库用途访问复核
+    description: 验证源和目的 usageCode 精确匹配
+    category: zone_relation
+    decision: 待定
+    reason_type: policy_violation
+    when:
+      source_usage_code: GENERAL_VM
+      destination_usage_code: PROD_DATABASE
+    semantic_keywords: [通用虚拟机, 生产数据库, 用途编码]
+    evidence_requirements: [source_usage_code, destination_usage_code]
+    reason_template: 通用虚拟机到生产数据库用途的访问需要复核。
+    recommendation: 核实业务用途并补充最小权限审批依据。
+    remediation_template: 按正式用途编码拆分并补充审批依据。
+
+  - id: USAGE-OFFICE-CLIENT-PROD-DB-001
+    name: 办公终端用途到生产数据库用途访问复核
+    description: 验证 OFFICE_CLIENT 到 PROD_DATABASE 的方向性限制
+    category: zone_relation
+    decision: 待定
+    reason_type: policy_violation
+    when:
+      source_usage_code: OFFICE_CLIENT
+      destination_usage_code: PROD_DATABASE
+    semantic_keywords: [办公终端, 生产数据库, 用途编码]
+    evidence_requirements: [source_usage_code, destination_usage_code]
+    reason_template: 办公终端用途不得直接访问生产数据库用途。
+    recommendation: 使用受控运维入口或进入正式例外审批流程。
+    remediation_template: 改用受控运维入口并补充审批依据。
+
+  - id: ACL-PATH-001
+    name: 未找到途径防火墙
+    description: ACL API 明确表达没有途径防火墙时进行人工复核
+    category: least_privilege
+    decision: 待定
+    reason_type: acl_no_path
+    when:
+      explicit_no_path: true
+    semantic_keywords: [未找到防火墙, 无路径, 候选路径]
+    evidence_requirements: [acl_explicit_no_path]
+    reason_template: ACL API 明确表示未找到该访问组合经过的防火墙。
+    recommendation: 核实网段规划、候选路径和申请地址后提交人工复核。
+    remediation_template: 核实网段规划、候选路径和申请地址。

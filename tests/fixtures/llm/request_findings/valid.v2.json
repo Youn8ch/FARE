@@ -1,0 +1,19 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "One-item evidence-bound request finding in shadow mode",
+  "request_findings": {
+    "analyzed_item_ids": ["@item:1"],
+    "findings": [
+      {
+        "finding_id": "finding-v2-001",
+        "finding_type": "missing_approval_context",
+        "affected_item_ids": ["@item:1"],
+        "description": "申请未说明审批上下文",
+        "evidence": [{"item_id": "@item:1", "source": "request_description", "quote": "未说明审批上下文"}],
+        "confidence": 0.8,
+        "status": "candidate",
+        "question_for_requester": "请补充审批依据。"
+      }
+    ]
+  }
+}

@@ -60,10 +60,10 @@ class PolicyBundle:
     rules: tuple[Rule, ...]
 
     @classmethod
-    def load(cls, policy_dir: Path, catalog_version: str) -> PolicyBundle:
+    def load(cls, policy_dir: Path, catalog_version: str | None = None) -> PolicyBundle:
         manifest = _yaml(policy_dir / "manifest.yaml")
         version = _required(manifest, "version")
-        if version != catalog_version:
+        if catalog_version is not None and version != catalog_version:
             raise ValueError("manifest and network catalog versions do not match")
         released_at = _required(manifest, "released_at")
         try:
@@ -97,6 +97,7 @@ class PolicyBundle:
             when = raw.get("when")
             if not isinstance(when, dict) or not when:
                 raise ValueError(f"rule {rule_id} requires matching conditions")
+            _validate_when(rule_id, category, when)
             semantic_keywords = raw.get("semantic_keywords", [])
             evidence_requirements = raw.get("evidence_requirements", [])
             if not isinstance(semantic_keywords, list) or not isinstance(
@@ -147,30 +148,64 @@ def _matches(rule: Rule, item: AccessCombination, total_combinations: int) -> bo
     when = rule.when
     source = item.source.entry
     destination = item.destination.entry
+    source_fact = getattr(item.source, "primary_fact", None)
+    destination_fact = getattr(item.destination, "primary_fact", None)
     if rule.category == "zone_relation":
-        return bool(
-            source
-            and destination
-            and _eq(when, "source_zone", source.zone)
-            and _eq(when, "destination_zone", destination.zone)
-        )
+        values = {
+            "source_zone": (
+                source.zone if source else (source_fact.area_id if source_fact else None)
+            ),
+            "destination_zone": (
+                destination.zone
+                if destination
+                else (destination_fact.area_id if destination_fact else None)
+            ),
+            "source_area_id": source_fact.area_id if source_fact else None,
+            "destination_area_id": destination_fact.area_id if destination_fact else None,
+            "source_region_name": source_fact.region_name if source_fact else None,
+            "destination_region_name": destination_fact.region_name if destination_fact else None,
+            "source_platform_name": source_fact.platform_name if source_fact else None,
+            "destination_platform_name": (
+                destination_fact.platform_name if destination_fact else None
+            ),
+            "source_usage_code": source_fact.usage_code if source_fact else None,
+            "destination_usage_code": destination_fact.usage_code if destination_fact else None,
+        }
+        return all(_eq(when, key, value) for key, value in values.items())
     if rule.category == "object_relation":
-        if not source or not destination:
-            return False
         checks = {
-            "source_zone": source.zone,
-            "destination_zone": destination.zone,
-            "source_environment": source.environment,
-            "destination_environment": destination.environment,
-            "source_object_type": source.object_type,
-            "destination_object_type": destination.object_type,
+            "source_zone": (
+                source.zone if source else (source_fact.area_id if source_fact else None)
+            ),
+            "destination_zone": (
+                destination.zone
+                if destination
+                else (destination_fact.area_id if destination_fact else None)
+            ),
+            "source_area_id": source_fact.area_id if source_fact else None,
+            "destination_area_id": destination_fact.area_id if destination_fact else None,
+            "source_region_name": source_fact.region_name if source_fact else None,
+            "destination_region_name": destination_fact.region_name if destination_fact else None,
+            "source_platform_name": source_fact.platform_name if source_fact else None,
+            "destination_platform_name": (
+                destination_fact.platform_name if destination_fact else None
+            ),
+            "source_usage_code": source_fact.usage_code if source_fact else None,
+            "destination_usage_code": destination_fact.usage_code if destination_fact else None,
+            "source_environment": source.environment if source else None,
+            "destination_environment": destination.environment if destination else None,
+            "source_object_type": source.object_type if source else None,
+            "destination_object_type": destination.object_type if destination else None,
         }
         if not all(_eq(when, key, value) for key, value in checks.items()):
             return False
-        if "source_labels" in when and not set(when["source_labels"]).issubset(source.labels):
+        if "source_labels" in when and (
+            not source or not set(when["source_labels"]).issubset(source.labels)
+        ):
             return False
-        if "destination_labels" in when and not set(when["destination_labels"]).issubset(
-            destination.labels
+        if "destination_labels" in when and (
+            not destination
+            or not set(when["destination_labels"]).issubset(destination.labels)
         ):
             return False
         return True
@@ -202,8 +237,66 @@ def _prefix_too_broad(
     return network.prefixlen < threshold
 
 
-def _eq(when: dict[str, Any], key: str, actual: str) -> bool:
-    return key not in when or str(when[key]).lower() == actual.lower()
+def _eq(when: dict[str, Any], key: str, actual: str | None) -> bool:
+    if key not in when:
+        return True
+    return actual is not None and str(when[key]).lower() == actual.lower()
+
+
+_NETWORK_KEYS = {
+    "source_zone",
+    "destination_zone",
+    "source_area_id",
+    "destination_area_id",
+    "source_region_name",
+    "destination_region_name",
+    "source_platform_name",
+    "destination_platform_name",
+    "source_usage_code",
+    "destination_usage_code",
+}
+_OBJECT_KEYS = _NETWORK_KEYS | {
+    "source_environment",
+    "destination_environment",
+    "source_object_type",
+    "destination_object_type",
+    "source_labels",
+    "destination_labels",
+}
+
+
+def _validate_when(rule_id: str, category: str, when: dict[str, Any]) -> None:
+    if category == "zone_relation":
+        allowed = _NETWORK_KEYS
+    elif category == "object_relation":
+        allowed = _OBJECT_KEYS
+    elif category == "special_port":
+        allowed = {"protocol", "ports"}
+        if not {"protocol", "ports"}.issubset(when):
+            raise ValueError(f"rule {rule_id} special_port requires protocol and ports")
+    elif category == "least_privilege":
+        check = when.get("check")
+        allowed_by_check = {
+            "any_address": {"check"},
+            "prefix_too_broad": {"check", "min_ipv4_prefix", "min_ipv6_prefix"},
+            "port_span": {"check", "max_ports"},
+            "combination_count": {"check", "max_combinations"},
+        }
+        if check is None and when == {"explicit_no_path": True}:
+            allowed = {"explicit_no_path"}
+        elif check not in allowed_by_check:
+            raise ValueError(f"rule {rule_id} has an unsupported least_privilege check")
+        else:
+            allowed = allowed_by_check[str(check)]
+            if allowed - set(when):
+                raise ValueError(f"rule {rule_id} is missing required conditions")
+    else:
+        raise ValueError(f"unsupported rule category: {category}")
+    unknown = set(when) - allowed
+    if unknown:
+        raise ValueError(
+            f"rule {rule_id} has unsupported matching conditions: {sorted(unknown)}"
+        )
 
 
 def _yaml(path: Path) -> dict[str, Any]:

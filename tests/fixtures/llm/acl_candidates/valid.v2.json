@@ -1,0 +1,15 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "One-item structured ACL candidate shadow result",
+  "acl_candidates": {
+    "items": [
+      {
+        "item_id": "@item:1",
+        "facts": [
+          {"type": "firewall", "value": "MOCK-FW-01", "source": "acl_analysis", "evidence": "MOCK-FW-01", "confidence": 0.9},
+          {"type": "observed_port", "value": 443, "source": "acl_config", "evidence": "port 443", "confidence": 0.9}
+        ]
+      }
+    ]
+  }
+}

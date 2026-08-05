@@ -1,0 +1,4 @@
+version: "test.network-plan-combination-count.1"
+released_at: "2026-08-05"
+sources: [{id: COMBINATION-COUNT-TEST, name: 组合数量边界测试规则}]
+approvals: [{role: test-policy-owner, approver: automated-test-suite, approved_at: "2026-08-05"}]

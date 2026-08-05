@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import socket
+from ipaddress import ip_address
 from pathlib import Path
 
 import pytest
@@ -7,6 +9,35 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_app
+
+
+@pytest.fixture(autouse=True)
+def block_real_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Allow test-runner loopback sockets while blocking external connections."""
+
+    original_connect = socket.socket.connect
+    original_connect_ex = socket.socket.connect_ex
+
+    def is_loopback(address) -> bool:
+        if not isinstance(address, tuple) or not address:
+            return True
+        try:
+            return ip_address(address[0]).is_loopback
+        except ValueError:
+            return False
+
+    def guarded_connect(sock, address):
+        if is_loopback(address):
+            return original_connect(sock, address)
+        raise AssertionError("real network access is forbidden in the default test suite")
+
+    def guarded_connect_ex(sock, address):
+        if is_loopback(address):
+            return original_connect_ex(sock, address)
+        raise AssertionError("real network access is forbidden in the default test suite")
+
+    monkeypatch.setattr(socket.socket, "connect", guarded_connect)
+    monkeypatch.setattr(socket.socket, "connect_ex", guarded_connect_ex)
 
 
 @pytest.fixture
@@ -28,6 +59,8 @@ def settings(tmp_path: Path) -> Settings:
         llm_explanation_timeout_seconds=6,
         llm_max_correction_retries=1,
         max_concurrent_evaluations=4,
+        llm_acl_candidate_mode="off",
+        llm_request_findings_mode="off",
     )
 
 

@@ -1,0 +1,4 @@
+version: "test.network-plan-port-span.1"
+released_at: "2026-08-05"
+sources: [{id: PORT-SPAN-TEST, name: 端口跨度边界测试规则}]
+approvals: [{role: test-policy-owner, approver: automated-test-suite, approved_at: "2026-08-05"}]

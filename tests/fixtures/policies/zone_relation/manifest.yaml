@@ -1,0 +1,9 @@
+version: "test.zone-relation.1"
+released_at: "2026-07-31"
+sources:
+  - id: ZONE-RELATION-TEST-SOURCE
+    name: Zone relation test fixture
+approvals:
+  - role: test-policy-owner
+    approver: test-suite
+    approved_at: "2026-07-31"

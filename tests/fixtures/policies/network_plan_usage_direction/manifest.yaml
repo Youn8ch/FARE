@@ -1,0 +1,4 @@
+version: "test.network-plan-usage-direction.1"
+released_at: "2026-08-05"
+sources: [{id: USAGE-DIRECTION-TEST, name: 用途编码方向测试矩阵}]
+approvals: [{role: test-policy-owner, approver: automated-test-suite, approved_at: "2026-08-05"}]

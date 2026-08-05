@@ -1,0 +1,4 @@
+version: "test.network-plan-any-address.1"
+released_at: "2026-08-05"
+sources: [{id: ANY-ADDRESS-TEST, name: any 地址测试规则}]
+approvals: [{role: test-policy-owner, approver: automated-test-suite, approved_at: "2026-08-05"}]

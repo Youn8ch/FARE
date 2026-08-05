@@ -1,0 +1,43 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "any 地址与普通地址边界",
+  "policy_dir": "tests/fixtures/policies/network_plan_any_address",
+  "network_plan_fixture": "tests/fixtures/network_plan/multi_region.v1.json",
+  "cases": [
+    {
+      "id": "any-source-positive",
+      "request": {
+        "request_id": "group-any-source-positive",
+        "sources": [{"address": "any", "description": "任意来源"}],
+        "destinations": [{"address": "16.220.16.20", "description": "数据库"}],
+        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "request_description": "any 不查询来源网段"
+      },
+      "expected": {
+        "decision": "待定", "lookup_count": 1, "acl_call_count": 1,
+        "accesses": [{"source": "any", "destination": "16.220.16.20/32"}],
+        "reason_codes": ["ANY-ADDRESS-REVIEW-001"],
+        "matched_rule_ids": [["ANY-ADDRESS-REVIEW-001"]],
+        "source_statuses": ["not_applicable"], "destination_statuses": ["complete"],
+        "acl_statuses": ["verified"]
+      }
+    },
+    {
+      "id": "normal-address-negative",
+      "request": {
+        "request_id": "group-any-normal-negative",
+        "sources": [{"address": "16.201.2.10", "description": "应用"}],
+        "destinations": [{"address": "16.220.16.20", "description": "数据库"}],
+        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "request_description": "普通地址不命中 any 规则"
+      },
+      "expected": {
+        "decision": "合规", "lookup_count": 2, "acl_call_count": 1,
+        "accesses": [{"source": "16.201.2.10/32", "destination": "16.220.16.20/32"}],
+        "reason_codes": [null], "matched_rule_ids": [[]],
+        "source_statuses": ["complete"], "destination_statuses": ["complete"],
+        "acl_statuses": ["verified"]
+      }
+    }
+  ]
+}

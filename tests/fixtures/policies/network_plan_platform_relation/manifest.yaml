@@ -1,0 +1,4 @@
+version: "test.network-plan-platform-relation.1"
+released_at: "2026-08-05"
+sources: [{id: PLATFORM-RELATION-TEST, name: 平台关系测试矩阵}]
+approvals: [{role: test-policy-owner, approver: automated-test-suite, approved_at: "2026-08-05"}]

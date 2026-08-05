@@ -1,0 +1,60 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "area、region、platform、usageCode 多字段 AND 匹配边界",
+  "policy_dir": "tests/fixtures/policies/network_plan_multi_condition",
+  "network_plan_fixture": "tests/fixtures/network_plan/multi_region.v1.json",
+  "cases": [
+    {
+      "id": "multi-condition-positive",
+      "request": {
+        "request_id": "group-multi-condition-positive",
+        "sources": [{"address": "16.201.2.10", "description": "通用虚拟机"}],
+        "destinations": [{"address": "16.220.16.20", "description": "核心数据库"}],
+        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "request_description": "全部权威字段精确一致"
+      },
+      "expected": {
+        "decision": "待定", "lookup_count": 2, "acl_call_count": 1,
+        "accesses": [{"source": "16.201.2.10/32", "destination": "16.220.16.20/32"}],
+        "reason_codes": ["MULTI-GENERAL-VM-CORE-DB-001"],
+        "matched_rule_ids": [["MULTI-GENERAL-VM-CORE-DB-001"]],
+        "source_statuses": ["complete"], "destination_statuses": ["complete"],
+        "acl_statuses": ["verified"]
+      }
+    },
+    {
+      "id": "multi-condition-source-near-miss",
+      "request": {
+        "request_id": "group-multi-condition-source-miss",
+        "sources": [{"address": "16.201.1.10", "description": "描述声称 GENERAL_VM"}],
+        "destinations": [{"address": "16.220.16.20", "description": "核心数据库"}],
+        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "request_description": "源 Region、平台和用途不一致"
+      },
+      "expected": {
+        "decision": "合规", "lookup_count": 2, "acl_call_count": 1,
+        "accesses": [{"source": "16.201.1.10/32", "destination": "16.220.16.20/32"}],
+        "reason_codes": [null], "matched_rule_ids": [[]],
+        "source_statuses": ["complete"], "destination_statuses": ["complete"],
+        "acl_statuses": ["verified"]
+      }
+    },
+    {
+      "id": "multi-condition-destination-near-miss",
+      "request": {
+        "request_id": "group-multi-condition-destination-miss",
+        "sources": [{"address": "16.201.2.10", "description": "通用虚拟机"}],
+        "destinations": [{"address": "16.220.17.20", "description": "核心应用"}],
+        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "request_description": "目的平台和用途不一致"
+      },
+      "expected": {
+        "decision": "合规", "lookup_count": 2, "acl_call_count": 1,
+        "accesses": [{"source": "16.201.2.10/32", "destination": "16.220.17.20/32"}],
+        "reason_codes": [null], "matched_rule_ids": [[]],
+        "source_statuses": ["complete"], "destination_statuses": ["complete"],
+        "acl_statuses": ["verified"]
+      }
+    }
+  ]
+}

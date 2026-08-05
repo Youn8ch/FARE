@@ -14,7 +14,8 @@ from app.schemas import EvaluationRequest, EvaluationResponse
 
 ClaimStatus = Literal["owner", "cached", "in_progress", "conflict"]
 SECRET_PATTERN = re.compile(
-    r"(?i)(api[_-]?key|authorization|password|token)(\s*[=:]\s*)([^\s,;]+)"
+    r"(?i)((?:api[_-]?key|authorization|password|token)\s*[=:]\s*)"
+    r"(?:bearer\s+)?([^\s,;]+)"
 )
 
 
@@ -110,6 +111,7 @@ class AuditStore:
         acl_raw: list[dict[str, Any]],
         model_raw: Any = None,
         exceptions: list[str] | None = None,
+        network_plan_raw: list[dict[str, object]] | None = None,
     ) -> None:
         record = {
             "audit_id": response.audit_id,
@@ -118,11 +120,12 @@ class AuditStore:
             "evaluated_at": datetime.now(UTC).isoformat(),
             "policy_version": response.policy_version,
             "model": response.model.model_dump(mode="json"),
-            "normalized_input": _redact(canonical_request(request)),
-            "acl_raw": _redact(acl_raw),
-            "model_raw": _redact(model_raw),
-            "final_response": response.model_dump(mode="json"),
-            "exceptions": _redact(exceptions or []),
+            "normalized_input": redact_value(canonical_request(request)),
+            "acl_raw": redact_value(acl_raw),
+            "network_plan_raw": redact_value(network_plan_raw or []),
+            "model_raw": redact_value(model_raw),
+            "final_response": redact_value(response.model_dump(mode="json")),
+            "exceptions": redact_value(exceptions or []),
         }
         line = json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n"
         path = self.directory / f"fare-audit-{datetime.now(UTC).date().isoformat()}.jsonl"
@@ -143,21 +146,28 @@ class AuditStore:
             self._in_progress.pop(request_id, None)
 
 
-def _redact(value: Any) -> Any:
+def redact_value(value: Any) -> Any:
     if isinstance(value, str):
-        return SECRET_PATTERN.sub(r"\1\2[REDACTED]", value)
+        return SECRET_PATTERN.sub(r"\1[REDACTED]", value)
     if isinstance(value, list):
-        return [_redact(item) for item in value]
+        return [redact_value(item) for item in value]
     if isinstance(value, dict):
         return {
             key: (
                 "[REDACTED]"
                 if key.lower() in {"api_key", "authorization", "password", "token"}
-                else _redact(item)
+                else redact_value(item)
             )
             for key, item in value.items()
         }
     return value
+
+
+def redact_evaluation_response(response: EvaluationResponse) -> EvaluationResponse:
+    """Return the exact sanitized representation used by the API and audit replay."""
+    return EvaluationResponse.model_validate(
+        redact_value(response.model_dump(mode="json"))
+    )
 
 
 def _date_from_name(path: Path):

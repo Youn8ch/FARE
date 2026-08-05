@@ -8,7 +8,7 @@
           {
             "claim_id": "claim-001",
             "scope": "fare-eval-demo-001-001",
-            "field": "access_purpose",
+            "claim_type": "access_purpose",
             "value": "生产应用内部 HTTPS 访问",
             "source": "request_description",
             "evidence": "生产应用内部 HTTPS 访问",

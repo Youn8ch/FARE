@@ -1,0 +1,10 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "规则包启动失败边界",
+  "cases": [
+    {"id": "unknown-condition", "policy_dir": "tests/fixtures/policies/network_plan_invalid_unknown_condition", "error_contains": "unsupported matching conditions"},
+    {"id": "empty-when", "policy_dir": "tests/fixtures/policies/network_plan_invalid_empty_when", "error_contains": "requires matching conditions"},
+    {"id": "duplicate-id", "policy_dir": "tests/fixtures/policies/network_plan_invalid_duplicate_id", "error_contains": "duplicate rule id"},
+    {"id": "invalid-decision", "policy_dir": "tests/fixtures/policies/network_plan_invalid_decision", "error_contains": "must be a rejection/pending rule"}
+  ]
+}

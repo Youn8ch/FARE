@@ -1,0 +1,13 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "One end-to-end fabricated formal rule rejection",
+  "semantic": {
+    "analyzed_item_ids": ["@item:1"],
+    "claims": [],
+    "contradictions": [],
+    "candidate_rule_ids": ["FABRICATED-001"],
+    "policy_gaps": [],
+    "questions_for_requester": [],
+    "recommendations": []
+  }
+}

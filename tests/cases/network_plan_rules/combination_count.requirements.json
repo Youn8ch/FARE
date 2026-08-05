@@ -1,0 +1,65 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "业务组合两个允许与四个命中边界",
+  "policy_dir": "tests/fixtures/policies/network_plan_combination_count",
+  "network_plan_fixture": "tests/fixtures/network_plan/multi_region.v1.json",
+  "cases": [
+    {
+      "id": "combination-count-2-negative",
+      "request": {
+        "request_id": "group-combination-count-2",
+        "sources": [
+          {"address": "16.201.2.10", "description": "应用一"},
+          {"address": "16.201.2.11", "description": "应用二"}
+        ],
+        "destinations": [{"address": "16.220.16.20", "description": "数据库"}],
+        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "request_description": "两个组合等于阈值"
+      },
+      "expected": {
+        "decision": "合规", "lookup_count": 2, "acl_call_count": 2,
+        "accesses": [
+          {"source": "16.201.2.10/32", "destination": "16.220.16.20/32"},
+          {"source": "16.201.2.11/32", "destination": "16.220.16.20/32"}
+        ],
+        "reason_codes": [null, null], "matched_rule_ids": [[], []],
+        "source_statuses": ["complete", "complete"],
+        "destination_statuses": ["complete", "complete"],
+        "acl_statuses": ["verified", "verified"]
+      }
+    },
+    {
+      "id": "combination-count-4-positive",
+      "request": {
+        "request_id": "group-combination-count-4",
+        "sources": [
+          {"address": "16.201.2.10", "description": "应用一"},
+          {"address": "16.201.2.11", "description": "应用二"}
+        ],
+        "destinations": [
+          {"address": "16.220.16.20", "description": "数据库一"},
+          {"address": "16.220.16.21", "description": "数据库二"}
+        ],
+        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "request_description": "四个组合超过阈值"
+      },
+      "expected": {
+        "decision": "待定", "lookup_count": 2, "acl_call_count": 4,
+        "accesses": [
+          {"source": "16.201.2.10/32", "destination": "16.220.16.20/32"},
+          {"source": "16.201.2.10/32", "destination": "16.220.16.21/32"},
+          {"source": "16.201.2.11/32", "destination": "16.220.16.20/32"},
+          {"source": "16.201.2.11/32", "destination": "16.220.16.21/32"}
+        ],
+        "reason_codes": ["COMBINATION-MAX-2-001", "COMBINATION-MAX-2-001", "COMBINATION-MAX-2-001", "COMBINATION-MAX-2-001"],
+        "matched_rule_ids": [
+          ["COMBINATION-MAX-2-001"], ["COMBINATION-MAX-2-001"],
+          ["COMBINATION-MAX-2-001"], ["COMBINATION-MAX-2-001"]
+        ],
+        "source_statuses": ["complete", "complete", "complete", "complete"],
+        "destination_statuses": ["complete", "complete", "complete", "complete"],
+        "acl_statuses": ["verified", "verified", "verified", "verified"]
+      }
+    }
+  ]
+}

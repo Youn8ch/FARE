@@ -4,12 +4,13 @@ from dataclasses import dataclass
 
 from app.schemas import EvaluationRequest, PortRange
 from app.services.catalog import CatalogSegment, NetworkCatalog
+from app.services.network_plan_resolver import NetworkPlanResolution, ResolvedAddressSegment
 
 
 @dataclass(frozen=True, slots=True)
 class AccessCombination:
-    source: CatalogSegment
-    destination: CatalogSegment
+    source: CatalogSegment | ResolvedAddressSegment
+    destination: CatalogSegment | ResolvedAddressSegment
     protocol: str
     port: PortRange
     source_description: str
@@ -52,5 +53,26 @@ def split_request(request: EvaluationRequest, catalog: NetworkCatalog) -> list[A
         )
         for source, source_description in sources
         for destination, destination_description in destinations
+        for port in request.ports
+    ]
+
+
+def split_resolved_request(
+    request: EvaluationRequest, resolution: NetworkPlanResolution
+) -> list[AccessCombination]:
+    """Build combinations only after the caller has enforced the item hard limit."""
+
+    return [
+        AccessCombination(
+            source=source,
+            destination=destination,
+            protocol=request.protocol,
+            port=port,
+            source_description=source.original_description,
+            destination_description=destination.original_description,
+            request_description=request.request_description,
+        )
+        for source in resolution.sources
+        for destination in resolution.destinations
         for port in request.ports
     ]

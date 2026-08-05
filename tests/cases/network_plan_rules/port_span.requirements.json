@@ -1,0 +1,43 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "端口跨度十个允许与十一个命中边界",
+  "policy_dir": "tests/fixtures/policies/network_plan_port_span",
+  "network_plan_fixture": "tests/fixtures/network_plan/multi_region.v1.json",
+  "cases": [
+    {
+      "id": "port-span-10-negative",
+      "request": {
+        "request_id": "group-port-span-10-negative",
+        "sources": [{"address": "16.201.2.10", "description": "应用"}],
+        "destinations": [{"address": "16.220.16.20", "description": "数据库"}],
+        "protocol": "tcp", "ports": [{"start": 1000, "end": 1009}],
+        "request_description": "十个端口等于允许阈值"
+      },
+      "expected": {
+        "decision": "合规", "lookup_count": 2, "acl_call_count": 1,
+        "accesses": [{"source": "16.201.2.10/32", "destination": "16.220.16.20/32"}],
+        "reason_codes": [null], "matched_rule_ids": [[]],
+        "source_statuses": ["complete"], "destination_statuses": ["complete"],
+        "acl_statuses": ["verified"]
+      }
+    },
+    {
+      "id": "port-span-11-positive",
+      "request": {
+        "request_id": "group-port-span-11-positive",
+        "sources": [{"address": "16.201.2.10", "description": "应用"}],
+        "destinations": [{"address": "16.220.16.20", "description": "数据库"}],
+        "protocol": "tcp", "ports": [{"start": 1000, "end": 1010}],
+        "request_description": "十一个端口超过允许阈值"
+      },
+      "expected": {
+        "decision": "待定", "lookup_count": 2, "acl_call_count": 1,
+        "accesses": [{"source": "16.201.2.10/32", "destination": "16.220.16.20/32"}],
+        "reason_codes": ["PORT-SPAN-MAX-10-001"],
+        "matched_rule_ids": [["PORT-SPAN-MAX-10-001"]],
+        "source_statuses": ["complete"], "destination_statuses": ["complete"],
+        "acl_statuses": ["verified"]
+      }
+    }
+  ]
+}

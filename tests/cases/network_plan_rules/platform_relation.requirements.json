@@ -1,0 +1,43 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "相同 area 下 platformName 精确匹配边界",
+  "policy_dir": "tests/fixtures/policies/network_plan_platform_relation",
+  "network_plan_fixture": "tests/fixtures/network_plan/multi_region.v1.json",
+  "cases": [
+    {
+      "id": "platform-core-app-to-office-positive",
+      "request": {
+        "request_id": "group-platform-core-app-positive",
+        "sources": [{"address": "16.220.17.20", "description": "核心应用"}],
+        "destinations": [{"address": "16.210.8.10", "description": "办公终端"}],
+        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "request_description": "核心应用平台到办公网络"
+      },
+      "expected": {
+        "decision": "待定", "lookup_count": 2, "acl_call_count": 1,
+        "accesses": [{"source": "16.220.17.20/32", "destination": "16.210.8.10/32"}],
+        "reason_codes": ["PLATFORM-CORE-APP-OFFICE-001"],
+        "matched_rule_ids": [["PLATFORM-CORE-APP-OFFICE-001"]],
+        "source_statuses": ["complete"], "destination_statuses": ["complete"],
+        "acl_statuses": ["verified"]
+      }
+    },
+    {
+      "id": "platform-core-db-to-office-negative",
+      "request": {
+        "request_id": "group-platform-core-db-negative",
+        "sources": [{"address": "16.220.16.20", "description": "核心数据库"}],
+        "destinations": [{"address": "16.210.8.10", "description": "办公终端"}],
+        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "request_description": "同 area 不同平台"
+      },
+      "expected": {
+        "decision": "合规", "lookup_count": 2, "acl_call_count": 1,
+        "accesses": [{"source": "16.220.16.20/32", "destination": "16.210.8.10/32"}],
+        "reason_codes": [null], "matched_rule_ids": [[]],
+        "source_statuses": ["complete"], "destination_statuses": ["complete"],
+        "acl_statuses": ["verified"]
+      }
+    }
+  ]
+}

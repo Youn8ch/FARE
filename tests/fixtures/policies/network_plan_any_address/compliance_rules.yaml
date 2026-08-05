@@ -1,0 +1,25 @@
+rules:
+  - id: ANY-ADDRESS-REVIEW-001
+    name: any 地址访问复核
+    description: 验证 any 不查询网段规划但命中最小权限规则
+    category: least_privilege
+    decision: 待定
+    reason_type: policy_violation
+    when: {check: any_address}
+    semantic_keywords: [any, 全来源, 全目的]
+    evidence_requirements: [source_address, destination_address]
+    reason_template: 源或目的使用 any，不符合最小开放原则。
+    recommendation: 将地址缩小为实际需要的 IP 或 CIDR。
+    remediation_template: 缩小地址范围并说明业务必要性。
+  - id: ACL-PATH-001
+    name: 未找到途径防火墙
+    description: 必需系统规则
+    category: least_privilege
+    decision: 待定
+    reason_type: acl_no_path
+    when: {explicit_no_path: true}
+    semantic_keywords: [无路径]
+    evidence_requirements: [acl_explicit_no_path]
+    reason_template: 未找到候选防火墙。
+    recommendation: 人工复核。
+    remediation_template: 人工复核。

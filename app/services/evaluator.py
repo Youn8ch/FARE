@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
+from time import perf_counter
 from typing import Any
 from uuid import uuid4
 
 from app.schemas import (
     Access,
     AclAnalysis,
+    AclCandidateAnalysis,
     AclRawResponse,
     EvaluationItem,
     EvaluationRequest,
@@ -14,19 +17,34 @@ from app.schemas import (
     ExtractedFacts,
     MatchedRule,
     ModelInfo,
+    RequestFindingsAnalysis,
     SemanticAnalysis,
 )
+from app.services.acl_candidate_merge import merge_acl_candidate
 from app.services.acl_client import AclClient, AclDependencyError
 from app.services.acl_extract import AclFactExtractor
 from app.services.catalog import NetworkCatalog
-from app.services.llm_client import LlmClient, LlmDependencyError
+from app.services.explanation_guard import ExplanationGuardError, guard_explanation_output
+from app.services.llm_client import (
+    LlmAclCandidateClientProtocol,
+    LlmClientProtocol,
+    LlmDependencyError,
+    LlmRequestFindingsClientProtocol,
+    guard_acl_candidates,
+)
+from app.services.network_plan_resolver import (
+    EvaluationItemLimitError,
+    NetworkPlanResolver,
+)
 from app.services.output_guard import (
+    RequestFindingGuardError,
     SemanticGuardError,
     failed_semantic_analysis,
+    guard_request_findings,
     guard_semantic_output,
 )
 from app.services.rule_loader import PolicyBundle, Rule
-from app.services.splitter import AccessCombination, split_request
+from app.services.splitter import AccessCombination, split_request, split_resolved_request
 
 
 @dataclass(slots=True)
@@ -35,6 +53,7 @@ class EvaluationResult:
     acl_raw: list[dict[str, Any]]
     model_raw: dict[str, Any]
     exceptions: list[str]
+    network_plan_raw: list[dict[str, object]]
 
 
 @dataclass(slots=True)
@@ -44,49 +63,128 @@ class _AclRecord:
     raw: AclRawResponse | None
     facts: ExtractedFacts
     dependency_error: str | None
+    verification_status: str
 
 
 class Evaluator:
     def __init__(
         self,
         *,
-        catalog: NetworkCatalog,
+        catalog: NetworkCatalog | None,
         policies: PolicyBundle,
         acl_client: AclClient,
         extractor: AclFactExtractor,
-        llm_client: LlmClient,
+        llm_client: LlmClientProtocol,
+        llm_acl_candidate_mode: str = "off",
+        llm_request_findings_mode: str = "off",
+        network_plan_resolver: NetworkPlanResolver | None = None,
+        max_evaluation_items: int = 256,
+        acl_max_concurrency: int = 8,
+        acl_decision_mode: str = "required",
     ) -> None:
+        if llm_request_findings_mode not in {"off", "shadow"}:
+            raise ValueError(
+                "request findings guarded mode is not approved; use off or shadow"
+            )
         self.catalog = catalog
         self.policies = policies
         self.acl_client = acl_client
         self.extractor = extractor
         self.llm_client = llm_client
+        self.llm_acl_candidate_mode = llm_acl_candidate_mode
+        self.llm_request_findings_mode = llm_request_findings_mode
+        self.network_plan_resolver = network_plan_resolver
+        self.max_evaluation_items = max_evaluation_items
+        self.acl_max_concurrency = acl_max_concurrency
+        self.acl_decision_mode = acl_decision_mode
 
     async def evaluate(self, request: EvaluationRequest) -> EvaluationResult:
-        combinations = split_request(request, self.catalog)
+        resolution = None
+        network_plan_raw: list[dict[str, object]] = []
+        if self.network_plan_resolver is not None:
+            resolution = await self.network_plan_resolver.resolve(request)
+            item_count = len(resolution.sources) * len(resolution.destinations) * len(
+                request.ports
+            )
+            if item_count > self.max_evaluation_items:
+                raise EvaluationItemLimitError(item_count, self.max_evaluation_items)
+            combinations = split_resolved_request(request, resolution)
+            network_plan_raw = list(resolution.raw_records)
+        else:
+            if self.catalog is None:
+                raise RuntimeError("an evaluator requires a network plan resolver")
+            combinations = split_request(request, self.catalog)
+            if len(combinations) > self.max_evaluation_items:
+                raise EvaluationItemLimitError(
+                    len(combinations), self.max_evaluation_items
+                )
         records: list[_AclRecord] = []
         raw_records: list[dict[str, Any]] = []
         exceptions: list[str] = []
-        model_raw: dict[str, Any] = {}
+        model_raw: dict[str, Any] = {
+            "metadata": _llm_metadata(self.llm_client, self.policies.version),
+            "stages": {},
+        }
 
-        for index, combination in enumerate(combinations, start=1):
+        acl_semaphore = asyncio.Semaphore(self.acl_max_concurrency)
+
+        async def analyze_combination(
+            index: int, combination: AccessCombination
+        ) -> tuple[_AclRecord, dict[str, Any]]:
             item_id = f"{request.request_id}-{index:03d}"
             raw: AclRawResponse | None = None
             dependency_error: str | None = None
+            if _network_fact_blocks_acl(combination):
+                return (
+                    _AclRecord(
+                        item_id,
+                        combination,
+                        None,
+                        ExtractedFacts(),
+                        None,
+                        "skipped",
+                    ),
+                    {"item_id": item_id, "skipped_due_to_network_fact": True},
+                )
             try:
-                raw = await self.acl_client.analyze(combination)
+                async with acl_semaphore:
+                    raw = await self.acl_client.analyze(combination)
                 facts = self.extractor.extract(raw)
-                raw_records.append(
-                    {"item_id": item_id, "response": raw.model_dump(mode="json")}
+                raw_record = {
+                    "item_id": item_id,
+                    "response": raw.model_dump(mode="json"),
+                }
+                verification_status = _acl_verification_status(
+                    combination, facts, None
                 )
             except AclDependencyError as exc:
                 dependency_error = str(exc)
-                exceptions.append(f"ACL dependency: {dependency_error}")
                 facts = ExtractedFacts()
-                raw_records.append({"item_id": item_id, "error": dependency_error})
-            records.append(
-                _AclRecord(item_id, combination, raw, facts, dependency_error)
+                raw_record = {"item_id": item_id, "error": dependency_error}
+                verification_status = "unverified"
+            return (
+                _AclRecord(
+                    item_id,
+                    combination,
+                    raw,
+                    facts,
+                    dependency_error,
+                    verification_status,
+                ),
+                raw_record,
             )
+
+        analyzed = await asyncio.gather(
+            *(
+                analyze_combination(index, combination)
+                for index, combination in enumerate(combinations, start=1)
+            )
+        )
+        for record, raw_record in analyzed:
+            records.append(record)
+            raw_records.append(raw_record)
+            if record.dependency_error:
+                exceptions.append(f"ACL dependency: {record.dependency_error}")
 
         items = [
             self._evaluate_item(
@@ -95,9 +193,14 @@ class Evaluator:
                 record.facts,
                 record.dependency_error,
                 len(combinations),
+            ).model_copy(
+                update=_network_item_fields(
+                    record.combination, record.verification_status
+                )
             )
             for record in records
         ]
+        deterministic_pending_count = sum(item.decision == "待定" for item in items)
         analyses = [
             AclAnalysis(
                 raw_analysis=record.raw.analysis if record.raw else "",
@@ -109,6 +212,8 @@ class Evaluator:
 
         semantic_payload = self._semantic_payload(request, records)
         model_raw["semantic_input"] = semantic_payload
+        semantic_started = perf_counter()
+        semantic_error: Exception | None = None
         try:
             raw_semantic, semantic_raw = await self.llm_client.analyze(semantic_payload)
             model_raw["semantic"] = semantic_raw
@@ -117,6 +222,7 @@ class Evaluator:
                 evidence_sources=_evidence_sources(records),
                 authoritative_facts=_authoritative_facts(records),
                 valid_rule_ids=self.policies.rule_ids,
+                network_facts=_network_fact_bindings(records),
             )
             deterministic_candidates = {
                 rule.id for item in items for rule in item.matched_rules
@@ -131,6 +237,7 @@ class Evaluator:
             items = _apply_semantic_findings(items, semantic)
             semantic_succeeded = True
         except (LlmDependencyError, SemanticGuardError) as exc:
+            semantic_error = exc
             detail = str(exc)
             exceptions.append(f"LLM semantic analysis: {detail}")
             model_raw.setdefault("semantic", {"error": detail})
@@ -142,8 +249,183 @@ class Evaluator:
                 for item in items
             ]
             semantic_succeeded = False
+        _record_llm_stage(
+            model_raw,
+            "semantic",
+            semantic_started,
+            "passed" if semantic_succeeded else "rejected",
+            semantic_error,
+            self.llm_client,
+        )
+        llm_added_pending_count = max(
+            0,
+            sum(item.decision == "待定" for item in items)
+            - deterministic_pending_count,
+        )
 
+        acl_candidate_analysis: AclCandidateAnalysis | None = None
+        candidate_started = perf_counter()
+        candidate_status = "off"
+        candidate_error: Exception | None = None
+        if self.llm_acl_candidate_mode == "shadow":
+            candidate_status = "passed"
+            candidate_records = list(records)
+            candidate_inputs = [
+                {
+                    "item_id": record.item_id,
+                    "analysis": record.raw.analysis if record.raw else "",
+                    "config": record.raw.config if record.raw else "",
+                }
+                for record in candidate_records
+            ]
+            if candidate_inputs:
+                model_raw["acl_candidates_input"] = candidate_inputs
+                try:
+                    if not isinstance(
+                        self.llm_client, LlmAclCandidateClientProtocol
+                    ):
+                        raise LlmDependencyError(
+                            "LLM client does not support ACL candidate extraction"
+                        )
+                    untrusted_candidates = await self.llm_client.extract_acl_facts(
+                        candidate_inputs,
+                        request_id=request.request_id,
+                    )
+                    candidates = guard_acl_candidates(
+                        untrusted_candidates, candidate_inputs
+                    )
+                    expected_ids = {record.item_id for record in candidate_records}
+                    if set(candidates) != expected_ids:
+                        raise LlmDependencyError(
+                            "LLM ACL candidate item set does not match shadow input"
+                        )
+                    acl_candidate_analysis = AclCandidateAnalysis(
+                        items=[
+                            merge_acl_candidate(
+                                item_id=record.item_id,
+                                deterministic=record.facts,
+                                llm_candidate=candidates[record.item_id],
+                            )
+                            for record in candidate_records
+                        ]
+                    )
+                    model_raw["acl_candidates"] = acl_candidate_analysis.model_dump(
+                        mode="json"
+                    )
+                except LlmDependencyError as exc:
+                    candidate_status = "rejected"
+                    candidate_error = exc
+                    detail = str(exc)
+                    public_detail = "ACL candidate shadow output was rejected"
+                    exceptions.append(f"LLM ACL candidates: {detail}")
+                    acl_candidate_analysis = AclCandidateAnalysis(
+                        items=[
+                            merge_acl_candidate(
+                                item_id=record.item_id,
+                                deterministic=record.facts,
+                                rejection_reason=public_detail,
+                            )
+                            for record in candidate_records
+                        ]
+                    )
+                    model_raw["acl_candidates"] = {
+                        "error": detail,
+                        "result": acl_candidate_analysis.model_dump(mode="json"),
+                    }
+            else:
+                acl_candidate_analysis = AclCandidateAnalysis()
+                model_raw["acl_candidates"] = acl_candidate_analysis.model_dump(
+                    mode="json"
+                )
+        _record_llm_stage(
+            model_raw,
+            "acl_candidates",
+            candidate_started,
+            candidate_status,
+            candidate_error,
+            self.llm_client,
+        )
+
+        request_findings: RequestFindingsAnalysis | None = None
+        findings_started = perf_counter()
+        findings_status = "off"
+        findings_error: Exception | None = None
+        if self.llm_request_findings_mode == "shadow":
+            findings_status = "passed"
+            finding_inputs = list(semantic_payload["items"])
+            item_ids = [record.item_id for record in records]
+            model_raw["request_findings_input"] = {
+                "request_id": request.request_id,
+                "items": finding_inputs,
+            }
+            try:
+                if not isinstance(
+                    self.llm_client, LlmRequestFindingsClientProtocol
+                ):
+                    raise LlmDependencyError(
+                        "LLM client does not support request findings analysis"
+                    )
+                untrusted_findings = await self.llm_client.analyze_request_findings(
+                    finding_inputs,
+                    request_id=request.request_id,
+                )
+                guarded_findings = guard_request_findings(
+                    untrusted_findings,
+                    evidence_sources=_evidence_sources(records),
+                )
+                request_findings = RequestFindingsAnalysis(
+                    status="completed",
+                    analyzed_item_ids=guarded_findings.analyzed_item_ids,
+                    findings=guarded_findings.findings,
+                )
+                model_raw["request_findings"] = request_findings.model_dump(
+                    mode="json"
+                )
+                model_raw["request_findings_stats"] = {
+                    "status": "completed",
+                    "finding_count": len(guarded_findings.findings),
+                    "affected_item_count": len(
+                        {
+                            item_id
+                            for finding in guarded_findings.findings
+                            for item_id in finding.affected_item_ids
+                        }
+                    ),
+                }
+            except (LlmDependencyError, RequestFindingGuardError) as exc:
+                findings_status = "rejected"
+                findings_error = exc
+                detail = str(exc)
+                public_detail = "Request findings shadow output was rejected"
+                exceptions.append(f"LLM request findings: {detail}")
+                request_findings = RequestFindingsAnalysis(
+                    status="rejected",
+                    analyzed_item_ids=item_ids,
+                    rejection_reason=public_detail,
+                )
+                model_raw["request_findings"] = {
+                    "error": detail,
+                    "result": request_findings.model_dump(mode="json"),
+                }
+                model_raw["request_findings_stats"] = {
+                    "status": "rejected",
+                    "finding_count": 0,
+                    "affected_item_count": 0,
+                }
+        _record_llm_stage(
+            model_raw,
+            "request_findings",
+            findings_started,
+            findings_status,
+            findings_error,
+            self.llm_client,
+        )
+
+        explanation_started = perf_counter()
+        explanation_status = "skipped"
+        explanation_error: Exception | None = None
         if semantic_succeeded:
+            explanation_status = "passed"
             try:
                 explanation_payload = {
                     "request_id": request.request_id,
@@ -155,26 +437,38 @@ class Evaluator:
                     explanation_payload
                 )
                 model_raw["explanation"] = explanation_raw
-                expected = {item.item_id for item in items}
-                actual = [item.item_id for item in explanation.items]
-                if len(actual) != len(set(actual)) or set(actual) != expected:
-                    raise LlmDependencyError(
-                        "LLM explanation item set does not match request"
-                    )
-                explained = {item.item_id: item for item in explanation.items}
+                explained = guard_explanation_output(
+                    explanation,
+                    items=items,
+                    valid_rule_ids=self.policies.rule_ids,
+                )
                 items = [
                     item.model_copy(
                         update={
-                            "reason": explained[item.item_id].explanation,
-                            "recommendation": explained[item.item_id].recommendation,
+                            "llm_explanation": explained[item.item_id].explanation,
+                            "llm_recommendation": explained[item.item_id].recommendation,
                             "explanation_source": "llm",
                         }
                     )
                     for item in items
                 ]
-            except LlmDependencyError as exc:
+            except (LlmDependencyError, ExplanationGuardError) as exc:
+                explanation_status = "rejected"
+                explanation_error = exc
                 exceptions.append(f"LLM explanation: {exc}")
                 model_raw["explanation"] = {"error": str(exc), "template_fallback": True}
+        _record_llm_stage(
+            model_raw,
+            "explanation",
+            explanation_started,
+            explanation_status,
+            explanation_error,
+            self.llm_client,
+        )
+        model_raw["metrics"] = _llm_metrics(
+            model_raw["stages"],
+            llm_added_pending_count=llm_added_pending_count,
+        )
 
         response = EvaluationResponse(
             request_id=request.request_id,
@@ -188,14 +482,18 @@ class Evaluator:
             ),
             semantic_analysis=semantic,
             items=items,
-            acl_analysis=_aggregate_analyses(analyses),
+            acl_analysis=_aggregate_analyses(analyses, records),
             audit_id=str(uuid4()),
+            network_analysis=resolution.analysis if resolution else None,
+            acl_candidate_analysis=acl_candidate_analysis,
+            request_findings=request_findings,
         )
         return EvaluationResult(
             response=response,
             acl_raw=raw_records,
             model_raw=model_raw,
             exceptions=exceptions,
+            network_plan_raw=network_plan_raw,
         )
 
     def _semantic_payload(
@@ -217,6 +515,14 @@ class Evaluator:
                     "destination_description": record.combination.destination_description,
                     "request_description": record.combination.request_description,
                     "authoritative_facts": _authoritative_fact(record),
+                    "source_network_facts": _network_facts(record.combination.source),
+                    "destination_network_facts": _network_facts(
+                        record.combination.destination
+                    ),
+                    "network_plan_status": {
+                        "source": _segment_status(record.combination.source),
+                        "destination": _segment_status(record.combination.destination),
+                    },
                     "acl_analysis": record.raw.analysis if record.raw else "",
                     "acl_config": record.raw.config if record.raw else "",
                 }
@@ -241,6 +547,39 @@ class Evaluator:
         )
         matched = self.policies.match(combination, total_combinations)
         evidence = _catalog_evidence(combination) + facts.evidence
+        network_error = _primary_network_error(combination)
+        if network_error is not None:
+            reason_type = (
+                "fact_conflict"
+                if network_error in {
+                    "NETWORK_PLAN_FACT_CONFLICT",
+                    "NETWORK_PLAN_SUBNET_MISMATCH",
+                    "NETWORK_PLAN_NETWORK_MISMATCH",
+                }
+                else (
+                    "dependency_failure"
+                    if network_error
+                    in {
+                        "NETWORK_PLAN_DEPENDENCY_FAILURE",
+                        "NETWORK_PLAN_AUTH_FAILURE",
+                    }
+                    else "fact_incomplete"
+                )
+            )
+            return EvaluationItem(
+                item_id=item_id,
+                access=access,
+                decision="待定",
+                reason_type=reason_type,
+                reason_code=network_error,
+                matched_rules=[
+                    MatchedRule(id=rule.id, name=rule.name, category=rule.category)
+                    for rule in matched
+                ],
+                evidence=evidence,
+                reason="网段规划权威事实未完整解析，无法形成确定性合规结论。",
+                recommendation="核实网段规划数据或依赖状态后重新评估。",
+            )
         if matched:
             return _pending(item_id, access, matched[0], matched, evidence)
         catalog_error = combination.source.error_code or combination.destination.error_code
@@ -262,7 +601,7 @@ class Evaluator:
                 reason=messages[catalog_error],
                 recommendation="补充或修正权威网络目录，并确保每个地址子范围唯一归属。",
             )
-        if dependency_error:
+        if dependency_error and self.acl_decision_mode == "required":
             return EvaluationItem(
                 item_id=item_id,
                 access=access,
@@ -301,7 +640,7 @@ class Evaluator:
                 reason="ACL 候选分析中明确出现的端口与申请端口不一致。",
                 recommendation="核对申请端口和 ACL 分析输入后重新评估。",
             )
-        if not facts.firewalls:
+        if not facts.firewalls and self.acl_decision_mode == "required":
             return EvaluationItem(
                 item_id=item_id,
                 access=access,
@@ -327,6 +666,8 @@ def _apply_semantic_findings(
 ) -> list[EvaluationItem]:
     conflicts = {
         claim.scope for claim in semantic.claims if claim.status == "conflict"
+    } | {
+        claim.scope for claim in semantic.network_claims if claim.status == "conflict"
     } | {
         contradiction.scope
         for contradiction in semantic.contradictions
@@ -405,6 +746,12 @@ def _pending(
 
 def _catalog_evidence(item: AccessCombination) -> list[str]:
     evidence: list[str] = []
+    for role, segment in (("源", item.source), ("目的", item.destination)):
+        facts = _network_facts(segment)
+        for fact in facts:
+            evidence.append(
+                f"{role}地址引用网段事实 {fact['fact_id']}（区域 {fact['area_id']}）"
+            )
     if item.source.entry:
         evidence.append(f"源地址命中 {item.source.entry.id}（区域 {item.source.entry.zone}）")
     if item.destination.entry:
@@ -430,11 +777,47 @@ def _authoritative_fact(record: _AclRecord) -> dict[str, str]:
             destination_environment=destination.environment,
             destination_object_type=destination.object_type,
         )
+    source_fact = getattr(record.combination.source, "primary_fact", None)
+    destination_fact = getattr(record.combination.destination, "primary_fact", None)
+    if source_fact is not None:
+        facts.setdefault("source_zone", source_fact.area_id)
+    if destination_fact is not None:
+        facts.setdefault("destination_zone", destination_fact.area_id)
     return facts
 
 
 def _authoritative_facts(records: list[_AclRecord]) -> dict[str, dict[str, str]]:
     return {record.item_id: _authoritative_fact(record) for record in records}
+
+
+def _network_fact_bindings(
+    records: list[_AclRecord],
+) -> dict[str, dict[str, dict[str, dict[str, str | None]]]]:
+    return {
+        record.item_id: {
+            role: {
+                fact.fact_id: {
+                    field: getattr(fact, field)
+                    for field in (
+                        "area_id",
+                        "area",
+                        "region_name",
+                        "platform_name",
+                        "network",
+                        "subnet",
+                        "usage_code",
+                        "description",
+                    )
+                }
+                for fact in getattr(segment, "network_facts", ())
+            }
+            for role, segment in (
+                ("source", record.combination.source),
+                ("destination", record.combination.destination),
+            )
+        }
+        for record in records
+    }
 
 
 def _evidence_sources(records: list[_AclRecord]) -> dict[str, dict[str, str]]:
@@ -450,7 +833,9 @@ def _evidence_sources(records: list[_AclRecord]) -> dict[str, dict[str, str]]:
     }
 
 
-def _aggregate_analyses(analyses: list[AclAnalysis]) -> AclAnalysis:
+def _aggregate_analyses(
+    analyses: list[AclAnalysis], records: list[_AclRecord]
+) -> AclAnalysis:
     facts = ExtractedFacts(
         firewalls=list(
             dict.fromkeys(
@@ -494,4 +879,124 @@ def _aggregate_analyses(analyses: list[AclAnalysis]) -> AclAnalysis:
             for index, analysis in enumerate(analyses, 1)
         ),
         extracted_facts=facts,
+        verification_summary={
+            status: sum(record.verification_status == status for record in records)
+            for status in ("verified", "unverified", "review_required", "skipped")
+        },
     )
+
+
+def _segment_status(segment: object) -> str:
+    return str(getattr(segment, "network_fact_status", "complete"))
+
+
+def _network_facts(segment: object) -> list[dict[str, Any]]:
+    return [
+        fact.model_dump(mode="json")
+        for fact in getattr(segment, "network_facts", ())
+    ]
+
+
+def _primary_network_error(combination: AccessCombination) -> str | None:
+    for segment in (combination.source, combination.destination):
+        status = _segment_status(segment)
+        if status not in {"complete", "not_applicable"}:
+            return str(getattr(segment, "error_code", None) or "NETWORK_PLAN_INVALID_RESPONSE")
+    return None
+
+
+def _network_fact_blocks_acl(combination: AccessCombination) -> bool:
+    return _primary_network_error(combination) is not None
+
+
+def _network_item_fields(
+    combination: AccessCombination, verification_status: str
+) -> dict[str, Any]:
+    return {
+        "source_network_fact_ids": list(
+            getattr(combination.source, "network_fact_ids", ())
+        ),
+        "destination_network_fact_ids": list(
+            getattr(combination.destination, "network_fact_ids", ())
+        ),
+        "source_network_fact_status": _segment_status(combination.source),
+        "destination_network_fact_status": _segment_status(combination.destination),
+        "acl_verification_status": verification_status,
+    }
+
+
+def _acl_verification_status(
+    combination: AccessCombination,
+    facts: ExtractedFacts,
+    dependency_error: str | None,
+) -> str:
+    if _network_fact_blocks_acl(combination):
+        return "skipped"
+    if facts.explicit_no_path or facts.ambiguous:
+        return "review_required"
+    if facts.observed_ports and not any(
+        combination.port.start <= port <= combination.port.end
+        for port in facts.observed_ports
+    ):
+        return "review_required"
+    if dependency_error or not facts.firewalls:
+        return "unverified"
+    return "verified"
+
+
+def _llm_metadata(client: LlmClientProtocol, policy_version: str) -> dict[str, Any]:
+    return {
+        "client_mode": client.mode,
+        "model_version": client.model_name,
+        "policy_version": policy_version,
+        "prompt_versions": dict(getattr(client, "prompt_versions", {}) or {}),
+        "fixture_version": getattr(client, "fixture_version", None),
+    }
+
+
+def _record_llm_stage(
+    model_raw: dict[str, Any],
+    stage: str,
+    started: float,
+    status: str,
+    error: Exception | None,
+    client: LlmClientProtocol,
+) -> None:
+    trace = None
+    consume = getattr(client, "consume_completion_trace", None)
+    if callable(consume):
+        trace = consume()
+    record: dict[str, Any] = {
+        "status": status,
+        "duration_ms": round((perf_counter() - started) * 1000, 3),
+        "error_type": type(error).__name__ if error is not None else None,
+        "attempts": 0,
+        "corrections": 0,
+    }
+    if isinstance(trace, dict):
+        record["attempts"] = int(trace.get("attempts", 0))
+        record["corrections"] = int(trace.get("corrections", 0))
+        record["provider_duration_ms"] = trace.get("duration_ms")
+        if record["error_type"] is None and trace.get("error_type"):
+            record["error_type"] = str(trace["error_type"])
+    model_raw["stages"][stage] = record
+
+
+def _llm_metrics(
+    stages: dict[str, dict[str, Any]],
+    *,
+    llm_added_pending_count: int,
+) -> dict[str, Any]:
+    attempts = sum(int(stage.get("attempts", 0)) for stage in stages.values())
+    corrections = sum(int(stage.get("corrections", 0)) for stage in stages.values())
+    rejected = sum(stage.get("status") == "rejected" for stage in stages.values())
+    return {
+        "schema_attempt_count": attempts,
+        "schema_correction_count": corrections,
+        "schema_correction_rate": round(corrections / attempts, 6) if attempts else 0.0,
+        "guard_rejection_count": rejected,
+        "explanation_fallback_count": int(
+            stages.get("explanation", {}).get("status") != "passed"
+        ),
+        "llm_added_pending_count": llm_added_pending_count,
+    }

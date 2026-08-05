@@ -1,0 +1,15 @@
+{
+  "schema_version": "2026.08.0",
+  "suite": "llm_pipeline",
+  "cases": [
+    {
+      "id": "llm_fabricated_rule_is_rejected_v2",
+      "category": "llm_pipeline",
+      "dependencies": {"acl_fixture": null, "policy_dir": null},
+      "feature_flags": {"llm_acl_candidate_mode": "off", "llm_request_findings_mode": "off"},
+      "request": {"request_id": "v2-llm-fabricated-rule", "sources": [{"address": "16.1.30.10", "description": "生产应用 A"}], "destinations": [{"address": "16.1.30.20", "description": "生产应用 B"}], "protocol": "tcp", "ports": [{"start": 443, "end": 443}], "request_description": "LLM 虚构规则守卫测试"},
+      "llm": {"profile": "fixture", "semantic_fixture": "semantic/fabricated_rule.v2.json", "acl_candidate_fixture": null, "request_finding_fixture": null, "explanation_fixture": null},
+      "expected": {"http_status": 200, "decision": "待定", "items": [{"index": 1, "access": {"source": "16.1.30.10/32", "destination": "16.1.30.20/32", "protocol": "tcp", "port": {"start": 443, "end": 443}}, "decision": "待定", "reason_type": "dependency_failure", "reason_code": "LLM_SEMANTIC_ANALYSIS_FAILURE", "matched_rule_ids": []}], "llm_calls": {"semantic": 1, "acl_candidates": 0, "request_findings": 0, "explanation": 0}, "llm_text": {"presence": "absent", "fallback": true}}
+    }
+  ]
+}

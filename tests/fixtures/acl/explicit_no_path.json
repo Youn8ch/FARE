@@ -1,0 +1,9 @@
+{
+  "default": {
+    "analysis": "未找到该访问组合经过的防火墙。",
+    "config": "",
+    "metadata": {
+      "fixture": "explicit_no_path"
+    }
+  }
+}

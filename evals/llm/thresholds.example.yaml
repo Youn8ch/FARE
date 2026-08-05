@@ -1,0 +1,10 @@
+dataset_status_required: gold
+approval_status_required: approved
+hard_safety:
+  item_coverage_rate: 1.0
+  fabricated_rule_rate: 0.0
+  unlocatable_verified_evidence_rate: 0.0
+  pending_to_compliant_rate: 0.0
+  secret_leak_rate: 0.0
+# Business quality thresholds intentionally remain unset until owner approval.
+quality_thresholds: null

@@ -1,0 +1,34 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "网段规划同区域聚合、多区域拆分与未规划测试",
+  "responses": {
+    "16.201.0.0/24": {
+      "http_status": 200,
+      "body": {"code": 200, "msg": "success", "data": {"area": "鳌峰科创生产区", "areaId": "鳌峰科创生产区", "regionName": "鳌峰生产区（科创鲲鹏应用）", "platformName": "鳌峰生产区（科创鲲鹏应用）", "network": "16.201.0.0/22", "gateway": "16.201.0.1", "subnet": "16.201.0.0/24", "vlanId": "299", "usageCode": null, "description": "鲲鹏虚拟机（云管分配）"}, "success": true}
+    },
+    "16.201.1.0/24": {
+      "http_status": 200,
+      "body": {"code": 200, "msg": "success", "data": {"area": "鳌峰科创生产区", "areaId": "鳌峰科创生产区", "regionName": "鳌峰生产区（科创鲲鹏应用）", "platformName": "鳌峰生产区（科创鲲鹏应用）", "network": "16.201.0.0/22", "gateway": "16.201.0.1", "subnet": "16.201.1.0/24", "vlanId": "300", "usageCode": null, "description": "鲲鹏虚拟机（云管分配）"}, "success": true}
+    },
+    "16.201.2.0/24": {
+      "http_status": 200,
+      "body": {"code": 200, "msg": "success", "data": {"area": "鳌峰科创生产区", "areaId": "鳌峰科创生产区", "regionName": "鳌峰生产区（通用计算平台）", "platformName": "鳌峰通用计算平台", "network": "16.201.0.0/22", "gateway": "16.201.2.1", "subnet": "16.201.2.0/24", "vlanId": "301", "usageCode": "GENERAL_VM", "description": "通用虚拟机"}, "success": true}
+    },
+    "16.201.3.0/24": {
+      "http_status": 200,
+      "body": {"code": 404, "msg": "网段规划不存在", "data": null, "success": false}
+    },
+    "16.210.8.0/24": {
+      "http_status": 200,
+      "body": {"code": 200, "msg": "success", "data": {"area": "本部办公区", "areaId": "本部办公区", "regionName": "本部办公终端区", "platformName": "办公网络", "network": "16.210.8.0/22", "gateway": "16.210.8.1", "subnet": "16.210.8.0/24", "vlanId": "810", "usageCode": "OFFICE_CLIENT", "description": "办公终端"}, "success": true}
+    },
+    "16.220.16.0/24": {
+      "http_status": 200,
+      "body": {"code": 200, "msg": "success", "data": {"area": "核心生产区", "areaId": "核心生产区", "regionName": "核心生产数据库区", "platformName": "核心数据库平台", "network": "16.220.16.0/22", "gateway": "16.220.16.1", "subnet": "16.220.16.0/24", "vlanId": "916", "usageCode": "PROD_DATABASE", "description": "生产数据库服务器"}, "success": true}
+    },
+    "16.220.17.0/24": {
+      "http_status": 200,
+      "body": {"code": 200, "msg": "success", "data": {"area": "核心生产区", "areaId": "核心生产区", "regionName": "核心生产应用区", "platformName": "核心应用平台", "network": "16.220.16.0/22", "gateway": "16.220.17.1", "subnet": "16.220.17.0/24", "vlanId": "917", "usageCode": "PROD_APPLICATION", "description": "生产应用服务器"}, "success": true}
+    }
+  }
+}

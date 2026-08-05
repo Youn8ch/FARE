@@ -1,0 +1,37 @@
+rules:
+  - id: DUPLICATE-RULE-001
+    name: 第一条重复 ID 规则
+    description: 验证重复规则 ID
+    category: zone_relation
+    decision: 待定
+    reason_type: policy_violation
+    when: {source_area_id: 本部办公区}
+    semantic_keywords: [重复规则]
+    evidence_requirements: [source_area_id]
+    reason_template: 第一条规则。
+    recommendation: 人工复核。
+    remediation_template: 人工复核。
+  - id: DUPLICATE-RULE-001
+    name: 第二条重复 ID 规则
+    description: 验证重复规则 ID
+    category: zone_relation
+    decision: 待定
+    reason_type: policy_violation
+    when: {destination_area_id: 核心生产区}
+    semantic_keywords: [重复规则]
+    evidence_requirements: [destination_area_id]
+    reason_template: 第二条规则。
+    recommendation: 人工复核。
+    remediation_template: 人工复核。
+  - id: ACL-PATH-001
+    name: 未找到途径防火墙
+    description: 必需系统规则
+    category: least_privilege
+    decision: 待定
+    reason_type: acl_no_path
+    when: {explicit_no_path: true}
+    semantic_keywords: []
+    evidence_requirements: [acl_explicit_no_path]
+    reason_template: 未找到候选防火墙。
+    recommendation: 人工复核。
+    remediation_template: 人工复核。

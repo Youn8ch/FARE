@@ -1,0 +1,5 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "Deterministic explicit-no-path core case",
+  "default": {"analysis": "未找到该访问组合经过的防火墙。", "config": ""}
+}

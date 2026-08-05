@@ -1,0 +1,43 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "usageCode 精确值、方向和空值边界",
+  "policy_dir": "tests/fixtures/policies/network_plan_usage_direction",
+  "network_plan_fixture": "tests/fixtures/network_plan/multi_region.v1.json",
+  "cases": [
+    {
+      "id": "usage-prod-app-office-positive",
+      "request": {
+        "request_id": "group-usage-prod-app-positive",
+        "sources": [{"address": "16.220.17.20", "description": "生产应用"}],
+        "destinations": [{"address": "16.210.8.10", "description": "办公终端"}],
+        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "request_description": "生产应用用途到办公终端用途"
+      },
+      "expected": {
+        "decision": "待定", "lookup_count": 2, "acl_call_count": 1,
+        "accesses": [{"source": "16.220.17.20/32", "destination": "16.210.8.10/32"}],
+        "reason_codes": ["USAGE-PROD-APP-OFFICE-001"],
+        "matched_rule_ids": [["USAGE-PROD-APP-OFFICE-001"]],
+        "source_statuses": ["complete"], "destination_statuses": ["complete"],
+        "acl_statuses": ["verified"]
+      }
+    },
+    {
+      "id": "usage-null-description-does-not-infer",
+      "request": {
+        "request_id": "group-usage-null-negative",
+        "sources": [{"address": "16.201.1.10", "description": "PROD_APPLICATION 生产应用"}],
+        "destinations": [{"address": "16.210.8.10", "description": "办公终端"}],
+        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "request_description": "空用途编码不从描述推断"
+      },
+      "expected": {
+        "decision": "合规", "lookup_count": 2, "acl_call_count": 1,
+        "accesses": [{"source": "16.201.1.10/32", "destination": "16.210.8.10/32"}],
+        "reason_codes": [null], "matched_rule_ids": [[]],
+        "source_statuses": ["complete"], "destination_statuses": ["complete"],
+        "acl_statuses": ["verified"]
+      }
+    }
+  ]
+}

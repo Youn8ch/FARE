@@ -1,0 +1,9 @@
+{
+  "default": {
+    "analysis": "候选路径存在歧义；经过防火墙 FW-AMBIGUOUS。",
+    "config": "access-list CANDIDATE port 443",
+    "metadata": {
+      "fixture": "ambiguous"
+    }
+  }
+}

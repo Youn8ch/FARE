@@ -1,0 +1,645 @@
+{
+  "version": "2026.07.0",
+  "deprecated": true,
+  "description": "FARE 首批核心评估契约样例；每个请求最多产生 4 个访问组合。",
+  "cases": [
+    {
+      "id": "compliant_https",
+      "request": {
+        "request_id": "core-compliant-https",
+        "sources": [
+          {
+            "address": "16.1.30.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "生产应用 HTTPS 访问"
+      },
+      "expected": {
+        "status_code": 200,
+        "decision": "合规",
+        "item_decisions": ["合规"],
+        "reason_types": [null],
+        "reason_codes": [null],
+        "matched_rule_ids": [[]],
+        "explanation_sources": ["llm"],
+        "acl_facts": {
+          "firewalls": ["MOCK-FW-01"],
+          "explicit_no_path": false,
+          "ambiguous": false,
+          "observed_ports": [443]
+        }
+      }
+    },
+    {
+      "id": "object_office_to_production_database",
+      "request": {
+        "request_id": "core-object-001",
+        "sources": [
+          {
+            "address": "20.1.10.10",
+            "description": "办公终端"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.20.20",
+            "description": "生产数据库"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "办公终端访问生产数据库"
+      },
+      "expected": {
+        "status_code": 200,
+        "decision": "待定",
+        "item_decisions": ["待定"],
+        "reason_types": ["policy_violation"],
+        "reason_codes": ["OBJECT-001"],
+        "matched_rule_ids": [["OBJECT-001"]],
+        "explanation_sources": ["llm"]
+      }
+    },
+    {
+      "id": "tcp_23_is_rejected",
+      "request": {
+        "request_id": "core-tcp-23",
+        "sources": [
+          {
+            "address": "16.1.30.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 23,
+            "end": 23
+          }
+        ],
+        "request_description": "Telnet 测试"
+      },
+      "expected": {
+        "status_code": 200,
+        "decision": "待定",
+        "item_decisions": ["待定"],
+        "reason_types": ["policy_violation"],
+        "reason_codes": ["PORT-001"],
+        "matched_rule_ids": [["PORT-001"]],
+        "explanation_sources": ["llm"]
+      }
+    },
+    {
+      "id": "udp_23_does_not_match_tcp_rule",
+      "request": {
+        "request_id": "core-udp-23",
+        "sources": [
+          {
+            "address": "16.1.30.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B"
+          }
+        ],
+        "protocol": "udp",
+        "ports": [
+          {
+            "start": 23,
+            "end": 23
+          }
+        ],
+        "request_description": "UDP 端口 23 测试"
+      },
+      "expected": {
+        "status_code": 200,
+        "decision": "合规",
+        "item_decisions": ["合规"],
+        "reason_types": [null],
+        "reason_codes": [null],
+        "matched_rule_ids": [[]],
+        "explanation_sources": ["llm"]
+      }
+    },
+    {
+      "id": "any_address",
+      "request": {
+        "request_id": "core-any-address",
+        "sources": [
+          {
+            "address": "any",
+            "description": "全来源"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "全来源访问测试"
+      },
+      "expected": {
+        "status_code": 200,
+        "decision": "待定",
+        "item_decisions": ["待定"],
+        "reason_types": ["policy_violation"],
+        "reason_codes": ["LEAST-ANY-001"],
+        "matched_rule_ids": [["LEAST-ANY-001"]],
+        "explanation_sources": ["llm"]
+      }
+    },
+    {
+      "id": "ipv4_prefix_too_broad",
+      "request": {
+        "request_id": "core-ipv4-wide-prefix",
+        "sources": [
+          {
+            "address": "192.0.0.0/15",
+            "description": "过宽 IPv4 网段"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "IPv4 前缀边界测试"
+      },
+      "expected": {
+        "status_code": 200,
+        "decision": "待定",
+        "item_decisions": ["待定"],
+        "reason_types": ["policy_violation"],
+        "reason_codes": ["LEAST-CIDR-001"],
+        "matched_rule_ids": [["LEAST-CIDR-001"]],
+        "explanation_sources": ["llm"]
+      }
+    },
+    {
+      "id": "port_span_100_is_allowed",
+      "request": {
+        "request_id": "core-port-span-100",
+        "sources": [
+          {
+            "address": "16.1.30.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 1000,
+            "end": 1099
+          }
+        ],
+        "request_description": "100 个连续端口边界测试"
+      },
+      "expected": {
+        "status_code": 200,
+        "decision": "合规",
+        "item_decisions": ["合规"],
+        "reason_types": [null],
+        "reason_codes": [null],
+        "matched_rule_ids": [[]],
+        "explanation_sources": ["llm"]
+      }
+    },
+    {
+      "id": "port_span_101_is_rejected",
+      "request": {
+        "request_id": "core-port-span-101",
+        "sources": [
+          {
+            "address": "16.1.30.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 1000,
+            "end": 1100
+          }
+        ],
+        "request_description": "101 个连续端口越界测试"
+      },
+      "expected": {
+        "status_code": 200,
+        "decision": "待定",
+        "item_decisions": ["待定"],
+        "reason_types": ["policy_violation"],
+        "reason_codes": ["LEAST-PORT-001"],
+        "matched_rule_ids": [["LEAST-PORT-001"]],
+        "explanation_sources": ["llm"]
+      }
+    },
+    {
+      "id": "unknown_catalog_address",
+      "request": {
+        "request_id": "core-unknown-catalog",
+        "sources": [
+          {
+            "address": "16.1.30.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "192.0.2.10",
+            "description": "目录外地址"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "网络目录缺失测试"
+      },
+      "expected": {
+        "status_code": 200,
+        "decision": "待定",
+        "item_decisions": ["待定"],
+        "reason_types": ["fact_incomplete"],
+        "reason_codes": ["ZONE_UNRESOLVED"],
+        "matched_rule_ids": [[]],
+        "explanation_sources": ["llm"]
+      }
+    },
+    {
+      "id": "two_by_two_cartesian_product",
+      "request": {
+        "request_id": "core-cartesian-2x2",
+        "sources": [
+          {
+            "address": "16.1.30.10",
+            "description": "生产应用 A1"
+          },
+          {
+            "address": "16.1.30.11",
+            "description": "生产应用 A2"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B1"
+          },
+          {
+            "address": "16.1.30.21",
+            "description": "生产应用 B2"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "2x2 笛卡尔积测试"
+      },
+      "expected": {
+        "status_code": 200,
+        "decision": "合规",
+        "item_decisions": ["合规", "合规", "合规", "合规"],
+        "reason_types": [null, null, null, null],
+        "reason_codes": [null, null, null, null],
+        "matched_rule_ids": [[], [], [], []],
+        "explanation_sources": ["llm", "llm", "llm", "llm"],
+        "accesses": [
+          {
+            "source": "16.1.30.10/32",
+            "destination": "16.1.30.20/32",
+            "protocol": "tcp",
+            "start": 443,
+            "end": 443
+          },
+          {
+            "source": "16.1.30.10/32",
+            "destination": "16.1.30.21/32",
+            "protocol": "tcp",
+            "start": 443,
+            "end": 443
+          },
+          {
+            "source": "16.1.30.11/32",
+            "destination": "16.1.30.20/32",
+            "protocol": "tcp",
+            "start": 443,
+            "end": 443
+          },
+          {
+            "source": "16.1.30.11/32",
+            "destination": "16.1.30.21/32",
+            "protocol": "tcp",
+            "start": 443,
+            "end": 443
+          }
+        ]
+      }
+    },
+    {
+      "id": "acl_explicit_no_path",
+      "acl_fixture": "explicit_no_path.json",
+      "request": {
+        "request_id": "core-acl-no-path",
+        "sources": [
+          {
+            "address": "16.1.30.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "ACL 明确无路径测试"
+      },
+      "expected": {
+        "status_code": 200,
+        "decision": "待定",
+        "item_decisions": ["待定"],
+        "reason_types": ["acl_no_path"],
+        "reason_codes": ["ACL-PATH-001"],
+        "matched_rule_ids": [["ACL-PATH-001"]],
+        "explanation_sources": ["llm"],
+        "acl_facts": {
+          "firewalls": [],
+          "explicit_no_path": true,
+          "ambiguous": false,
+          "observed_ports": []
+        }
+      }
+    },
+    {
+      "id": "acl_firewall_unresolved",
+      "acl_fixture": "missing_firewall.json",
+      "request": {
+        "request_id": "core-acl-no-firewall",
+        "sources": [
+          {
+            "address": "16.1.30.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "ACL 未识别防火墙测试"
+      },
+      "expected": {
+        "status_code": 200,
+        "decision": "待定",
+        "item_decisions": ["待定"],
+        "reason_types": ["fact_incomplete"],
+        "reason_codes": ["ACL_FIREWALL_UNRESOLVED"],
+        "matched_rule_ids": [[]],
+        "explanation_sources": ["llm"],
+        "acl_facts": {
+          "firewalls": [],
+          "explicit_no_path": false,
+          "ambiguous": false,
+          "observed_ports": [443]
+        }
+      }
+    },
+    {
+      "id": "acl_ambiguous",
+      "acl_fixture": "ambiguous.json",
+      "request": {
+        "request_id": "core-acl-ambiguous",
+        "sources": [
+          {
+            "address": "16.1.30.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "ACL 歧义测试"
+      },
+      "expected": {
+        "status_code": 200,
+        "decision": "待定",
+        "item_decisions": ["待定"],
+        "reason_types": ["fact_conflict"],
+        "reason_codes": ["ACL_FACT_AMBIGUOUS"],
+        "matched_rule_ids": [[]],
+        "explanation_sources": ["llm"],
+        "acl_facts": {
+          "firewalls": ["FW-AMBIGUOUS"],
+          "explicit_no_path": false,
+          "ambiguous": true,
+          "observed_ports": [443]
+        }
+      }
+    },
+    {
+      "id": "acl_port_mismatch",
+      "acl_fixture": "port_mismatch.json",
+      "request": {
+        "request_id": "core-acl-port-mismatch",
+        "sources": [
+          {
+            "address": "16.1.30.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "ACL 端口不一致测试"
+      },
+      "expected": {
+        "status_code": 200,
+        "decision": "待定",
+        "item_decisions": ["待定"],
+        "reason_types": ["fact_conflict"],
+        "reason_codes": ["ACL_PORT_MISMATCH"],
+        "matched_rule_ids": [[]],
+        "explanation_sources": ["llm"],
+        "acl_facts": {
+          "firewalls": ["FW-MISMATCH"],
+          "explicit_no_path": false,
+          "ambiguous": false,
+          "observed_ports": [8443]
+        }
+      }
+    },
+    {
+      "id": "llm_fabricated_rule_is_rejected",
+      "llm_fixture": "core.json",
+      "request": {
+        "request_id": "core-llm-fabricated-rule",
+        "sources": [
+          {
+            "address": "16.1.30.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "LLM 虚构规则守卫测试"
+      },
+      "expected": {
+        "status_code": 200,
+        "decision": "待定",
+        "item_decisions": ["待定"],
+        "reason_types": ["dependency_failure"],
+        "reason_codes": ["LLM_SEMANTIC_ANALYSIS_FAILURE"],
+        "matched_rule_ids": [[]],
+        "explanation_sources": ["template"],
+        "semantic_guard_codes": ["SEMANTIC_ANALYSIS_FAILURE"],
+        "semantic_guard_statuses": ["rejected"]
+      }
+    },
+    {
+      "id": "llm_explanation_falls_back_to_template",
+      "llm_fixture": "core.json",
+      "request": {
+        "request_id": "core-llm-explanation-fallback",
+        "sources": [
+          {
+            "address": "16.1.30.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "LLM 解释回退测试"
+      },
+      "expected": {
+        "status_code": 200,
+        "decision": "合规",
+        "item_decisions": ["合规"],
+        "reason_types": [null],
+        "reason_codes": [null],
+        "matched_rule_ids": [[]],
+        "explanation_sources": ["template"],
+        "semantic_guard_codes": ["ITEM_COVERAGE", "RULE_ID_WHITELIST"],
+        "semantic_guard_statuses": ["passed", "passed"]
+      }
+    }
+  ]
+}

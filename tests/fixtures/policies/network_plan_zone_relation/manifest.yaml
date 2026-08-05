@@ -1,0 +1,9 @@
+version: "test.network-plan-zone.1"
+released_at: "2026-08-05"
+sources:
+  - id: NETWORK-PLAN-ZONE-TEST-MATRIX
+    name: 网段规划区域关系测试矩阵
+approvals:
+  - role: test-policy-owner
+    approver: automated-test-suite
+    approved_at: "2026-08-05"

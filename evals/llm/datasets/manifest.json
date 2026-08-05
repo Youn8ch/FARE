@@ -1,0 +1,10 @@
+{
+  "dataset_version": "provisional-synthetic-2026.08.0",
+  "dataset_status": "provisional",
+  "approval_status": "unapproved",
+  "synthetic_only": true,
+  "schema_version": "llm-eval-case/v1",
+  "generated_by_role": "synthetic-contract-author",
+  "reviewed_by_role": "engineering-contract-reviewer",
+  "policy_version": "2026.07.0"
+}

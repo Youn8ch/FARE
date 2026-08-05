@@ -1,0 +1,14 @@
+version: "test.zone-relation.1"
+networks:
+  - id: TEST-OFFICE
+    cidr: 192.0.2.0/24
+    zone: office
+    environment: office
+    object_type: endpoint
+    labels: [office-client]
+  - id: TEST-PRODUCTION
+    cidr: 198.51.100.0/24
+    zone: production
+    environment: production
+    object_type: application
+    labels: [production-app]

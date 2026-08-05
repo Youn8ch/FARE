@@ -1,0 +1,4 @@
+version: "test.network-plan-prefix-limit.1"
+released_at: "2026-08-05"
+sources: [{id: PREFIX-LIMIT-TEST, name: 地址前缀边界测试规则}]
+approvals: [{role: test-policy-owner, approver: automated-test-suite, approved_at: "2026-08-05"}]

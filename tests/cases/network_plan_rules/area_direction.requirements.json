@@ -1,0 +1,43 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "areaId 方向性正反边界",
+  "policy_dir": "tests/fixtures/policies/network_plan_area_direction",
+  "network_plan_fixture": "tests/fixtures/network_plan/multi_region.v1.json",
+  "cases": [
+    {
+      "id": "area-direction-positive",
+      "request": {
+        "request_id": "group-area-direction-positive",
+        "sources": [{"address": "16.210.8.10", "description": "办公终端"}],
+        "destinations": [{"address": "16.220.16.20", "description": "核心数据库"}],
+        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "request_description": "办公区到核心生产区"
+      },
+      "expected": {
+        "decision": "待定", "lookup_count": 2, "acl_call_count": 1,
+        "accesses": [{"source": "16.210.8.10/32", "destination": "16.220.16.20/32"}],
+        "reason_codes": ["AREA-OFFICE-CORE-001"],
+        "matched_rule_ids": [["AREA-OFFICE-CORE-001"]],
+        "source_statuses": ["complete"], "destination_statuses": ["complete"],
+        "acl_statuses": ["verified"]
+      }
+    },
+    {
+      "id": "area-direction-reverse-negative",
+      "request": {
+        "request_id": "group-area-direction-reverse",
+        "sources": [{"address": "16.220.16.20", "description": "核心数据库"}],
+        "destinations": [{"address": "16.210.8.10", "description": "办公终端"}],
+        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "request_description": "反向不继承正向规则"
+      },
+      "expected": {
+        "decision": "合规", "lookup_count": 2, "acl_call_count": 1,
+        "accesses": [{"source": "16.220.16.20/32", "destination": "16.210.8.10/32"}],
+        "reason_codes": [null], "matched_rule_ids": [[]],
+        "source_statuses": ["complete"], "destination_statuses": ["complete"],
+        "acl_statuses": ["verified"]
+      }
+    }
+  ]
+}

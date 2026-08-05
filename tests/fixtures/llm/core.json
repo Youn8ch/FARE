@@ -1,0 +1,36 @@
+{
+  "version": "core-evaluation-fixtures-2026.07.0",
+  "responses": {
+    "core-llm-fabricated-rule": {
+      "semantic": {
+        "analyzed_item_ids": [
+          "core-llm-fabricated-rule-001"
+        ],
+        "claims": [],
+        "contradictions": [],
+        "candidate_rule_ids": [
+          "FABRICATED-001"
+        ],
+        "policy_gaps": [],
+        "questions_for_requester": [],
+        "recommendations": []
+      }
+    },
+    "core-llm-explanation-fallback": {
+      "semantic": {
+        "analyzed_item_ids": [
+          "core-llm-explanation-fallback-001"
+        ],
+        "claims": [],
+        "contradictions": [],
+        "candidate_rule_ids": [],
+        "policy_gaps": [],
+        "questions_for_requester": [],
+        "recommendations": []
+      },
+      "explanation": {
+        "items": []
+      }
+    }
+  }
+}

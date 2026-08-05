@@ -1,0 +1,61 @@
+rules:
+  - id: ZONE-OFFICE-CORE-DB-001
+    name: 办公网到核心生产数据库平台访问复核
+    description: 验证 areaId 与 platformName 的精确组合匹配
+    category: zone_relation
+    decision: 待定
+    reason_type: policy_violation
+    when:
+      source_area_id: 本部办公区
+      destination_area_id: 核心生产区
+      destination_platform_name: 核心数据库平台
+    semantic_keywords: [办公网, 核心生产区, 数据库平台]
+    evidence_requirements: [source_area_id, destination_area_id, destination_platform_name]
+    reason_template: 办公网不得直接访问核心生产数据库平台。
+    recommendation: 使用受控运维入口或进入正式例外审批流程。
+    remediation_template: 改用受控运维入口并补充审批依据。
+
+  - id: ZONE-OFFICE-CORE-001
+    name: 办公网到核心生产区访问复核
+    description: 验证较通用 areaId 关系与具体平台规则同时命中
+    category: zone_relation
+    decision: 待定
+    reason_type: policy_violation
+    when:
+      source_area_id: 本部办公区
+      destination_area_id: 核心生产区
+    semantic_keywords: [办公网, 核心生产区]
+    evidence_requirements: [source_area_id, destination_area_id]
+    reason_template: 办公网到核心生产区的访问需要复核。
+    recommendation: 使用受控访问入口或进入正式例外审批流程。
+    remediation_template: 明确目的平台并使用受控访问入口。
+
+  - id: ZONE-AOFENG-KUNPENG-CORE-001
+    name: 鳌峰鲲鹏应用区到核心生产区访问复核
+    description: 验证同 area 下按 regionName 精确区分
+    category: zone_relation
+    decision: 待定
+    reason_type: policy_violation
+    when:
+      source_area_id: 鳌峰科创生产区
+      source_region_name: 鳌峰生产区（科创鲲鹏应用）
+      destination_area_id: 核心生产区
+    semantic_keywords: [鳌峰科创生产区, 鲲鹏应用, 核心生产区]
+    evidence_requirements: [source_area_id, source_region_name, destination_area_id]
+    reason_template: 鳌峰鲲鹏应用区到核心生产区的访问需要复核。
+    recommendation: 核实跨区域访问必要性并补充审批依据。
+    remediation_template: 按实际平台和用途拆分申请。
+
+  - id: ACL-PATH-001
+    name: 未找到途径防火墙
+    description: ACL API 明确表达没有途径防火墙时进行人工复核
+    category: least_privilege
+    decision: 待定
+    reason_type: acl_no_path
+    when:
+      explicit_no_path: true
+    semantic_keywords: [未找到防火墙, 无路径, 候选路径]
+    evidence_requirements: [acl_explicit_no_path]
+    reason_template: ACL API 明确表示未找到该访问组合经过的防火墙。
+    recommendation: 核实网段规划、候选路径和申请地址后提交人工复核。
+    remediation_template: 核实网段规划、候选路径和申请地址。

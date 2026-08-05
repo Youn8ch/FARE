@@ -1,0 +1,5 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "Deterministic observed-port-conflict core case",
+  "default": {"analysis": "候选路径经过防火墙 FW-MISMATCH。", "config": "access-list CANDIDATE port 8443"}
+}

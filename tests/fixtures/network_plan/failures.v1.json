@@ -1,0 +1,14 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "网段规划依赖失败与非法响应测试",
+  "responses": {
+    "192.0.2.0/24": {"transport_error": "timeout"},
+    "192.0.3.0/24": {"transport_error": "connection_error"},
+    "192.0.4.0/24": {"http_status": 500, "body": {"code": 500, "msg": "internal error", "data": null, "success": false}},
+    "192.0.5.0/24": {"http_status": 200, "raw_body": "not-json"},
+    "192.0.6.0/24": {"http_status": 200, "body": {"code": 200, "msg": "success", "data": null, "success": true}},
+    "192.0.7.0/24": {"http_status": 200, "body": {"code": 200, "msg": "success", "data": {"area": "测试区", "areaId": "测试区", "regionName": "测试区 A", "platformName": "测试平台", "network": "192.0.4.0/22", "gateway": "192.0.7.1", "subnet": "192.0.8.0/24", "vlanId": "700", "usageCode": "TEST", "description": "返回错误 subnet"}, "success": true}},
+    "192.0.8.0/24": {"http_status": 200, "body": {"code": 200, "msg": "success", "data": {"area": "测试区", "areaId": "测试区", "regionName": "测试区 B", "platformName": "测试平台", "network": "192.0.4.0/24", "gateway": "192.0.8.1", "subnet": "192.0.8.0/24", "vlanId": "701", "usageCode": "TEST", "description": "subnet 不属于 network"}, "success": true}},
+    "192.0.9.0/24": {"http_status": 200, "body": {"code": 200, "msg": "success", "data": {"area": "测试区", "areaId": "测试区", "regionName": "测试区 C", "platformName": "测试平台", "network": "192.0.8.0/22", "gateway": "invalid-gateway", "subnet": "192.0.9.0/24", "vlanId": "702", "usageCode": "TEST", "description": "非法网关"}, "success": true}}
+  }
+}
