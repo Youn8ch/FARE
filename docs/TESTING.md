@@ -18,7 +18,13 @@
 | Provider 统一 | `tests/test_provider_unification.py` | mock/offline 等价事实逐字段一致、双链路 limit、三 mode resolver |
 | 规则可达性 | `tests/test_rule_reachability.py` + `test_rule_limits.py` + `test_policy_fixture.py` | 每条默认规则一正一反；OBJECT-001 fixture 包 |
 | 裁决模型 | `tests/test_decision_reducer.py` | F-01~F-05 表驱动、优先级/稳定性/matched_rules |
-| 编排 | `tests/test_evaluator_orchestration.py` | 八阶段顺序与调用计数、失败路径提前终止 |
+| 编排 | `tests/test_evaluator_orchestration.py` | 阶段顺序（plan/network/rules/acl/semantic/reduce/post_decision/assemble）与调用计数、失败路径提前终止 |
+| V4 表征 | `tests/test_v4_characterization.py` | a70ea45 行为冻结 + 已预注册变更后的当前行为 |
+| V4 不变量 | `tests/test_v4_invariants.py` | 静态架构不变量（单次匹配/单次裁决/单一事实通道） |
+| V4 Provider 契约 | `tests/test_v4_provider_contract.py` | typed ProviderLookup、显式分类、mock/offline 等价 |
+| V4 findings 输出 | `tests/test_v4_findings_output.py` | decision_findings 一一对应、primary 唯一、信息性 finding |
+| V4 request 聚合 | `tests/test_v4_request_decision.py` | RequestDecisionAggregator 纯函数与四级规则 |
+| V4 验收矩阵 | `tests/test_v4_main_chain_acceptance.py` | V3-01~33 主链集中模拟验收 |
 | 门控 | `tests/test_acl_llm_gating.py` | ACL/LLM 职责边界（ACL-01/02、LLM-01/02/03） |
 | 默认一致性 | `tests/test_default_consistency.py` | 四入口默认值一致 |
 | 面积关系矩阵 | `tests/test_network_requirement_area_relations.py` | 30 个版本化 batch、159 条需求、261 items |

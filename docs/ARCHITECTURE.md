@@ -73,12 +73,24 @@ AuditStore（SQLite 权威幂等 + JSONL 归档）
 | `app/main.py` | `build_runtime` / `create_app` / Runtime 编排与幂等前置 |
 | `app/requirement_runner.py` | CLI 批量入口（与 HTTP 共享 Runtime） |
 | `app/services/canonical.py` | 规范化事实模型 |
-| `app/services/network_plan_client.py` | Provider 边界（mock/http/offline 兼容） |
-| `app/services/network_plan_resolver.py` | 唯一 Resolver：/24 查询、校验、分段聚合 |
+| `app/services/network_plan_client.py` | 传输边界（mock/http/offline 兼容；TTL 缓存） |
+| `app/services/network_fact_provider.py` | 单一 typed ProviderLookup 事实通道（校验 + 显式分类） |
+| `app/services/network_plan_resolver.py` | 唯一 Resolver：/24 查询、并发、分段聚合（不接触目录） |
 | `app/services/splitter.py` | 组合拆分（canonical 段） |
 | `app/services/rule_loader.py` | 规则包加载与匹配（canonical 输入） |
-| `app/services/evaluator.py` | 八阶段编排（plan→…→assemble） |
-| `app/services/decision_reducer.py` | 唯一裁决入口 |
+| `app/services/evaluation_types.py` | 阶段间 frozen 契约（RuleStageResult / AclStageResult） |
+| `app/services/stages/rule_stage.py` | 规则阶段：PolicyBundle.match 每 item 恰好一次 |
+| `app/services/stages/acl_stage.py` | ACL 阶段：gating 消费规则结果；ACL findings 归属 |
+| `app/services/stages/semantic_stage.py` | 语义阶段：只产出 findings/问题/观察 |
+| `app/services/stages/reduce_stage.py` | 确定性装配 + 每 item 恰好一次 reduce_item |
+| `app/services/stages/post_decision_stage.py` | 裁决后（串行）：解释 + 两个 shadow，无裁决权 |
+| `app/services/finding_factory.py` | Finding 构造与文案映射 |
+| `app/services/item_assembler.py` | item 装配（快照渲染 + trace/decision_findings） |
+| `app/services/request_decision.py` | request 级聚合（任一待定 → 待定） |
+| `app/services/response_assembler.py` | ACL 分析聚合 |
+| `app/services/stage_metrics.py` | LLM 阶段 metrics（仅观测） |
+| `app/services/evaluator.py` | 纯编排：阶段顺序与错误传播 |
+| `app/services/decision_reducer.py` | 唯一裁决入口（reduce_item 正式工作流） |
 | `app/services/llm_client.py` | 语义/解释/影子阶段模型边界 |
 | `app/services/output_guard.py` | 语义与申请级发现输出守卫 |
 | `app/services/audit.py` | SQLite 幂等 + JSONL 审计与脱敏 |

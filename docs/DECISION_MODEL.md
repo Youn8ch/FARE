@@ -17,18 +17,37 @@ Finding(code, source, reason_type, priority, detail, affects_decision)
 
 ## DecisionReducer（唯一裁决入口）
 
-`DecisionReducer.reduce(findings, matched_rules=...)` 返回 `Decision`：
+每个 item 的正式裁决只发生一次：`DecisionReducer.reduce_item(finding_set,
+matched_rules=..., semantic=...)`（V4-P2；D1 有意推翻 AC-05 的"两次 reduce"，
+理由记录于 `docs/v3-baseline.md` §6）。
+
+- 输入分区 `ItemFindingSet(network, rules, catalog, acl, semantic)`，
+  插入顺序镜像历史首个命中链：network 错误 → 命中规则 → 目录事实错误 →
+  ACL findings → 语义 findings；
+- **一次调用内**同时计算确定性快照（network+rules+catalog+acl）与最终裁决
+  （全部分区），并派生完整 `DecisionTrace`；
+- 语义上下文经 `SemanticTrace(succeeded, review/question/observation ids)`
+  传入，语义 effect 的冻结语义见下节。
+
+`reduce_item` 返回的 `Decision`：
 
 ```python
-Decision(decision, primary_finding, reason_type, reason_code, findings, matched_rules)
+Decision(decision, primary_finding, reason_type, reason_code, findings,
+         matched_rules, deterministic_decision, deterministic_primary, trace)
 ```
 
 规则：
 
 1. 主 finding = 影响裁决的 findings 中优先级最高者；同优先级按插入顺序（稳定）。
 2. secondary finding 永不覆盖更高优先级的 primary；
-3. `matched_rules` 原样保留（含事实驱动的 ACL-PATH-001）；
-4. 无影响裁决的 finding → `合规`；否则 `待定`，reason = primary。
+3. `matched_rules` 原样保留（含事实驱动的 ACL-PATH-001，仅当其为确定性
+   primary 时经 reducer.primary_of 判定后注入 item 输出）；
+4. 无影响裁决的 finding → `合规`；否则 `待定`，reason = primary；
+5. `decision.findings` 与 API `decision_findings` 一一对应（含
+   `affects_decision` 与唯一 `is_primary`），完整进入 audit。
+
+`reduce(findings, matched_rules=...)` 仍是纯优先级算法本体（供单元测试与
+`reduce_item` 内部复用），不携带 trace；编排层不得直接调用它。
 
 ### 确定性优先级（表驱动冻结，见 `tests/test_decision_reducer.py` F-01~F-05）
 
