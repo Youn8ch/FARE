@@ -1,0 +1,17 @@
+{
+  "schema_version": "fare-requirement-batch/v1",
+  "requests": [
+    {
+      "request_id": "yaml-bigmodel-example-007",
+      "sources": [
+        {"address": "20.1.10.10", "description": "办公终端"}
+      ],
+      "destinations": [
+        {"address": "16.1.20.20", "description": "生产数据库"}
+      ],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "统一 YAML 本地需求输入测试"
+    }
+  ]
+}

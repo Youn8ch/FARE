@@ -1,0 +1,47 @@
+{
+  "schema_version": "fare-area-relation-expected/v1",
+  "requests": {
+    "area-m04-office-db": {
+      "decision": "待定", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
+      "items": [{"source": "16.210.8.14/32", "destination": "16.220.16.24/32", "decision": "待定", "reason_code": "ZONE-OFFICE-CORE-DB-001", "matched_rule_ids": ["ZONE-OFFICE-CORE-DB-001", "ZONE-OFFICE-CORE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+    },
+    "area-m04-kunpeng-db": {
+      "decision": "待定", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
+      "items": [{"source": "16.201.1.14/32", "destination": "16.220.16.24/32", "decision": "待定", "reason_code": "REGION-KUNPENG-CORE-DB-001", "matched_rule_ids": ["REGION-KUNPENG-CORE-DB-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+    },
+    "area-m04-app-office": {
+      "decision": "待定", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
+      "items": [{"source": "16.220.17.24/32", "destination": "16.210.8.24/32", "decision": "待定", "reason_code": "PLATFORM-CORE-APP-OFFICE-001", "matched_rule_ids": ["PLATFORM-CORE-APP-OFFICE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+    },
+    "area-m04-general-app-near-miss": {
+      "decision": "合规", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
+      "items": [{"source": "16.201.2.14/32", "destination": "16.220.17.24/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+    },
+    "area-m04-office-kunpeng": {
+      "decision": "合规", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
+      "items": [{"source": "16.210.8.24/32", "destination": "16.201.0.14/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+    },
+    "area-m04-db-kunpeng-reverse": {
+      "decision": "合规", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
+      "items": [{"source": "16.220.16.24/32", "destination": "16.201.1.14/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+    },
+    "area-m04-office-kunpeng-cross": {
+      "decision": "待定", "item_count": 4, "lookup_count": 4, "acl_call_count": 4,
+      "items": [
+        {"source": "16.210.8.14/32", "destination": "16.220.16.24/32", "decision": "待定", "reason_code": "ZONE-OFFICE-CORE-DB-001", "matched_rule_ids": ["ZONE-OFFICE-CORE-DB-001", "ZONE-OFFICE-CORE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
+        {"source": "16.210.8.14/32", "destination": "16.220.17.24/32", "decision": "待定", "reason_code": "ZONE-OFFICE-CORE-001", "matched_rule_ids": ["ZONE-OFFICE-CORE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
+        {"source": "16.201.1.14/32", "destination": "16.220.16.24/32", "decision": "待定", "reason_code": "REGION-KUNPENG-CORE-DB-001", "matched_rule_ids": ["REGION-KUNPENG-CORE-DB-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
+        {"source": "16.201.1.14/32", "destination": "16.220.17.24/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}
+      ]
+    },
+    "area-m04-core-cross": {
+      "decision": "待定", "item_count": 4, "lookup_count": 4, "acl_call_count": 4,
+      "items": [
+        {"source": "16.220.17.24/32", "destination": "16.210.8.24/32", "decision": "待定", "reason_code": "PLATFORM-CORE-APP-OFFICE-001", "matched_rule_ids": ["PLATFORM-CORE-APP-OFFICE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
+        {"source": "16.220.17.24/32", "destination": "16.201.2.14/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
+        {"source": "16.220.16.24/32", "destination": "16.210.8.24/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
+        {"source": "16.220.16.24/32", "destination": "16.201.2.14/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}
+      ]
+    }
+  }
+}

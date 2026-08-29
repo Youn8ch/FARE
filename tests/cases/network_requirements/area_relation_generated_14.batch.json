@@ -1,0 +1,105 @@
+{
+  "schema_version": "fare-requirement-batch/v1",
+  "requests": [
+    {
+      "request_id": "area-g14-office-db",
+      "sources": [
+        {
+          "address": "16.210.8.64",
+          "description": "办公终端 G14"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.16.64",
+          "description": "核心数据库 G14"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G14 办公终端访问核心数据库"
+    },
+    {
+      "request_id": "area-g14-app-office",
+      "sources": [
+        {
+          "address": "16.220.17.64",
+          "description": "核心应用 G14"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.210.8.64",
+          "description": "办公终端 G14"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G14 核心应用访问办公终端"
+    },
+    {
+      "request_id": "area-g14-kunpeng-app-near-miss",
+      "sources": [
+        {
+          "address": "16.201.0.64",
+          "description": "鲲鹏应用 G14"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.17.64",
+          "description": "核心应用 G14"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G14 鲲鹏应用访问非数据库 Region"
+    },
+    {
+      "request_id": "area-g14-compute-cross",
+      "sources": [
+        {
+          "address": "16.201.2.64",
+          "description": "通用虚拟机 G14"
+        },
+        {
+          "address": "16.201.0.64",
+          "description": "鲲鹏应用 G14"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.16.64",
+          "description": "核心数据库 G14"
+        },
+        {
+          "address": "16.210.8.64",
+          "description": "办公终端 G14"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G14 通用计算与鲲鹏交叉访问数据库和办公终端"
+    }
+  ]
+}

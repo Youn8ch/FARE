@@ -33,6 +33,15 @@ class NetworkPlanClient(ABC):
     async def lookup(self, subnet: IPv4Network) -> NetworkPlanTransportResponse:
         raise NotImplementedError
 
+    async def aclose(self) -> None:
+        """Release resources held by the client.
+
+        In-memory and fixture-backed implementations intentionally inherit this
+        no-op so callers can close the configured boundary without inspecting its
+        concrete type.
+        """
+        return None
+
 
 class TtlNetworkPlanClient(NetworkPlanClient):
     """Bounded positive-result cache; failures and 404 responses are never cached."""
@@ -46,12 +55,18 @@ class TtlNetworkPlanClient(NetworkPlanClient):
         self._entries: OrderedDict[
             str, tuple[float, NetworkPlanTransportResponse]
         ] = OrderedDict()
+        self._inflight: dict[
+            str, asyncio.Task[NetworkPlanTransportResponse]
+        ] = {}
         self._lock = asyncio.Lock()
+        self._closed = False
 
     async def lookup(self, subnet: IPv4Network) -> NetworkPlanTransportResponse:
         _require_query_subnet(subnet)
         key = str(subnet)
         async with self._lock:
+            if self._closed:
+                raise RuntimeError("network plan cache client is closed")
             cached = self._entries.get(key)
             if cached is not None:
                 expires_at, response = cached
@@ -59,14 +74,52 @@ class TtlNetworkPlanClient(NetworkPlanClient):
                     self._entries.move_to_end(key)
                     return response
                 self._entries.pop(key, None)
-        response = await self.inner.lookup(subnet)
-        if _is_cacheable_success(response):
+            task = self._inflight.get(key)
+            if task is None:
+                task = asyncio.create_task(self._lookup_and_store(key, subnet))
+                task.add_done_callback(_consume_task_exception)
+                self._inflight[key] = task
+        # A caller cancellation must not cancel work shared by other callers.
+        return await asyncio.shield(task)
+
+    async def _lookup_and_store(
+        self, key: str, subnet: IPv4Network
+    ) -> NetworkPlanTransportResponse:
+        try:
+            response = await self.inner.lookup(subnet)
+            if _is_cacheable_success(response):
+                async with self._lock:
+                    if self._closed:
+                        return response
+                    self._entries[key] = (monotonic() + self.ttl_seconds, response)
+                    self._entries.move_to_end(key)
+                    while len(self._entries) > self.max_entries:
+                        self._entries.popitem(last=False)
+            return response
+        finally:
             async with self._lock:
-                self._entries[key] = (monotonic() + self.ttl_seconds, response)
-                self._entries.move_to_end(key)
-                while len(self._entries) > self.max_entries:
-                    self._entries.popitem(last=False)
-        return response
+                current = asyncio.current_task()
+                if self._inflight.get(key) is current:
+                    self._inflight.pop(key, None)
+
+    async def aclose(self) -> None:
+        async with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+            tasks = list(self._inflight.values())
+            self._inflight.clear()
+            self._entries.clear()
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        await self.inner.aclose()
+
+
+def _consume_task_exception(task: asyncio.Task[object]) -> None:
+    if not task.cancelled():
+        task.exception()
 
 
 def _is_cacheable_success(response: NetworkPlanTransportResponse) -> bool:
@@ -173,12 +226,23 @@ class HttpNetworkPlanClient(NetworkPlanClient):
         timeout: float,
         *,
         transport: httpx.AsyncBaseTransport | None = None,
+        client: httpx.AsyncClient | None = None,
         query_parameter: str | None = None,
+        token: str | None = None,
     ) -> None:
+        if transport is not None and client is not None:
+            raise ValueError("provide either an HTTP client or transport, not both")
         self.url = url
         self.timeout = timeout
         self.transport = transport
         self.query_parameter = query_parameter
+        self.token = token
+        self._owns_client = client is None
+        self._client = client or httpx.AsyncClient(
+            timeout=self.timeout,
+            transport=self.transport,
+            trust_env=False,
+        )
 
     async def lookup(self, subnet: IPv4Network) -> NetworkPlanTransportResponse:
         _require_query_subnet(subnet)
@@ -187,12 +251,15 @@ class HttpNetworkPlanClient(NetworkPlanClient):
                 "network plan HTTP contract is not configured"
             )
         try:
-            async with httpx.AsyncClient(
-                timeout=self.timeout, transport=self.transport
-            ) as client:
-                response = await client.get(
-                    self.url, params={self.query_parameter: str(subnet)}
-                )
+            headers = (
+                {"Authorization": f"Bearer {self.token}"} if self.token else None
+            )
+            response = await self._client.get(
+                self.url,
+                params={self.query_parameter: str(subnet)},
+                headers=headers,
+                timeout=self.timeout,
+            )
         except (httpx.TimeoutException, httpx.NetworkError) as exc:
             raise NetworkPlanTransportError(type(exc).__name__) from exc
         try:
@@ -206,6 +273,10 @@ class HttpNetworkPlanClient(NetworkPlanClient):
             body=body,
             raw_text=raw_text,
         )
+
+    async def aclose(self) -> None:
+        if self._owns_client and not self._client.is_closed:
+            await self._client.aclose()
 
 
 class OfflineCatalogNetworkPlanClient(NetworkPlanClient):

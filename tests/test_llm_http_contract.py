@@ -69,8 +69,41 @@ def test_http_valid_first_attempt_uses_injected_transport() -> None:
     assert response.analyzed_item_ids == ["http-contract-001"]
     assert len(requests) == 1
     assert requests[0].url == "https://model.invalid/v1/chat/completions"
+    body = json.loads(requests[0].content)
+    assert "JSON Schema" in body["messages"][0]["content"]
+    assert "LlmSemanticResponse" in body["messages"][0]["content"]
     assert trace is not None
     assert trace["attempts"] == 1
+
+
+def test_http_client_is_reused_and_closed_once() -> None:
+    class TrackingTransport(httpx.AsyncBaseTransport):
+        def __init__(self) -> None:
+            self.requests = 0
+            self.closes = 0
+
+        async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+            self.requests += 1
+            return _completion(
+                json.dumps({"analyzed_item_ids": ["http-contract-001"]})
+            )
+
+        async def aclose(self) -> None:
+            self.closes += 1
+
+    transport = TrackingTransport()
+    client = _http_client(transport)
+
+    async def use_and_close() -> None:
+        await client.analyze(_semantic_payload())
+        await client.analyze(_semantic_payload())
+        await client.aclose()
+        await client.aclose()
+
+    asyncio.run(use_and_close())
+
+    assert transport.requests == 2
+    assert transport.closes == 1
 
 
 @pytest.mark.parametrize(
@@ -134,10 +167,18 @@ def test_http_malformed_completion_envelope_twice_fails() -> None:
         return httpx.Response(200, json={"choices": []})
 
     client = _http_client(httpx.MockTransport(handler), retries=1)
-    with pytest.raises(LlmDependencyError, match="schema validation"):
-        asyncio.run(client.analyze(_semantic_payload()))
+
+    async def call():
+        with pytest.raises(LlmDependencyError, match="schema validation"):
+            await client.analyze(_semantic_payload())
+        return client.consume_completion_trace()
+
+    trace = asyncio.run(call())
 
     assert len(requests) == 2
+    assert trace is not None
+    assert trace["error_type"] == "IndexError"
+    assert trace["error_detail"]
 
 
 @pytest.mark.parametrize("status_code", [429, 500])
@@ -196,11 +237,53 @@ def test_http_request_auth_and_deterministic_parameters(api_key: str | None) -> 
     request = requests[0]
     body = json.loads(request.content)
     assert body["temperature"] == 0
+    assert body["do_sample"] is False
+    assert body["stream"] is False
     assert body["response_format"] == {"type": "json_object"}
     if api_key:
         assert request.headers["Authorization"] == f"Bearer {api_key}"
     else:
         assert "Authorization" not in request.headers
+
+
+def test_bigmodel_compatible_generation_parameters_are_forwarded_without_streaming() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return _completion(json.dumps({"analyzed_item_ids": ["http-contract-001"]}))
+
+    client = LlmClient(
+        mode="http",
+        base_url="https://open.bigmodel.cn/api/paas/v4",
+        model="glm-4.5-air",
+        api_key="SENTINEL_BIGMODEL_KEY",
+        mock_file=None,
+        semantic_timeout=1,
+        explanation_timeout=1,
+        max_correction_retries=1,
+        temperature=1,
+        max_tokens=4096,
+        top_p=1,
+        stop=None,
+        thinking="disabled",
+        transport=httpx.MockTransport(handler),
+    )
+
+    asyncio.run(client.analyze(_semantic_payload()))
+
+    request = requests[0]
+    body = json.loads(request.content)
+    assert request.url == "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+    assert request.headers["Authorization"] == "Bearer SENTINEL_BIGMODEL_KEY"
+    assert body["model"] == "glm-4.5-air"
+    assert body["temperature"] == 1
+    assert body["do_sample"] is False
+    assert body["max_tokens"] == 4096
+    assert body["top_p"] == 1
+    assert body["stream"] is False
+    assert body["response_format"] == {"type": "json_object"}
+    assert body["thinking"] == {"type": "disabled"}
 
 
 def test_http_public_error_does_not_expose_api_key(caplog) -> None:

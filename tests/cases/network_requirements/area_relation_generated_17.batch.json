@@ -1,0 +1,105 @@
+{
+  "schema_version": "fare-requirement-batch/v1",
+  "requests": [
+    {
+      "request_id": "area-g17-office-db",
+      "sources": [
+        {
+          "address": "16.210.8.67",
+          "description": "办公终端 G17"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.16.67",
+          "description": "核心数据库 G17"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G17 办公终端访问核心数据库"
+    },
+    {
+      "request_id": "area-g17-app-office",
+      "sources": [
+        {
+          "address": "16.220.17.67",
+          "description": "核心应用 G17"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.210.8.67",
+          "description": "办公终端 G17"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G17 核心应用访问办公终端"
+    },
+    {
+      "request_id": "area-g17-kunpeng-app-near-miss",
+      "sources": [
+        {
+          "address": "16.201.0.67",
+          "description": "鲲鹏应用 G17"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.17.67",
+          "description": "核心应用 G17"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G17 鲲鹏应用访问非数据库 Region"
+    },
+    {
+      "request_id": "area-g17-compute-cross",
+      "sources": [
+        {
+          "address": "16.201.2.67",
+          "description": "通用虚拟机 G17"
+        },
+        {
+          "address": "16.201.0.67",
+          "description": "鲲鹏应用 G17"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.16.67",
+          "description": "核心数据库 G17"
+        },
+        {
+          "address": "16.210.8.67",
+          "description": "办公终端 G17"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G17 通用计算与鲲鹏交叉访问数据库和办公终端"
+    }
+  ]
+}

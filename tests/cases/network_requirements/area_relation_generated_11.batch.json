@@ -1,0 +1,105 @@
+{
+  "schema_version": "fare-requirement-batch/v1",
+  "requests": [
+    {
+      "request_id": "area-g11-office-db",
+      "sources": [
+        {
+          "address": "16.210.8.61",
+          "description": "办公终端 G11"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.16.61",
+          "description": "核心数据库 G11"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G11 办公终端访问核心数据库"
+    },
+    {
+      "request_id": "area-g11-app-office",
+      "sources": [
+        {
+          "address": "16.220.17.61",
+          "description": "核心应用 G11"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.210.8.61",
+          "description": "办公终端 G11"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G11 核心应用访问办公终端"
+    },
+    {
+      "request_id": "area-g11-kunpeng-app-near-miss",
+      "sources": [
+        {
+          "address": "16.201.0.61",
+          "description": "鲲鹏应用 G11"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.17.61",
+          "description": "核心应用 G11"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G11 鲲鹏应用访问非数据库 Region"
+    },
+    {
+      "request_id": "area-g11-compute-cross",
+      "sources": [
+        {
+          "address": "16.201.2.61",
+          "description": "通用虚拟机 G11"
+        },
+        {
+          "address": "16.201.0.61",
+          "description": "鲲鹏应用 G11"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.16.61",
+          "description": "核心数据库 G11"
+        },
+        {
+          "address": "16.210.8.61",
+          "description": "办公终端 G11"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G11 通用计算与鲲鹏交叉访问数据库和办公终端"
+    }
+  ]
+}

@@ -69,9 +69,10 @@ class HttpAclClient(AclClient):
     machine-readable no-path expression are supplied and covered by contract tests.
     """
 
-    def __init__(self, url: str, timeout: float) -> None:
+    def __init__(self, url: str, timeout: float, *, token: str | None = None) -> None:
         self.url = url
         self.timeout = timeout
+        self.token = token
 
     async def analyze(self, combination: AccessCombination) -> AclRawResponse:
         raise AclDependencyError(

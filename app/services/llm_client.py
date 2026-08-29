@@ -4,6 +4,7 @@ import asyncio
 import json
 import re
 from collections.abc import Mapping
+from contextlib import nullcontext
 from contextvars import ContextVar
 from pathlib import Path
 from time import perf_counter
@@ -26,15 +27,31 @@ from app.services.output_guard import RequestFindingGuardError, guard_request_fi
 
 T = TypeVar("T", bound=BaseModel)
 PROMPT_VERSIONS = {
-    "semantic": "2026.08.0",
-    "acl_candidates": "2026.08.0",
-    "request_findings": "2026.08.0",
-    "explanation": "2026.08.0",
+    "semantic": "2026.08.5",
+    "acl_candidates": "2026.08.1",
+    "request_findings": "2026.08.2",
+    "explanation": "2026.08.2",
 }
 
 
 class LlmDependencyError(RuntimeError):
     pass
+
+
+def _validation_error_summary(error: Exception | None) -> str:
+    if isinstance(error, ValidationError):
+        parts = []
+        for item in error.errors()[:8]:
+            location = ".".join(str(value) for value in item.get("loc", ())) or "root"
+            rejected = repr(item.get("input"))[:120]
+            parts.append(
+                f"{location}: {item.get('msg', 'invalid value')}; "
+                f"rejected input={rejected}"
+            )
+        return "; ".join(parts) or "Pydantic schema validation failed"
+    if isinstance(error, (json.JSONDecodeError, ValueError)):
+        return "输出不是满足约定结构的有效 JSON"
+    return "响应包络或 JSON 结构不符合约定"
 
 
 @runtime_checkable
@@ -93,8 +110,16 @@ class LlmClient:
         semantic_timeout: float,
         explanation_timeout: float,
         max_correction_retries: int,
+        temperature: float = 0.0,
+        max_tokens: int | None = None,
+        top_p: float | None = None,
+        stop: str | list[str] | None = None,
+        thinking: str | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
+        client: httpx.AsyncClient | None = None,
     ) -> None:
+        if transport is not None and client is not None:
+            raise ValueError("provide either an HTTP client or transport, not both")
         self.mode = mode
         self.base_url = base_url.rstrip("/") if base_url else None
         self.model = model
@@ -102,7 +127,19 @@ class LlmClient:
         self.semantic_timeout = semantic_timeout
         self.explanation_timeout = explanation_timeout
         self.max_correction_retries = max_correction_retries
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.top_p = top_p
+        self.stop = stop
+        self.thinking = thinking
         self._transport = transport
+        self._owns_http_client = client is None and mode == "http"
+        self._http_client = client
+        if self._owns_http_client:
+            self._http_client = httpx.AsyncClient(
+                transport=self._transport,
+                trust_env=False,
+            )
         self._fixture = self._load_fixture(mock_file) if mock_file else None
         self._completion_traces: ContextVar[tuple[dict[str, Any], ...]] = ContextVar(
             f"fare_llm_traces_{id(self)}", default=()
@@ -139,6 +176,14 @@ class LlmClient:
         self._completion_traces.set(traces[:-1])
         return dict(traces[-1])
 
+    async def aclose(self) -> None:
+        if (
+            self._owns_http_client
+            and self._http_client is not None
+            and not self._http_client.is_closed
+        ):
+            await self._http_client.aclose()
+
     async def analyze(self, payload: dict[str, Any]) -> tuple[LlmSemanticResponse, Any]:
         if self.mode == "mock":
             response = self._fixture_response(payload["request_id"], "semantic")
@@ -168,9 +213,37 @@ class LlmClient:
                     "source 只能是 request_description、source_description、"
                     "destination_description、acl_analysis、acl_config，evidence 必须能在该"
                     "source 原文中逐字定位。兼容字段 field 如出现必须与 claim_type 完全一致。"
+                    "source_description 和 destination_description 只能填入 source，绝不能"
+                    "作为 field 或 claim_type；若无法确定受控 claim_type，就删除该 claim。"
                     "不得返回 decision，不得推断 NAT/路由/连通性/普通端口用途，不得把拟配置"
                     "解释为现网状态，不得创建规则或覆盖权威目录。严格返回约定 JSON，"
-                    "analyzed_item_ids 必须完整且无重复。"
+                    "analyzed_item_ids 必须完整且无重复。无法用逐字证据确认的内容不要猜测，"
+                    "authoritative_facts 只用于与申请原文声明进行对照，绝不能作为 claims 的 "
+                    "source 或 evidence；例如根据 source_description=办公终端生成声明时，"
+                    "source 必须是 source_description，evidence 必须是逐字原文办公终端，"
+                    "不能写 authoritative_facts。网段规划结构化引用必须放入 network_claims。"
+                    "任何 claim 的 value 和 evidence 都不得为空。原文没有提及某信息时，只能"
+                    "写入 missing_information：包含唯一 missing_id、item_id、field、具体问题"
+                    "question 和 impact=question_only；不能生成空 claim，也不能把“未提及”"
+                    "“缺少”之类模型总结当作 evidence。contradictions 和 policy_gaps 中每条"
+                    "evidence 必须是 item_id/source/quote 对象，quote 必须是该 source 的完整"
+                    "逐字子串，不能拼接字段名和值，不能引用 authoritative_facts 或规则摘要。"
+                    "contradiction 的两条证据必须分别与 claims 中两个不同 claim_type 的 "
+                    "source/evidence 完全对应；只有两段原文但没有两个受控声明字段不构成矛盾。"
+                    "policy gap 的 gap_type 只能是 temporary_permanent_conflict、"
+                    "purpose_target_mismatch、mixed_business_context、approval_scope_mismatch、"
+                    "unclassified_privileged_access；还必须返回 affected_fields、"
+                    "question_for_requester 和 suggested_effect。suggested_effect 只是建议，"
+                    "服务端影响策略决定是否人工复核。正式规则是否命中已由服务端确定，语义"
+                    "阶段不得据此自行生成矛盾或 policy gap。除仅供观察的 "
+                    "unclassified_privileged_access 外，每个 policy gap 必须至少包含两条"
+                    "彼此不同且可定位的逐字证据；单句泛化、常识推断和只有一条证据的风险"
+                    "不得输出为 policy gap。missing_information.field 只能是 "
+                    "access_purpose、temporary_access、maintenance_method、approval_reference、"
+                    "business_owner、requested_duration，缺失信息永远只提问，不得建议降级。"
+                    "对应数组返回空数组。顶层只返回 analyzed_item_ids、claims、contradictions、"
+                    "candidate_rule_ids、policy_gaps、questions_for_requester、recommendations、"
+                    "network_claims、missing_information，不得增加其他字段。"
                 ),
             },
             {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
@@ -212,7 +285,12 @@ class LlmClient:
                 "content": (
                     "你是 FARE 的受限结论解释器。结论、确认事实和命中规则均已由服务端锁定。"
                     "只为每个 item 改写清晰解释和可执行整改建议，不得新增事实或规则，不得"
-                    "返回或改变 decision。严格返回 items JSON，item_id 必须完整且无重复。"
+                    "返回或改变 decision。每个 item 的 referenced_rule_ids 只能逐字复制该 item "
+                    "输入 matched_rules 中已有的 id；matched_rules 为空时必须返回空数组。"
+                    "规则编号只能放在 referenced_rule_ids 数组中；explanation 和 "
+                    "recommendation 正文完全禁止输出任何规则号、区域代码或其他字母数字连字符"
+                    "标识，只能使用中文规则名称、原因和网络区域描述。严格返回 items JSON，"
+                    "item_id 必须完整且无重复。"
                 ),
             },
             {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
@@ -313,6 +391,8 @@ class LlmClient:
                         "acl_analysis、acl_config，quote 必须逐字位于同 item 的对应 source。"
                         "不得返回 decision、reason、recommendation、matched_rules、审批结果、"
                         "路由/NAT 或现网状态。严格返回 analyzed_item_ids 与 findings JSON。"
+                        "只有一个 item 或没有充分的跨 item 证据时，必须返回完整的 "
+                        "analyzed_item_ids 和空 findings，不得为了产生结果而猜测。"
                     ),
                 },
                 {
@@ -361,36 +441,64 @@ class LlmClient:
     async def _complete(
         self, messages: list[dict[str, str]], schema: type[T], timeout: float | None = None
     ) -> tuple[T, Any]:
-        if self.mode != "http" or not self.base_url:
+        if self.mode != "http" or not self.base_url or self._http_client is None:
             raise LlmDependencyError("HTTP model completion is unavailable in mock mode")
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
+        request_messages = [dict(message) for message in messages]
+        schema_contract = json.dumps(
+            schema.model_json_schema(),
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        request_messages[0]["content"] = (
+            f"{request_messages[0]['content']}\n"
+            "只输出一个 JSON 对象，不要输出 Markdown 代码围栏或额外文字。"
+            f"输出必须严格满足以下 JSON Schema：{schema_contract}"
+        )
         payload: dict[str, Any] = {
             "model": self.model,
-            "temperature": 0,
+            "temperature": self.temperature,
+            "do_sample": False,
+            "stream": False,
             "response_format": {"type": "json_object"},
-            "messages": list(messages),
+            "messages": request_messages,
         }
+        if self.max_tokens is not None:
+            payload["max_tokens"] = self.max_tokens
+        if self.top_p is not None:
+            payload["top_p"] = self.top_p
+        if self.stop is not None:
+            payload["stop"] = self.stop
+        if self.thinking is not None:
+            payload["thinking"] = {"type": self.thinking}
         total_timeout = self.semantic_timeout if timeout is None else timeout
         attempts = self.max_correction_retries + 1
         last_error: Exception | None = None
         last_raw: Any = None
+        last_content: str | None = None
         attempt_count = 0
         started = perf_counter()
         loop = asyncio.get_running_loop()
         deadline = loop.time() + total_timeout
         try:
             async with asyncio.timeout(total_timeout):
-                async with httpx.AsyncClient(transport=self._transport) as client:
+                # Borrow the lifecycle-owned client without closing it per request.
+                async with nullcontext(self._http_client) as client:
                     for attempt in range(attempts):
                         attempt_count = attempt + 1
                         if attempt:
+                            if last_content is not None:
+                                payload["messages"].append(
+                                    {"role": "assistant", "content": last_content}
+                                )
                             payload["messages"].append(
                                 {
-                                    "role": "system",
+                                    "role": "user",
                                     "content": (
-                                        "上次输出未通过契约校验。请严格按约定 JSON 纠正一次。"
+                                        "上次输出未通过契约校验。请只返回纠正后的 JSON 对象。"
+                                        f"校验错误：{_validation_error_summary(last_error)}"
                                     ),
                                 }
                             )
@@ -411,6 +519,7 @@ class LlmClient:
                         try:
                             last_raw = response.json()
                             content = last_raw["choices"][0]["message"]["content"]
+                            last_content = content if isinstance(content, str) else None
                             parsed = schema.model_validate_json(content)
                             self._record_completion_trace(
                                 schema=schema,
@@ -455,6 +564,11 @@ class LlmClient:
             "duration_ms": round((perf_counter() - started) * 1000, 3),
             "status": "passed" if error is None else "failed",
             "error_type": type(error).__name__ if error is not None else None,
+            "error_detail": (
+                _validation_error_summary(error)[:2000]
+                if error is not None
+                else None
+            ),
         }
         self._completion_traces.set((*self._completion_traces.get(), trace))
 

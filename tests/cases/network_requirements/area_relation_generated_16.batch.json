@@ -1,0 +1,105 @@
+{
+  "schema_version": "fare-requirement-batch/v1",
+  "requests": [
+    {
+      "request_id": "area-g16-office-db",
+      "sources": [
+        {
+          "address": "16.210.8.66",
+          "description": "办公终端 G16"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.16.66",
+          "description": "核心数据库 G16"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G16 办公终端访问核心数据库"
+    },
+    {
+      "request_id": "area-g16-app-office",
+      "sources": [
+        {
+          "address": "16.220.17.66",
+          "description": "核心应用 G16"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.210.8.66",
+          "description": "办公终端 G16"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G16 核心应用访问办公终端"
+    },
+    {
+      "request_id": "area-g16-kunpeng-app-near-miss",
+      "sources": [
+        {
+          "address": "16.201.0.66",
+          "description": "鲲鹏应用 G16"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.17.66",
+          "description": "核心应用 G16"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G16 鲲鹏应用访问非数据库 Region"
+    },
+    {
+      "request_id": "area-g16-compute-cross",
+      "sources": [
+        {
+          "address": "16.201.2.66",
+          "description": "通用虚拟机 G16"
+        },
+        {
+          "address": "16.201.0.66",
+          "description": "鲲鹏应用 G16"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.16.66",
+          "description": "核心数据库 G16"
+        },
+        {
+          "address": "16.210.8.66",
+          "description": "办公终端 G16"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G16 通用计算与鲲鹏交叉访问数据库和办公终端"
+    }
+  ]
+}

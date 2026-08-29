@@ -53,8 +53,18 @@ def policy_gap(**updates: Any) -> LlmPolicyGap:
     value = {
         "gap_id": "gap-001",
         "scope": "case-001",
+        "gap_type": "temporary_permanent_conflict",
         "description": "synthetic policy gap",
-        "evidence": ["synthetic evidence"],
+        "evidence": [
+            {
+                "item_id": "case-001",
+                "source": "request_description",
+                "quote": "synthetic evidence",
+            }
+        ],
+        "affected_fields": ["temporary_access", "requested_duration"],
+        "question_for_requester": "Please confirm the requested duration.",
+        "suggested_effect": "review_required",
     }
     value.update(updates)
     return LlmPolicyGap.model_validate(value)

@@ -1,0 +1,95 @@
+schema_version: fare-config/v1
+config_id: fare-intranet-uat
+environment: intranet-uat
+
+server:
+  host: 0.0.0.0
+  port: 8000
+  max_concurrent_evaluations: 4
+
+policy:
+  directory: ../policies
+
+requirement_source:
+  mode: api
+  execution:
+    mode: once
+    batch_size: 100
+    poll_interval_seconds: 30
+  local: null
+  api:
+    url: https://requirements.intranet.example/v1/network-requirements
+    method: GET
+    timeout_seconds: 30
+    auth:
+      type: bearer
+      token: CHANGE_ME_REQUIREMENT_TOKEN
+  output_file: ../run_results/intranet-uat/network_requirement_results.json
+
+network_plan:
+  mode: http
+  mock:
+    fixture: null
+  http:
+    url: https://network-plan.intranet.example/v1/network-plan
+    query_parameter: subnet
+    timeout_seconds: 5
+    batch_timeout_seconds: 15
+    max_concurrency: 8
+    auth:
+      type: bearer
+      token: CHANGE_ME_NETWORK_PLAN_TOKEN
+  cache:
+    ttl_seconds: 60
+    max_entries: 4096
+
+acl:
+  mode: mock
+  decision_mode: advisory
+  deterministic_pending_mode: skip
+  max_concurrency: 8
+  mock:
+    fixture: null
+  http:
+    url: https://acl.intranet.example/v1/acl/analyze
+    timeout_seconds: 10
+    auth:
+      type: bearer
+      token: CHANGE_ME_ACL_TOKEN
+
+llm:
+  mode: http
+  mock:
+    fixture: null
+  http:
+    base_url: https://llm.intranet.example/v1
+    model: approved-intranet-model
+    api_key: null
+    semantic_timeout_seconds: 180
+    explanation_timeout_seconds: 120
+    max_correction_retries: 2
+    temperature: 0
+    max_tokens: 4096
+    top_p: 1
+    stream: false
+    stop: null
+    thinking: null
+  features:
+    acl_candidate_mode: shadow
+    request_findings_mode: shadow
+
+evaluation:
+  max_items: 256
+  network_plan_max_subnets: 64
+  semantic_effects:
+    fact_conflict: review_required
+    contradiction: review_required
+    temporary_permanent_conflict: review_required
+    purpose_target_mismatch: review_required
+    mixed_business_context: review_required
+    approval_scope_mismatch: review_required
+    unclassified_privileged_access: observe_only
+
+audit:
+  directory: ../audit_logs/intranet-uat
+  retention_days: 30

@@ -207,6 +207,20 @@ class MatchedRule(StrictModel):
     category: str
 
 
+class DecisionTrace(StrictModel):
+    deterministic_decision: Decision
+    semantic_effect: Literal[
+        "unchanged",
+        "observation_only",
+        "question_only",
+        "downgraded",
+        "semantic_failure",
+    ]
+    semantic_finding_ids: list[str] = Field(default_factory=list)
+    final_decision: Decision
+    final_reason_code: str | None = None
+
+
 class EvaluationItem(StrictModel):
     item_id: str
     access: Access
@@ -227,6 +241,7 @@ class EvaluationItem(StrictModel):
     acl_verification_status: Literal[
         "verified", "unverified", "review_required", "skipped"
     ] = "unverified"
+    decision_trace: DecisionTrace | None = None
 
     @model_validator(mode="after")
     def pending_requires_reason(self) -> EvaluationItem:
@@ -243,6 +258,8 @@ class EvaluationItem(StrictModel):
             serialized.pop("llm_explanation", None)
         if self.llm_recommendation is None:
             serialized.pop("llm_recommendation", None)
+        if self.decision_trace is None:
+            serialized.pop("decision_trace", None)
         return serialized
 
 
@@ -420,6 +437,43 @@ RequestFindingType = Literal[
     "temporary_scope_mismatch",
     "missing_approval_context",
 ]
+SemanticEffect = Literal["observe_only", "question_only", "review_required"]
+PolicyGapType = Literal[
+    "temporary_permanent_conflict",
+    "purpose_target_mismatch",
+    "mixed_business_context",
+    "approval_scope_mismatch",
+    "unclassified_privileged_access",
+]
+MissingInformationField = Literal[
+    "access_purpose",
+    "temporary_access",
+    "maintenance_method",
+    "approval_reference",
+    "business_owner",
+    "requested_duration",
+]
+VerbatimEvidenceSource = Literal[
+    "request_description",
+    "source_description",
+    "destination_description",
+    "acl_analysis",
+    "acl_config",
+]
+
+
+class SemanticEvidence(StrictModel):
+    item_id: str = Field(min_length=1, max_length=300)
+    source: VerbatimEvidenceSource
+    quote: str = Field(min_length=1, max_length=4000)
+
+    @field_validator("item_id", "quote")
+    @classmethod
+    def strip_semantic_evidence(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("semantic evidence fields must not be blank")
+        return value
 
 
 class RequestFindingEvidence(StrictModel):
@@ -566,16 +620,30 @@ class SemanticContradiction(StrictModel):
     contradiction_id: str
     scope: str
     description: str
-    evidence: list[str] = Field(min_length=2)
+    evidence: list[SemanticEvidence] = Field(min_length=2)
     status: ClaimStatus
+    applied_effect: SemanticEffect = "observe_only"
 
 
 class PolicyGap(StrictModel):
     gap_id: str
     scope: str
+    gap_type: PolicyGapType
     description: str
-    evidence: list[str] = Field(min_length=1)
+    evidence: list[SemanticEvidence] = Field(min_length=1)
+    affected_fields: list[SemanticClaimType] = Field(min_length=1)
+    question_for_requester: str = Field(min_length=1, max_length=4000)
+    suggested_effect: SemanticEffect
     status: ClaimStatus
+    applied_effect: SemanticEffect = "observe_only"
+
+
+class MissingInformation(StrictModel):
+    missing_id: str = Field(min_length=1, max_length=300)
+    item_id: str = Field(min_length=1, max_length=300)
+    field: MissingInformationField
+    question: str = Field(min_length=1, max_length=4000)
+    impact: Literal["question_only"] = "question_only"
 
 
 class GuardResult(StrictModel):
@@ -634,10 +702,14 @@ class SemanticAnalysis(StrictModel):
     recommendations: list[str] = Field(default_factory=list)
     guard_results: list[GuardResult] = Field(default_factory=list)
     network_claims: list[NetworkSemanticClaim] = Field(default_factory=list)
+    missing_information: list[MissingInformation] = Field(default_factory=list)
 
 
 class EvaluationResponse(StrictModel):
     request_id: str
+    config_id: str | None = None
+    environment: str | None = None
+    config_fingerprint: str | None = None
     decision: Decision
     policy_version: str
     model: ModelInfo
@@ -706,14 +778,22 @@ class LlmSemanticContradiction(StrictModel):
     contradiction_id: str
     scope: str
     description: str
-    evidence: list[str] = Field(min_length=2)
+    evidence: list[SemanticEvidence] = Field(min_length=2)
 
 
 class LlmPolicyGap(StrictModel):
     gap_id: str
     scope: str
+    gap_type: PolicyGapType
     description: str
-    evidence: list[str] = Field(min_length=1)
+    evidence: list[SemanticEvidence] = Field(min_length=1)
+    affected_fields: list[SemanticClaimType] = Field(min_length=1)
+    question_for_requester: str = Field(min_length=1, max_length=4000)
+    suggested_effect: SemanticEffect
+
+
+class LlmMissingInformation(MissingInformation):
+    pass
 
 
 class LlmSemanticResponse(StrictModel):
@@ -725,6 +805,7 @@ class LlmSemanticResponse(StrictModel):
     questions_for_requester: list[str] = Field(default_factory=list)
     recommendations: list[str] = Field(default_factory=list)
     network_claims: list[LlmNetworkSemanticClaim] = Field(default_factory=list)
+    missing_information: list[LlmMissingInformation] = Field(default_factory=list)
 
 
 class LlmExplanationItem(StrictModel):

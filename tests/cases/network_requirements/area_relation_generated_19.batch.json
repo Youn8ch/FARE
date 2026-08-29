@@ -1,0 +1,105 @@
+{
+  "schema_version": "fare-requirement-batch/v1",
+  "requests": [
+    {
+      "request_id": "area-g19-office-db",
+      "sources": [
+        {
+          "address": "16.210.8.69",
+          "description": "办公终端 G19"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.16.69",
+          "description": "核心数据库 G19"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G19 办公终端访问核心数据库"
+    },
+    {
+      "request_id": "area-g19-app-office",
+      "sources": [
+        {
+          "address": "16.220.17.69",
+          "description": "核心应用 G19"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.210.8.69",
+          "description": "办公终端 G19"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G19 核心应用访问办公终端"
+    },
+    {
+      "request_id": "area-g19-kunpeng-app-near-miss",
+      "sources": [
+        {
+          "address": "16.201.0.69",
+          "description": "鲲鹏应用 G19"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.17.69",
+          "description": "核心应用 G19"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G19 鲲鹏应用访问非数据库 Region"
+    },
+    {
+      "request_id": "area-g19-compute-cross",
+      "sources": [
+        {
+          "address": "16.201.2.69",
+          "description": "通用虚拟机 G19"
+        },
+        {
+          "address": "16.201.0.69",
+          "description": "鲲鹏应用 G19"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.16.69",
+          "description": "核心数据库 G19"
+        },
+        {
+          "address": "16.210.8.69",
+          "description": "办公终端 G19"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G19 通用计算与鲲鹏交叉访问数据库和办公终端"
+    }
+  ]
+}

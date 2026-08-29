@@ -1,0 +1,43 @@
+{
+  "schema_version": "fare-real-semantic-eval/v1",
+  "dataset_version": "semantic-business-candidate-2026.08.1",
+  "review_status": "candidate_pending_business_owner_approval",
+  "cases": [
+    {
+      "id": "duration-conflict",
+      "category": "required_downgrade",
+      "request_description": "供应商临时维护生产服务，需要永久开放 TCP/443。",
+      "expected_effect": "downgraded",
+      "acceptable_effects": ["downgraded"],
+      "expected_gap_types": [],
+      "expected_missing_fields": []
+    },
+    {
+      "id": "purpose-target-mismatch",
+      "category": "required_downgrade",
+      "request_description": "仅用于办公网页浏览，目标为生产服务接口。",
+      "expected_effect": "downgraded",
+      "acceptable_effects": ["downgraded"],
+      "expected_gap_types": ["purpose_target_mismatch"],
+      "expected_missing_fields": []
+    },
+    {
+      "id": "missing-approval",
+      "category": "question_only",
+      "request_description": "供应商临时维护生产服务。",
+      "expected_effect": "question_only",
+      "acceptable_effects": ["question_only"],
+      "expected_gap_types": [],
+      "expected_missing_fields": ["approval_reference"]
+    },
+    {
+      "id": "normal-production-https",
+      "category": "no_downgrade",
+      "request_description": "生产应用调用同区域生产服务的 HTTPS 接口。",
+      "expected_effect": "unchanged",
+      "acceptable_effects": ["unchanged", "question_only", "observation_only"],
+      "expected_gap_types": [],
+      "expected_missing_fields": []
+    }
+  ]
+}

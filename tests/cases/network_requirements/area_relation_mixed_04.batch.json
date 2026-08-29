@@ -1,0 +1,81 @@
+{
+  "schema_version": "fare-requirement-batch/v1",
+  "requests": [
+    {
+      "request_id": "area-m04-office-db",
+      "sources": [{"address": "16.210.8.14", "description": "办公终端 M04"}],
+      "destinations": [{"address": "16.220.16.24", "description": "核心数据库 M04"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "办公终端访问核心数据库"
+    },
+    {
+      "request_id": "area-m04-kunpeng-db",
+      "sources": [{"address": "16.201.1.14", "description": "鲲鹏应用 M04"}],
+      "destinations": [{"address": "16.220.16.24", "description": "核心数据库 M04"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "鲲鹏应用访问核心数据库"
+    },
+    {
+      "request_id": "area-m04-app-office",
+      "sources": [{"address": "16.220.17.24", "description": "核心应用 M04"}],
+      "destinations": [{"address": "16.210.8.24", "description": "办公终端 M04-B"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "核心应用访问办公终端"
+    },
+    {
+      "request_id": "area-m04-general-app-near-miss",
+      "sources": [{"address": "16.201.2.14", "description": "通用虚拟机 M04"}],
+      "destinations": [{"address": "16.220.17.24", "description": "核心应用 M04"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "通用计算平台访问核心应用"
+    },
+    {
+      "request_id": "area-m04-office-kunpeng",
+      "sources": [{"address": "16.210.8.24", "description": "办公终端 M04-B"}],
+      "destinations": [{"address": "16.201.0.14", "description": "鲲鹏应用 M04-B"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "办公终端访问鲲鹏应用"
+    },
+    {
+      "request_id": "area-m04-db-kunpeng-reverse",
+      "sources": [{"address": "16.220.16.24", "description": "核心数据库 M04"}],
+      "destinations": [{"address": "16.201.1.14", "description": "鲲鹏应用 M04"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "核心数据库反向访问鲲鹏应用"
+    },
+    {
+      "request_id": "area-m04-office-kunpeng-cross",
+      "sources": [
+        {"address": "16.210.8.14", "description": "办公终端 M04"},
+        {"address": "16.201.1.14", "description": "鲲鹏应用 M04"}
+      ],
+      "destinations": [
+        {"address": "16.220.16.24", "description": "核心数据库 M04"},
+        {"address": "16.220.17.24", "description": "核心应用 M04"}
+      ],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "办公与鲲鹏交叉访问核心数据库和应用"
+    },
+    {
+      "request_id": "area-m04-core-cross",
+      "sources": [
+        {"address": "16.220.17.24", "description": "核心应用 M04"},
+        {"address": "16.220.16.24", "description": "核心数据库 M04"}
+      ],
+      "destinations": [
+        {"address": "16.210.8.24", "description": "办公终端 M04-B"},
+        {"address": "16.201.2.14", "description": "通用虚拟机 M04"}
+      ],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "核心应用与数据库交叉访问办公和通用计算平台"
+    }
+  ]
+}

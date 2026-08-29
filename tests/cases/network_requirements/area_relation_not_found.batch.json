@@ -1,0 +1,13 @@
+{
+  "schema_version": "fare-requirement-batch/v1",
+  "requests": [
+    {
+      "request_id": "area-network-plan-not-found",
+      "sources": [{"address": "16.201.2.10", "description": "鳌峰通用虚拟机"}],
+      "destinations": [{"address": "16.201.3.10", "description": "未规划目的地址"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "唯一网段未规划场景"
+    }
+  ]
+}

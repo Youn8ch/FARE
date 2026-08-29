@@ -55,8 +55,14 @@ def test_model_raw_records_versions_stage_statuses_and_metrics(settings) -> None
         "schema_correction_count": 0,
         "schema_correction_rate": 0.0,
         "guard_rejection_count": 0,
+        "model_schema_rejection_count": 0,
+        "model_output_guard_rejection_count": 0,
+        "model_dependency_failure_count": 0,
         "explanation_fallback_count": 0,
         "llm_added_pending_count": 0,
+        "model_business_downgrade_count": 0,
+        "model_observation_only_count": 0,
+        "model_question_only_count": 0,
     }
 
 

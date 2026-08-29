@@ -1,0 +1,16 @@
+schema_version: fare-real-semantic-thresholds/v1
+minimum:
+  semantic_schema_pass_rate: 0.99
+  semantic_evidence_guard_pass_rate: 0.95
+  required_downgrade_recall: 0.90
+  expected_effect_match_rate: 0.90
+  expected_gap_type_match_rate: 0.90
+  expected_missing_field_match_rate: 0.90
+  repeat_consistency_rate: 0.95
+maximum:
+  compliant_wrong_downgrade_rate: 0.01
+  semantic_fabricated_rule_rate: 0.00
+  explanation_fabricated_rule_rate: 0.00
+  excess_missing_field_rate: 0.20
+  unlocatable_verified_evidence_rate: 0.00
+  pending_to_compliant_rate: 0.00

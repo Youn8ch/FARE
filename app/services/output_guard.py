@@ -9,6 +9,7 @@ from app.schemas import (
     GuardResult,
     LlmRequestFindingsResponse,
     LlmSemanticResponse,
+    MissingInformation,
     NetworkSemanticClaim,
     PolicyGap,
     SemanticAnalysis,
@@ -167,30 +168,95 @@ def guard_semantic_output(
 
     contradictions: list[SemanticContradiction] = []
     contradiction_ids: set[str] = set()
+    claim_fields_by_evidence: dict[str, dict[tuple[str, str], set[str]]] = {
+        item_id: {} for item_id in expected
+    }
+    for claim in claims:
+        key = (claim.source, claim.evidence.strip().casefold())
+        claim_fields_by_evidence[claim.scope].setdefault(key, set()).add(
+            claim.claim_type
+        )
     for contradiction in output.contradictions:
         _register_unique_id(
             contradiction.contradiction_id,
             contradiction_ids,
             "semantic contradiction",
         )
-        _validate_scoped_evidence(
+        _validate_structured_evidence(
             contradiction.scope,
             contradiction.evidence,
             evidence_sources,
             require_distinct=True,
         )
+        supported_fields = set()
+        for evidence in contradiction.evidence:
+            supported_fields.update(
+                claim_fields_by_evidence[contradiction.scope].get(
+                    (evidence.source, evidence.quote.strip().casefold()), set()
+                )
+            )
+        eligible = len(supported_fields) >= 2
         contradictions.append(
             SemanticContradiction(
-                **contradiction.model_dump(mode="python"), status="verified"
+                **contradiction.model_dump(mode="python"),
+                status="verified" if eligible else "rejected",
+            )
+        )
+        guard_results.append(
+            GuardResult(
+                code="CONTRADICTION_ELIGIBILITY",
+                status="passed" if eligible else "rejected",
+                detail=(
+                    "矛盾证据分别绑定到至少两个受控声明字段。"
+                    if eligible
+                    else "矛盾证据未分别绑定到至少两个受控声明字段，仅保留审计。"
+                ),
+                related_id=contradiction.contradiction_id,
             )
         )
 
     gaps: list[PolicyGap] = []
     gap_ids: set[str] = set()
+    claim_fields_by_scope: dict[str, set[str]] = {item_id: set() for item_id in expected}
+    for claim in claims:
+        claim_fields_by_scope[claim.scope].add(claim.claim_type)
     for gap in output.policy_gaps:
         _register_unique_id(gap.gap_id, gap_ids, "semantic policy gap")
-        _validate_scoped_evidence(gap.scope, gap.evidence, evidence_sources)
-        gaps.append(PolicyGap(**gap.model_dump(mode="python"), status="verified"))
+        _validate_structured_evidence(
+            gap.scope,
+            gap.evidence,
+            evidence_sources,
+        )
+        eligible, detail = _policy_gap_eligibility(
+            gap.gap_type,
+            gap.affected_fields,
+            gap.evidence,
+            claim_fields_by_scope[gap.scope],
+        )
+        status = "verified" if eligible else "rejected"
+        gaps.append(PolicyGap(**gap.model_dump(mode="python"), status=status))
+        guard_results.append(
+            GuardResult(
+                code="POLICY_GAP_ELIGIBILITY",
+                status="passed" if eligible else "rejected",
+                detail=detail,
+                related_id=gap.gap_id,
+            )
+        )
+
+    missing_information: list[MissingInformation] = []
+    missing_ids: set[str] = set()
+    for missing in output.missing_information:
+        _register_unique_id(
+            missing.missing_id, missing_ids, "semantic missing information"
+        )
+        if missing.item_id not in expected:
+            raise SemanticGuardError(
+                "semantic missing information references an unknown item"
+            )
+        missing_information.append(
+            MissingInformation.model_validate(missing.model_dump(mode="python"))
+        )
 
     network_claims: list[NetworkSemanticClaim] = []
     for claim in output.network_claims:
@@ -257,6 +323,7 @@ def guard_semantic_output(
         recommendations=output.recommendations,
         guard_results=guard_results,
         network_claims=network_claims,
+        missing_information=missing_information,
     )
 
 
@@ -273,23 +340,73 @@ def failed_semantic_analysis(item_ids: list[str], detail: str) -> SemanticAnalys
     )
 
 
-def _validate_scoped_evidence(
+def _validate_structured_evidence(
     scope: str,
-    evidence: list[str],
+    evidence: list[Any],
     evidence_sources: dict[str, dict[str, str]],
     *,
     require_distinct: bool = False,
 ) -> None:
     if scope not in evidence_sources:
         raise SemanticGuardError("semantic finding references an unknown item")
-    normalized = [value.strip().casefold() for value in evidence]
-    if any(not value for value in normalized):
-        raise SemanticGuardError("semantic finding evidence cannot be empty")
+    normalized = [
+        (item.item_id, item.source, item.quote.strip().casefold())
+        for item in evidence
+    ]
+    if any(item_id != scope for item_id, _, _ in normalized):
+        raise SemanticGuardError("semantic finding evidence crosses item boundaries")
     if require_distinct and len(normalized) != len(set(normalized)):
         raise SemanticGuardError("semantic contradiction requires distinct evidence")
-    combined = "\n".join(evidence_sources[scope].values())
-    if any(value not in combined for value in evidence):
-        raise SemanticGuardError("semantic finding evidence cannot be located")
+    for item in evidence:
+        source_text = evidence_sources[scope].get(item.source)
+        if source_text is None:
+            raise SemanticGuardError(
+                "semantic finding evidence references an unknown source"
+            )
+        if item.quote not in source_text:
+            raise SemanticGuardError("semantic finding evidence cannot be located")
+
+
+def _policy_gap_eligibility(
+    gap_type: str,
+    affected_fields: list[str],
+    evidence: list[Any],
+    claim_fields: set[str],
+) -> tuple[bool, str]:
+    unique_evidence = {
+        (item.item_id, item.source, item.quote.strip().casefold()) for item in evidence
+    }
+    if gap_type != "unclassified_privileged_access" and len(unique_evidence) < 2:
+        return False, "可影响裁决的规则缺口需要至少两条不同的逐字证据。"
+    affected = set(affected_fields)
+    if not affected <= claim_fields:
+        return False, "规则缺口的每个受影响字段都必须有证据声明，缺失信息只能进入提问通道。"
+    eligible = False
+    if gap_type == "temporary_permanent_conflict":
+        eligible = {"temporary_access", "requested_duration"} <= affected
+    elif gap_type == "purpose_target_mismatch":
+        eligible = "access_purpose" in affected and bool(
+            affected
+            & {
+                "system_role",
+                "destination_environment",
+                "destination_object_type",
+            }
+        )
+    elif gap_type == "mixed_business_context":
+        eligible = len(affected & claim_fields) >= 2
+    elif gap_type == "approval_scope_mismatch":
+        eligible = "approval_reference" in affected and bool(
+            affected
+            & {"access_purpose", "system_role", "requested_duration", "temporary_access"}
+        )
+    elif gap_type == "unclassified_privileged_access":
+        eligible = "maintenance_method" in affected
+    return (
+        (True, "规则缺口满足服务端证据字段组合要求。")
+        if eligible
+        else (False, "规则缺口不满足该风险类型的服务端字段组合要求。")
+    )
 
 
 def _register_unique_id(identifier: str, seen: set[str], label: str) -> None:

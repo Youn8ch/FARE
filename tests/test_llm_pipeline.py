@@ -45,13 +45,48 @@ def test_one_way_decision_matrix(
         semantic = LlmSemanticResponse.model_validate(
             {
                 "analyzed_item_ids": [f"{request_id}-001"],
-                "policy_gaps": [
+                "claims": [
                     {
-                        "gap_id": "gap-matrix-001",
+                        "claim_id": "claim-purpose-001",
                         "scope": f"{request_id}-001",
-                        "description": "合成规则覆盖缺口",
-                        "evidence": [value["request_description"]],
-                    }
+                        "claim_type": "access_purpose",
+                        "value": "生产应用",
+                        "source": "request_description",
+                        "evidence": "生产应用",
+                        "confidence": 1,
+                    },
+                    {
+                        "claim_id": "claim-role-001",
+                        "scope": f"{request_id}-001",
+                        "claim_type": "system_role",
+                        "value": "HTTPS 访问",
+                        "source": "request_description",
+                        "evidence": "HTTPS 访问",
+                        "confidence": 1,
+                    },
+                ],
+                "policy_gaps": [
+                        {
+                            "gap_id": "gap-matrix-001",
+                            "scope": f"{request_id}-001",
+                            "gap_type": "purpose_target_mismatch",
+                            "description": "访问目的与目标对象不一致",
+                            "evidence": [
+                                {
+                                    "item_id": f"{request_id}-001",
+                                    "source": "request_description",
+                                    "quote": "生产应用",
+                                },
+                                {
+                                    "item_id": f"{request_id}-001",
+                                    "source": "request_description",
+                                    "quote": "HTTPS 访问",
+                                },
+                            ],
+                            "affected_fields": ["access_purpose", "system_role"],
+                            "question_for_requester": "请确认访问目的。",
+                            "suggested_effect": "review_required",
+                        }
                 ],
             }
         )
@@ -69,6 +104,11 @@ def test_one_way_decision_matrix(
 
     assert item.decision == ("待定" if reason_code else "合规")
     assert item.reason_code == reason_code
+    assert item.decision_trace is not None
+    assert item.decision_trace.deterministic_decision == (
+        "待定" if deterministic_pending else "合规"
+    )
+    assert item.decision_trace.final_decision == item.decision
     assert recorder.semantic_calls == 1
     assert recorder.explanation_calls == explanation_calls
     assert recorder.acl_candidate_calls == 0

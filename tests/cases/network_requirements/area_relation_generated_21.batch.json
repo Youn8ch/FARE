@@ -1,0 +1,105 @@
+{
+  "schema_version": "fare-requirement-batch/v1",
+  "requests": [
+    {
+      "request_id": "area-g21-office-db",
+      "sources": [
+        {
+          "address": "16.210.8.71",
+          "description": "办公终端 G21"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.16.71",
+          "description": "核心数据库 G21"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G21 办公终端访问核心数据库"
+    },
+    {
+      "request_id": "area-g21-app-office",
+      "sources": [
+        {
+          "address": "16.220.17.71",
+          "description": "核心应用 G21"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.210.8.71",
+          "description": "办公终端 G21"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G21 核心应用访问办公终端"
+    },
+    {
+      "request_id": "area-g21-kunpeng-app-near-miss",
+      "sources": [
+        {
+          "address": "16.201.0.71",
+          "description": "鲲鹏应用 G21"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.17.71",
+          "description": "核心应用 G21"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G21 鲲鹏应用访问非数据库 Region"
+    },
+    {
+      "request_id": "area-g21-compute-cross",
+      "sources": [
+        {
+          "address": "16.201.2.71",
+          "description": "通用虚拟机 G21"
+        },
+        {
+          "address": "16.201.0.71",
+          "description": "鲲鹏应用 G21"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.16.71",
+          "description": "核心数据库 G21"
+        },
+        {
+          "address": "16.210.8.71",
+          "description": "办公终端 G21"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G21 通用计算与鲲鹏交叉访问数据库和办公终端"
+    }
+  ]
+}

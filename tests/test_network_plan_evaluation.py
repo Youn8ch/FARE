@@ -4,6 +4,7 @@ import shutil
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import create_app
@@ -112,7 +113,7 @@ def test_acl_dependency_is_advisory_or_required_by_configuration(settings) -> No
     assert required["items"][0]["reason_code"] == "ACL_DEPENDENCY_FAILURE"
 
 
-def test_http_mode_starts_without_static_network_catalog(settings, tmp_path: Path) -> None:
+def test_http_mode_rejects_missing_query_parameter(settings, tmp_path: Path) -> None:
     policy_dir = tmp_path / "policy"
     policy_dir.mkdir()
     shutil.copy(settings.policy_dir / "manifest.yaml", policy_dir / "manifest.yaml")
@@ -128,11 +129,6 @@ def test_http_mode_starts_without_static_network_catalog(settings, tmp_path: Pat
         network_plan_http_query_parameter=None,
         acl_decision_mode="advisory",
     )
-    with TestClient(create_app(http_settings)) as client:
-        response = client.post(
-            "/v1/evaluations", json=_payload("network-plan-http-no-catalog")
-        )
-    assert response.status_code == 200
-    item = response.json()["items"][0]
-    assert item["reason_code"] == "NETWORK_PLAN_DEPENDENCY_FAILURE"
-    assert item["acl_verification_status"] == "skipped"
+    with pytest.raises(ValueError, match="NETWORK_PLAN_HTTP_QUERY_PARAMETER"):
+        with TestClient(create_app(http_settings)):
+            pass

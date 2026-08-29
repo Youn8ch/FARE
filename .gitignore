@@ -1,10 +1,17 @@
 __pycache__/
 *.py[cod]
 .venv/
+.venv.*.backup/
 .pytest_cache/
+.pytest_tmp/
 pytest-of-*/
 .ruff_cache/
 audit_logs/
+run_results/
 dist/
 build/
 *.egg-info/
+.codex_docx_qa/
+
+# Local untracked secrets: real LLM api_key lives here, never in tracked config/.
+config/fare.local.yaml

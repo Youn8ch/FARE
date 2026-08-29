@@ -1,0 +1,9 @@
+version: "test.network-plan-area-relation-matrix.1"
+released_at: "2026-08-07"
+sources:
+  - id: AREA-RELATION-MATRIX-TEST
+    name: 区域关系限制测试矩阵
+approvals:
+  - role: test-policy-owner
+    approver: automated-test-suite
+    approved_at: "2026-08-07"

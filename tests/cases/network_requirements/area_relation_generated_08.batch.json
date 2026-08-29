@@ -1,0 +1,105 @@
+{
+  "schema_version": "fare-requirement-batch/v1",
+  "requests": [
+    {
+      "request_id": "area-g08-office-db",
+      "sources": [
+        {
+          "address": "16.210.8.58",
+          "description": "办公终端 G08"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.16.58",
+          "description": "核心数据库 G08"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G08 办公终端访问核心数据库"
+    },
+    {
+      "request_id": "area-g08-app-office",
+      "sources": [
+        {
+          "address": "16.220.17.58",
+          "description": "核心应用 G08"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.210.8.58",
+          "description": "办公终端 G08"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G08 核心应用访问办公终端"
+    },
+    {
+      "request_id": "area-g08-kunpeng-app-near-miss",
+      "sources": [
+        {
+          "address": "16.201.0.58",
+          "description": "鲲鹏应用 G08"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.17.58",
+          "description": "核心应用 G08"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G08 鲲鹏应用访问非数据库 Region"
+    },
+    {
+      "request_id": "area-g08-compute-cross",
+      "sources": [
+        {
+          "address": "16.201.2.58",
+          "description": "通用虚拟机 G08"
+        },
+        {
+          "address": "16.201.0.58",
+          "description": "鲲鹏应用 G08"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.16.58",
+          "description": "核心数据库 G08"
+        },
+        {
+          "address": "16.210.8.58",
+          "description": "办公终端 G08"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G08 通用计算与鲲鹏交叉访问数据库和办公终端"
+    }
+  ]
+}

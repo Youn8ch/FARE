@@ -1,0 +1,275 @@
+{
+  "schema_version": "fare-requirement-batch/v1",
+  "requests": [
+    {
+      "request_id": "area-office-core-db",
+      "sources": [{"address": "16.210.8.10", "description": "本部办公终端"}],
+      "destinations": [{"address": "16.220.16.20", "description": "核心生产数据库"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "本部办公区访问核心生产数据库平台"
+    },
+    {
+      "request_id": "area-office-core-app",
+      "sources": [{"address": "16.210.8.10", "description": "本部办公终端"}],
+      "destinations": [{"address": "16.220.17.20", "description": "核心生产应用"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "本部办公区访问核心生产应用区"
+    },
+    {
+      "request_id": "area-kunpeng-core-db",
+      "sources": [{"address": "16.201.0.10", "description": "鳌峰鲲鹏应用"}],
+      "destinations": [{"address": "16.220.16.20", "description": "核心生产数据库"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "鳌峰鲲鹏应用 Region 访问核心数据库 Region"
+    },
+    {
+      "request_id": "area-general-vm-core-db",
+      "sources": [{"address": "16.201.2.10", "description": "鳌峰通用虚拟机"}],
+      "destinations": [{"address": "16.220.16.20", "description": "核心生产数据库"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "鳌峰通用计算平台访问核心数据库平台"
+    },
+    {
+      "request_id": "area-core-app-office",
+      "sources": [{"address": "16.220.17.20", "description": "核心生产应用"}],
+      "destinations": [{"address": "16.210.8.10", "description": "本部办公终端"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "核心生产应用平台访问办公网络"
+    },
+    {
+      "request_id": "area-core-db-office-reverse",
+      "sources": [{"address": "16.220.16.20", "description": "核心生产数据库"}],
+      "destinations": [{"address": "16.210.8.10", "description": "本部办公终端"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "核心数据库到办公区不反向继承办公到核心规则"
+    },
+    {
+      "request_id": "area-general-vm-core-app-near-miss",
+      "sources": [{"address": "16.201.2.10", "description": "鳌峰通用虚拟机"}],
+      "destinations": [{"address": "16.220.17.20", "description": "核心生产应用"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "目的平台不是核心数据库平台"
+    },
+    {
+      "request_id": "area-kunpeng-office-near-miss",
+      "sources": [{"address": "16.201.0.10", "description": "鳌峰鲲鹏应用"}],
+      "destinations": [{"address": "16.210.8.10", "description": "本部办公终端"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "目的 Region 不是核心生产数据库区"
+    },
+    {
+      "request_id": "area-core-app-core-db-internal",
+      "sources": [{"address": "16.220.17.20", "description": "核心生产应用"}],
+      "destinations": [{"address": "16.220.16.20", "description": "核心生产数据库"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "核心生产区内部应用到数据库访问"
+    },
+    {
+      "request_id": "area-office-office-internal",
+      "sources": [{"address": "16.210.8.10", "description": "本部办公终端 A"}],
+      "destinations": [{"address": "16.210.8.20", "description": "本部办公终端 B"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "同一办公网段内访问并验证查询去重"
+    },
+    {
+      "request_id": "area-combination-isolation",
+      "sources": [
+        {"address": "16.210.8.10", "description": "本部办公终端"},
+        {"address": "16.220.17.20", "description": "核心生产应用"}
+      ],
+      "destinations": [
+        {"address": "16.220.16.20", "description": "核心生产数据库"},
+        {"address": "16.210.8.20", "description": "本部办公终端 B"}
+      ],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "四个区域组合必须逐 item 独立裁决"
+    },
+    {
+      "request_id": "area-success-office-db-02",
+      "sources": [{"address": "16.210.8.30", "description": "办公终端扩展 A"}],
+      "destinations": [{"address": "16.220.16.30", "description": "核心数据库扩展 A"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "扩展办公终端访问核心数据库"
+    },
+    {
+      "request_id": "area-success-office-app-02",
+      "sources": [{"address": "16.210.8.31", "description": "办公终端扩展 B"}],
+      "destinations": [{"address": "16.220.17.30", "description": "核心应用扩展 A"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "扩展办公终端访问核心应用"
+    },
+    {
+      "request_id": "area-success-app-office-02",
+      "sources": [{"address": "16.220.17.31", "description": "核心应用扩展 B"}],
+      "destinations": [{"address": "16.210.8.32", "description": "办公终端扩展 C"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "核心应用访问扩展办公终端"
+    },
+    {
+      "request_id": "area-success-db-office-reverse-02",
+      "sources": [{"address": "16.220.16.31", "description": "核心数据库扩展 B"}],
+      "destinations": [{"address": "16.210.8.33", "description": "办公终端扩展 D"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "核心数据库反向访问扩展办公终端"
+    },
+    {
+      "request_id": "area-success-kunpeng0-db-02",
+      "sources": [{"address": "16.201.0.30", "description": "鲲鹏应用扩展 A"}],
+      "destinations": [{"address": "16.220.16.32", "description": "核心数据库扩展 C"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "鲲鹏应用第一网段访问核心数据库"
+    },
+    {
+      "request_id": "area-success-kunpeng1-db-02",
+      "sources": [{"address": "16.201.1.30", "description": "鲲鹏应用扩展 B"}],
+      "destinations": [{"address": "16.220.16.33", "description": "核心数据库扩展 D"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "鲲鹏应用第二网段访问核心数据库"
+    },
+    {
+      "request_id": "area-success-kunpeng-app-near-miss-02",
+      "sources": [{"address": "16.201.0.31", "description": "鲲鹏应用扩展 C"}],
+      "destinations": [{"address": "16.220.17.32", "description": "核心应用扩展 C"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "鲲鹏应用访问非数据库 Region"
+    },
+    {
+      "request_id": "area-success-general-db-02",
+      "sources": [{"address": "16.201.2.30", "description": "通用虚拟机扩展 A"}],
+      "destinations": [{"address": "16.220.16.34", "description": "核心数据库扩展 E"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "通用计算平台访问核心数据库"
+    },
+    {
+      "request_id": "area-success-general-app-near-miss-02",
+      "sources": [{"address": "16.201.2.31", "description": "通用虚拟机扩展 B"}],
+      "destinations": [{"address": "16.220.17.33", "description": "核心应用扩展 D"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "通用计算平台访问非数据库平台"
+    },
+    {
+      "request_id": "area-success-general-office-02",
+      "sources": [{"address": "16.201.2.32", "description": "通用虚拟机扩展 C"}],
+      "destinations": [{"address": "16.210.8.34", "description": "办公终端扩展 E"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "通用计算平台访问办公终端"
+    },
+    {
+      "request_id": "area-success-office-kunpeng-02",
+      "sources": [{"address": "16.210.8.35", "description": "办公终端扩展 F"}],
+      "destinations": [{"address": "16.201.0.32", "description": "鲲鹏应用扩展 D"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "办公终端访问鲲鹏应用"
+    },
+    {
+      "request_id": "area-success-db-kunpeng-reverse-02",
+      "sources": [{"address": "16.220.16.35", "description": "核心数据库扩展 F"}],
+      "destinations": [{"address": "16.201.1.31", "description": "鲲鹏应用扩展 E"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "核心数据库反向访问鲲鹏应用"
+    },
+    {
+      "request_id": "area-success-app-db-internal-02",
+      "sources": [{"address": "16.220.17.34", "description": "核心应用扩展 E"}],
+      "destinations": [{"address": "16.220.16.36", "description": "核心数据库扩展 G"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "核心生产区内部应用访问数据库"
+    },
+    {
+      "request_id": "area-success-db-app-internal-02",
+      "sources": [{"address": "16.220.16.37", "description": "核心数据库扩展 H"}],
+      "destinations": [{"address": "16.220.17.35", "description": "核心应用扩展 F"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "核心生产区内部数据库访问应用"
+    },
+    {
+      "request_id": "area-success-kunpeng-internal-02",
+      "sources": [{"address": "16.201.0.33", "description": "鲲鹏应用扩展 F"}],
+      "destinations": [{"address": "16.201.1.32", "description": "鲲鹏应用扩展 G"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "鲲鹏应用跨两个规划网段内部访问"
+    },
+    {
+      "request_id": "area-success-office-general-cross-02",
+      "sources": [
+        {"address": "16.210.8.40", "description": "办公终端交叉 A"},
+        {"address": "16.201.2.40", "description": "通用虚拟机交叉 A"}
+      ],
+      "destinations": [
+        {"address": "16.220.16.40", "description": "核心数据库交叉 A"},
+        {"address": "16.220.17.40", "description": "核心应用交叉 A"}
+      ],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "办公与通用计算交叉访问数据库和应用"
+    },
+    {
+      "request_id": "area-success-core-kunpeng-cross-02",
+      "sources": [
+        {"address": "16.220.17.41", "description": "核心应用交叉 B"},
+        {"address": "16.220.16.41", "description": "核心数据库交叉 B"}
+      ],
+      "destinations": [
+        {"address": "16.210.8.41", "description": "办公终端交叉 B"},
+        {"address": "16.201.0.40", "description": "鲲鹏应用交叉 B"}
+      ],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "核心应用与数据库交叉访问办公和鲲鹏"
+    },
+    {
+      "request_id": "area-success-kunpeng-office-cross-02",
+      "sources": [
+        {"address": "16.201.1.40", "description": "鲲鹏应用交叉 C"},
+        {"address": "16.210.8.42", "description": "办公终端交叉 C"}
+      ],
+      "destinations": [
+        {"address": "16.220.16.42", "description": "核心数据库交叉 C"},
+        {"address": "16.210.8.43", "description": "办公终端交叉 D"}
+      ],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "鲲鹏与办公交叉访问数据库和办公终端"
+    },
+    {
+      "request_id": "area-success-office-app-bidirectional-02",
+      "sources": [
+        {"address": "16.210.8.44", "description": "办公终端交叉 E"},
+        {"address": "16.220.17.42", "description": "核心应用交叉 D"}
+      ],
+      "destinations": [
+        {"address": "16.220.17.43", "description": "核心应用交叉 E"},
+        {"address": "16.210.8.45", "description": "办公终端交叉 F"}
+      ],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "办公与核心应用双向交叉访问"
+    }
+  ]
+}

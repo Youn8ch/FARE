@@ -20,6 +20,9 @@ def test_complete_facts_without_rejection_are_compliant(client: TestClient):
     response = client.post("/v1/evaluations", json=payload())
     assert response.status_code == 200
     body = response.json()
+    assert body["config_id"] == "direct-settings"
+    assert body["environment"] == "unspecified"
+    assert body["config_fingerprint"] == "direct-settings"
     assert body["decision"] == "合规"
     assert body["items"][0]["reason_type"] is None
     assert body["acl_analysis"]["classification"] == "候选路径与拟新增策略分析，非现网 ACL 状态"
@@ -199,6 +202,9 @@ def test_audit_is_written_before_response_and_contains_no_api_key(client, settin
     audit_file = next(settings.audit_log_dir.glob("*.jsonl"))
     record = json.loads(audit_file.read_text(encoding="utf-8").splitlines()[-1])
     assert record["audit_id"] == response.json()["audit_id"]
+    assert record["config_id"] == "direct-settings"
+    assert record["environment"] == "unspecified"
+    assert record["config_fingerprint"] == "direct-settings"
     assert record["final_response"] == response.json()
     assert record["model_raw"]["semantic"]
     assert record["model_raw"]["explanation"]
@@ -212,3 +218,34 @@ def test_restart_rebuilds_idempotency_index(settings):
     with TestClient(create_app(settings)) as second_client:
         second = second_client.post("/v1/evaluations", json=value).json()
     assert second == first
+
+
+def test_configuration_fingerprint_creates_a_new_idempotency_scope(settings):
+    value = payload(request_id="fare-test-profile-switch")
+    external = replace(
+        settings,
+        config_id="fare-external-test",
+        environment="external-test",
+        config_fingerprint="external-fingerprint",
+    )
+    intranet = replace(
+        settings,
+        config_id="fare-intranet-uat",
+        environment="intranet-uat",
+        config_fingerprint="intranet-fingerprint",
+    )
+
+    with TestClient(create_app(external)) as external_client:
+        first = external_client.post("/v1/evaluations", json=value).json()
+    with TestClient(create_app(intranet)) as intranet_client:
+        second = intranet_client.post("/v1/evaluations", json=value).json()
+
+    assert first["audit_id"] != second["audit_id"]
+    assert first["environment"] == "external-test"
+    assert second["environment"] == "intranet-uat"
+    audit_file = next(settings.audit_log_dir.glob("*.jsonl"))
+    records = [json.loads(line) for line in audit_file.read_text(encoding="utf-8").splitlines()]
+    assert [record["config_fingerprint"] for record in records] == [
+        "external-fingerprint",
+        "intranet-fingerprint",
+    ]

@@ -17,3 +17,23 @@ Real-model evaluation requires all of the following: an explicitly selected
 is optional according to the deployment. If any gate is absent, the real-model
 test skips before creating a client or making a request.
 
+The semantic business acceptance runner uses the real HTTP model configured in
+`config/fare.yaml`, keeps both shadow stages enabled by default, repeats each
+positive/negative case three times, writes an audit log, and exits non-zero when
+an acceptance threshold is missed:
+
+```powershell
+.\.venv\Scripts\python.exe -m evals.llm.run_real_semantic_acceptance
+```
+
+Its checked-in cases are marked `candidate_pending_business_owner_approval`.
+They provide an executable quality gate now, but must not be relabeled as gold
+until the business/rule owner approves the wording and expected effects.
+
+Interrupted runs can resume from the audit trail without repeating completed
+case/repeat pairs:
+
+```powershell
+.\.venv\Scripts\python.exe -u -m evals.llm.run_real_semantic_acceptance `
+  --resume-audit-directory audit_logs\real_semantic_<timestamp>
+```

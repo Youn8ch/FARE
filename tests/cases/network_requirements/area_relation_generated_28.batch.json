@@ -1,0 +1,105 @@
+{
+  "schema_version": "fare-requirement-batch/v1",
+  "requests": [
+    {
+      "request_id": "area-g28-office-db",
+      "sources": [
+        {
+          "address": "16.210.8.78",
+          "description": "办公终端 G28"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.16.78",
+          "description": "核心数据库 G28"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G28 办公终端访问核心数据库"
+    },
+    {
+      "request_id": "area-g28-app-office",
+      "sources": [
+        {
+          "address": "16.220.17.78",
+          "description": "核心应用 G28"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.210.8.78",
+          "description": "办公终端 G28"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G28 核心应用访问办公终端"
+    },
+    {
+      "request_id": "area-g28-kunpeng-app-near-miss",
+      "sources": [
+        {
+          "address": "16.201.0.78",
+          "description": "鲲鹏应用 G28"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.17.78",
+          "description": "核心应用 G28"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G28 鲲鹏应用访问非数据库 Region"
+    },
+    {
+      "request_id": "area-g28-compute-cross",
+      "sources": [
+        {
+          "address": "16.201.2.78",
+          "description": "通用虚拟机 G28"
+        },
+        {
+          "address": "16.201.0.78",
+          "description": "鲲鹏应用 G28"
+        }
+      ],
+      "destinations": [
+        {
+          "address": "16.220.16.78",
+          "description": "核心数据库 G28"
+        },
+        {
+          "address": "16.210.8.78",
+          "description": "办公终端 G28"
+        }
+      ],
+      "protocol": "tcp",
+      "ports": [
+        {
+          "start": 443,
+          "end": 443
+        }
+      ],
+      "request_description": "批次 G28 通用计算与鲲鹏交叉访问数据库和办公终端"
+    }
+  ]
+}

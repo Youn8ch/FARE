@@ -29,12 +29,20 @@ from app.config import Settings
         ({"llm_semantic_timeout_seconds": 0}, "dependency timeouts"),
         ({"llm_explanation_timeout_seconds": 0}, "dependency timeouts"),
         ({"llm_max_correction_retries": -1}, "LLM_MAX_CORRECTION_RETRIES"),
-        ({"llm_max_correction_retries": 2}, "LLM_MAX_CORRECTION_RETRIES"),
+        ({"llm_max_correction_retries": 3}, "LLM_MAX_CORRECTION_RETRIES"),
         ({"max_concurrent_evaluations": 0}, "MAX_CONCURRENT_EVALUATIONS"),
         ({"network_plan_client_mode": "invalid"}, "NETWORK_PLAN_CLIENT_MODE"),
         (
             {"network_plan_client_mode": "http", "network_plan_api_url": None},
             "NETWORK_PLAN_API_URL",
+        ),
+        (
+            {
+                "network_plan_client_mode": "http",
+                "network_plan_api_url": "https://network-plan.test",
+                "network_plan_http_query_parameter": None,
+            },
+            "NETWORK_PLAN_HTTP_QUERY_PARAMETER",
         ),
         ({"network_plan_timeout_seconds": 0}, "network plan timeouts"),
         ({"network_plan_batch_timeout_seconds": 0}, "network plan timeouts"),
@@ -45,6 +53,10 @@ from app.config import Settings
         ({"network_plan_cache_ttl_seconds": -1}, "must not be negative"),
         ({"network_plan_cache_max_entries": 0}, "must be positive"),
         ({"acl_decision_mode": "invalid"}, "ACL_DECISION_MODE"),
+        (
+            {"acl_deterministic_pending_mode": "invalid"},
+            "ACL_DETERMINISTIC_PENDING_MODE",
+        ),
     ],
 )
 def test_invalid_setting_limits_are_rejected(

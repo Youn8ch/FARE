@@ -1,0 +1,75 @@
+{
+  "schema_version": "fare-requirement-batch/v1",
+  "requests": [
+    {
+      "request_id": "area-m03-app-office",
+      "sources": [{"address": "16.220.17.13", "description": "核心应用 M03"}],
+      "destinations": [{"address": "16.210.8.13", "description": "办公终端 M03"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "核心应用访问办公终端"
+    },
+    {
+      "request_id": "area-m03-app-office-second",
+      "sources": [{"address": "16.220.17.23", "description": "核心应用 M03-B"}],
+      "destinations": [{"address": "16.210.8.23", "description": "办公终端 M03-B"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "第二组核心应用访问办公终端"
+    },
+    {
+      "request_id": "area-m03-db-office-reverse",
+      "sources": [{"address": "16.220.16.13", "description": "核心数据库 M03"}],
+      "destinations": [{"address": "16.210.8.13", "description": "办公终端 M03"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "核心数据库访问办公终端"
+    },
+    {
+      "request_id": "area-m03-office-app",
+      "sources": [{"address": "16.210.8.13", "description": "办公终端 M03"}],
+      "destinations": [{"address": "16.220.17.13", "description": "核心应用 M03"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "办公终端访问核心应用"
+    },
+    {
+      "request_id": "area-m03-office-internal",
+      "sources": [{"address": "16.210.8.13", "description": "办公终端 M03"}],
+      "destinations": [{"address": "16.210.8.23", "description": "办公终端 M03-B"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "办公网段内部访问"
+    },
+    {
+      "request_id": "area-m03-app-db-internal",
+      "sources": [{"address": "16.220.17.13", "description": "核心应用 M03"}],
+      "destinations": [{"address": "16.220.16.13", "description": "核心数据库 M03"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "核心应用访问核心数据库"
+    },
+    {
+      "request_id": "area-m03-db-app-internal",
+      "sources": [{"address": "16.220.16.13", "description": "核心数据库 M03"}],
+      "destinations": [{"address": "16.220.17.13", "description": "核心应用 M03"}],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "核心数据库访问核心应用"
+    },
+    {
+      "request_id": "area-m03-direction-cross",
+      "sources": [
+        {"address": "16.210.8.13", "description": "办公终端 M03"},
+        {"address": "16.220.16.13", "description": "核心数据库 M03"}
+      ],
+      "destinations": [
+        {"address": "16.220.17.13", "description": "核心应用 M03"},
+        {"address": "16.210.8.23", "description": "办公终端 M03-B"}
+      ],
+      "protocol": "tcp",
+      "ports": [{"start": 443, "end": 443}],
+      "request_description": "办公与数据库交叉访问应用和办公终端"
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+rules:
+  - id: ZONE-OFFICE-CORE-DB-001
+    name: 办公区到核心生产数据库平台复核
+    description: 验证具体平台规则优先于通用区域规则
+    category: zone_relation
+    decision: 待定
+    reason_type: policy_violation
+    when:
+      source_area_id: 本部办公区
+      destination_area_id: 核心生产区
+      destination_platform_name: 核心数据库平台
+    semantic_keywords: [办公区, 核心生产区, 核心数据库平台]
+    evidence_requirements:
+      [source_area_id, destination_area_id, destination_platform_name]
+    reason_template: 办公区访问核心生产数据库平台需要复核。
+    recommendation: 核实数据库访问必要性并补充区域访问审批依据。
+    remediation_template: 按数据库访问最小范围拆分申请并补充审批依据。
+
+  - id: ZONE-OFFICE-CORE-001
+    name: 办公区到核心生产区复核
+    description: 验证办公区到核心生产区的有向区域关系
+    category: zone_relation
+    decision: 待定
+    reason_type: policy_violation
+    when:
+      source_area_id: 本部办公区
+      destination_area_id: 核心生产区
+    semantic_keywords: [办公区, 核心生产区, 有向关系]
+    evidence_requirements: [source_area_id, destination_area_id]
+    reason_template: 办公区访问核心生产区需要复核。
+    recommendation: 核实跨区域访问必要性并补充审批依据。
+    remediation_template: 按业务用途拆分申请并补充跨区域审批依据。
+
+  - id: REGION-KUNPENG-CORE-DB-001
+    name: 鳌峰鲲鹏应用 Region 到核心数据库 Region 复核
+    description: 验证相同 areaId 下仍按 Region 精确区分
+    category: zone_relation
+    decision: 待定
+    reason_type: policy_violation
+    when:
+      source_region_name: 鳌峰生产区（科创鲲鹏应用）
+      destination_region_name: 核心生产数据库区
+    semantic_keywords: [鲲鹏应用, 核心生产数据库区, Region]
+    evidence_requirements: [source_region_name, destination_region_name]
+    reason_template: 鳌峰鲲鹏应用 Region 到核心数据库 Region 的访问需要复核。
+    recommendation: 核实跨 Region 访问必要性并补充审批依据。
+    remediation_template: 按 Region 边界拆分申请并补充审批依据。
+
+  - id: MULTI-GENERAL-VM-CORE-DB-001
+    name: 鳌峰通用计算平台到核心数据库平台复核
+    description: 验证 area、Region、平台和用途编码全部按 AND 精确匹配
+    category: zone_relation
+    decision: 待定
+    reason_type: policy_violation
+    when:
+      source_area_id: 鳌峰科创生产区
+      source_region_name: 鳌峰生产区（通用计算平台）
+      source_platform_name: 鳌峰通用计算平台
+      source_usage_code: GENERAL_VM
+      destination_area_id: 核心生产区
+      destination_platform_name: 核心数据库平台
+      destination_usage_code: PROD_DATABASE
+    semantic_keywords: [通用计算, 核心数据库, 多字段匹配]
+    evidence_requirements:
+      [source_area_id, source_region_name, source_platform_name, source_usage_code,
+       destination_area_id, destination_platform_name, destination_usage_code]
+    reason_template: 鳌峰通用计算平台到核心数据库平台的访问需要复核。
+    recommendation: 核实用途、平台和跨区域访问必要性。
+    remediation_template: 按平台和用途拆分申请并补充审批依据。
+
+  - id: PLATFORM-CORE-APP-OFFICE-001
+    name: 核心生产应用平台到办公网络复核
+    description: 验证生产到办公的反方向业务访问使用独立规则
+    category: zone_relation
+    decision: 待定
+    reason_type: policy_violation
+    when:
+      source_platform_name: 核心应用平台
+      destination_platform_name: 办公网络
+    semantic_keywords: [核心应用平台, 办公网络, 反方向]
+    evidence_requirements: [source_platform_name, destination_platform_name]
+    reason_template: 核心生产应用平台到办公网络的访问需要复核。
+    recommendation: 核实反向业务访问必要性并补充审批依据。
+    remediation_template: 按最小目的范围拆分申请并补充审批依据。
+
+  - id: ACL-PATH-001
+    name: 未找到途径防火墙
+    description: 必需系统规则
+    category: least_privilege
+    decision: 待定
+    reason_type: acl_no_path
+    when: {explicit_no_path: true}
+    semantic_keywords: [无路径]
+    evidence_requirements: [acl_explicit_no_path]
+    reason_template: 未找到候选防火墙。
+    recommendation: 人工复核。
+    remediation_template: 人工复核。
