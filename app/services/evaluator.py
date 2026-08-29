@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+from collections.abc import Callable
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Any
@@ -95,9 +96,11 @@ class _AclStage:
 @dataclass(slots=True)
 class _SemanticStage:
     semantic: SemanticAnalysis
-    items: list[EvaluationItem]
     succeeded: bool
-    added_pending_count: int
+    findings: dict[str, list[Finding]]
+    review_ids: dict[str, list[str]]
+    question_ids: dict[str, list[str]]
+    observation_ids: dict[str, list[str]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,6 +130,7 @@ class Evaluator:
         config_id: str | None = None,
         environment: str | None = None,
         config_fingerprint: str | None = None,
+        stage_observer: Callable[[str], None] | None = None,
     ) -> None:
         if llm_request_findings_mode not in {"off", "shadow"}:
             raise ValueError(
@@ -149,16 +153,37 @@ class Evaluator:
         self.acl_decision_mode = acl_decision_mode
         self.acl_deterministic_pending_mode = acl_deterministic_pending_mode
         self.decision_reducer = DecisionReducer()
+        self._stage_observer = stage_observer
         self.config_id = config_id
         self.environment = environment
         self.config_fingerprint = config_fingerprint
 
+    def _stage(self, name: str) -> None:
+        if self._stage_observer is not None:
+            self._stage_observer(name)
+
+    def _guard_item_limit(self, request: EvaluationRequest) -> None:
+        raw_count = (
+            len(request.sources) * len(request.destinations) * len(request.ports)
+        )
+        if raw_count > self.max_evaluation_items:
+            raise EvaluationItemLimitError(
+                raw_count, self.max_evaluation_items
+            )
+
     async def evaluate(self, request: EvaluationRequest) -> EvaluationResult:
+        # Orchestration only: every stage is a separately owned step and the
+        # stage order is observable through the injected stage observer.
+        self._stage("plan")
+        self._guard_item_limit(request)
+
+        self._stage("network")
         resolution_stage = await self._resolve_request_stage(request)
         resolution = resolution_stage.resolution
         combinations = resolution_stage.combinations
         network_plan_raw = resolution_stage.raw_records
 
+        self._stage("acl")
         acl_stage = await self._run_acl_stage(request.request_id, combinations)
         records = acl_stage.records
         raw_records = acl_stage.raw_records
@@ -168,10 +193,12 @@ class Evaluator:
             "stages": {},
         }
 
+        self._stage("rules")
         items, analyses, outcomes = self._build_deterministic_stage(
             records, len(combinations)
         )
 
+        self._stage("semantic")
         semantic_payload = self._semantic_payload(request, records)
         semantic_stage = await self._run_semantic_stage(
             records=records,
@@ -182,9 +209,12 @@ class Evaluator:
             outcomes=outcomes,
         )
         semantic = semantic_stage.semantic
-        items = semantic_stage.items
         semantic_succeeded = semantic_stage.succeeded
-        llm_added_pending_count = semantic_stage.added_pending_count
+
+        self._stage("reduce")
+        items, llm_added_pending_count = self._reduce_items(
+            items, outcomes, semantic_stage
+        )
 
         acl_candidate_analysis: AclCandidateAnalysis | None = None
         candidate_started = perf_counter()
@@ -344,6 +374,7 @@ class Evaluator:
             self.llm_client,
         )
 
+        self._stage("explain")
         explanation_started = perf_counter()
         explanation_status = "skipped"
         explanation_error: Exception | None = None
@@ -394,6 +425,7 @@ class Evaluator:
             items=items,
         )
 
+        self._stage("assemble")
         response = EvaluationResponse(
             request_id=request.request_id,
             config_id=self.config_id,
@@ -774,13 +806,22 @@ class Evaluator:
         exceptions: list[str],
         outcomes: dict[str, _DeterministicOutcome],
     ) -> _SemanticStage:
-        deterministic_items = list(items)
-        deterministic_pending_count = sum(
-            item.decision == "待定" for item in deterministic_items
-        )
+        """Run the batch semantic analysis and produce semantic findings.
+
+        This stage never mutates items; the reduce stage owns every decision.
+        """
+
         model_raw["semantic_input"] = payload
         started = perf_counter()
         error: Exception | None = None
+        findings: dict[str, list[Finding]] = {
+            item.item_id: [] for item in items
+        }
+        review_ids: dict[str, list[str]] = {item.item_id: [] for item in items}
+        question_ids: dict[str, list[str]] = {item.item_id: [] for item in items}
+        observation_ids: dict[str, list[str]] = {
+            item.item_id: [] for item in items
+        }
         try:
             raw_semantic, semantic_raw = await self.llm_client.analyze(payload)
             model_raw["semantic"] = semantic_raw
@@ -804,14 +845,14 @@ class Evaluator:
             semantic = _apply_configured_semantic_effects(
                 semantic, self.semantic_effects
             )
-            items = _apply_semantic_findings(
-                items,
-                semantic,
-                fact_conflict_effect=self.semantic_effects.get(
-                    "fact_conflict", "review_required"
-                ),
-                outcomes=outcomes,
-                reducer=self.decision_reducer,
+            findings, review_ids, question_ids, observation_ids = (
+                _semantic_stage_findings(
+                    items,
+                    semantic,
+                    fact_conflict_effect=self.semantic_effects.get(
+                        "fact_conflict", "review_required"
+                    ),
+                )
             )
             succeeded = True
         except (LlmDependencyError, SemanticGuardError) as exc:
@@ -828,26 +869,9 @@ class Evaluator:
                 reason_type="dependency_failure",
                 priority=PRIORITY_SEMANTIC,
             )
-            items = [
-                self._apply_semantic_failure(item, outcomes[item.item_id], failure_finding)
-                for item in items
-            ]
-            items = [
-                item.model_copy(
-                    update={
-                        "decision_trace": DecisionTrace(
-                            deterministic_decision=deterministic.decision,
-                            semantic_effect="semantic_failure",
-                            semantic_finding_ids=[],
-                            final_decision=item.decision,
-                            final_reason_code=item.reason_code,
-                        )
-                    }
-                )
-                for deterministic, item in zip(
-                    deterministic_items, items, strict=True
-                )
-            ]
+            findings = {
+                item.item_id: [failure_finding] for item in items
+            }
             succeeded = False
         _record_llm_stage(
             model_raw,
@@ -859,13 +883,134 @@ class Evaluator:
         )
         return _SemanticStage(
             semantic=semantic,
-            items=items,
             succeeded=succeeded,
-            added_pending_count=max(
-                0,
-                sum(item.decision == "待定" for item in items)
-                - deterministic_pending_count,
-            ),
+            findings=findings,
+            review_ids=review_ids,
+            question_ids=question_ids,
+            observation_ids=observation_ids,
+        )
+
+    def _reduce_items(
+        self,
+        items: list[EvaluationItem],
+        outcomes: dict[str, _DeterministicOutcome],
+        stage: _SemanticStage,
+    ) -> tuple[list[EvaluationItem], int]:
+        """Consolidate deterministic and semantic findings per item.
+
+        This is the only place where final item decisions are produced, and
+        every decision goes through the DecisionReducer.
+        """
+
+        deterministic_pending_count = sum(
+            item.decision == "待定" for item in items
+        )
+        result: list[EvaluationItem] = []
+        for item in items:
+            outcome = outcomes[item.item_id]
+            decision = self.decision_reducer.reduce(
+                [*outcome.findings, *stage.findings.get(item.item_id, [])],
+                matched_rules=outcome.matched_rule_ids,
+            )
+            result.append(
+                self._materialize_final_item(item, decision, stage)
+            )
+        added_pending_count = max(
+            0, sum(item.decision == "待定" for item in result)
+            - deterministic_pending_count
+        )
+        return result, added_pending_count
+
+    def _materialize_final_item(
+        self,
+        item: EvaluationItem,
+        decision: Decision,
+        stage: _SemanticStage,
+    ) -> EvaluationItem:
+        deterministic_decision = item.decision
+        primary = decision.primary_finding
+        item_review_ids = stage.review_ids.get(item.item_id, [])
+        item_question_ids = stage.question_ids.get(item.item_id, [])
+        item_observation_ids = stage.observation_ids.get(item.item_id, [])
+        if not stage.succeeded:
+            if primary is not None and primary.source == "semantic":
+                item = item.model_copy(
+                    update={
+                        "decision": decision.decision,
+                        "reason_type": decision.reason_type,
+                        "reason_code": decision.reason_code,
+                        "reason": _SEMANTIC_FAILURE_TEXT[0],
+                        "recommendation": _SEMANTIC_FAILURE_TEXT[1],
+                    }
+                )
+            final = item
+            return final.model_copy(
+                update={
+                    "decision_trace": DecisionTrace(
+                        deterministic_decision=deterministic_decision,
+                        semantic_effect="semantic_failure",
+                        semantic_finding_ids=[],
+                        final_decision=final.decision,
+                        final_reason_code=final.reason_code,
+                    )
+                }
+            )
+        downgraded = (
+            primary is not None
+            and primary.source == "semantic"
+            and deterministic_decision != decision.decision
+        )
+        if deterministic_decision == "待定":
+            final = item
+            effect = "unchanged"
+            finding_ids = (
+                item_review_ids + item_question_ids + item_observation_ids
+            )
+        elif downgraded:
+            has_fact_conflict = (
+                primary is not None and primary.code == "SEMANTIC_FACT_CONFLICT"
+            )
+            final = item.model_copy(
+                update={
+                    "decision": decision.decision,
+                    "reason_type": decision.reason_type,
+                    "reason_code": decision.reason_code,
+                    "reason": (
+                        "通过证据守卫的申请语义与权威事实或其他原文证据冲突。"
+                        if has_fact_conflict
+                        else "存在经证据验证且被服务端影响策略列为人工复核的规则缺口。"
+                    ),
+                    "recommendation": (
+                        "核对冲突字段并补充无歧义的权威事实。"
+                        if has_fact_conflict
+                        else "提交人工复核，并由规则责任人评估是否补充正式规则。"
+                    ),
+                }
+            )
+            effect = "downgraded"
+            finding_ids = item_review_ids
+        elif item_question_ids:
+            final = item
+            effect = "question_only"
+            finding_ids = item_question_ids
+        elif item_observation_ids:
+            final = item
+            effect = "observation_only"
+            finding_ids = item_observation_ids
+        else:
+            final = item
+            effect = "unchanged"
+            finding_ids = []
+        return final.model_copy(
+            update={
+                "decision_trace": DecisionTrace(
+                    deterministic_decision=deterministic_decision,
+                    semantic_effect=effect,
+                    semantic_finding_ids=finding_ids,
+                    final_decision=final.decision,
+                    final_reason_code=final.reason_code,
+                )
+            }
         )
 
     def _semantic_payload(
@@ -937,19 +1082,26 @@ def _apply_configured_semantic_effects(
     )
 
 
-def _apply_semantic_findings(
+def _semantic_stage_findings(
     items: list[EvaluationItem],
     semantic: SemanticAnalysis,
     *,
     fact_conflict_effect: str,
-    outcomes: dict[str, _DeterministicOutcome],
-    reducer: DecisionReducer,
-) -> list[EvaluationItem]:
+) -> tuple[
+    dict[str, list[Finding]],
+    dict[str, list[str]],
+    dict[str, list[str]],
+    dict[str, list[str]],
+]:
+    """Turn verified semantic effects into per-item findings and buckets.
+
+    Findings are appended in stable insertion order: conflicts first, then
+    policy gaps. Question/observation buckets never downgrade decisions.
+    """
+
     review_ids: dict[str, list[str]] = {item.item_id: [] for item in items}
     observation_ids: dict[str, list[str]] = {item.item_id: [] for item in items}
     question_ids: dict[str, list[str]] = {item.item_id: [] for item in items}
-    # Semantic downgrade findings per item, in stable insertion order
-    # (conflicts first, then policy gaps).
     semantic_findings: dict[str, list[Finding]] = {
         item.item_id: [] for item in items
     }
@@ -1006,78 +1158,7 @@ def _apply_semantic_findings(
             )
     for missing in semantic.missing_information:
         question_ids[missing.item_id].append(missing.missing_id)
-
-    result: list[EvaluationItem] = []
-    for item in items:
-        item_review_ids = review_ids[item.item_id]
-        item_question_ids = question_ids[item.item_id]
-        item_observation_ids = observation_ids[item.item_id]
-        outcome = outcomes[item.item_id]
-        decision = reducer.reduce(
-            [*outcome.findings, *semantic_findings[item.item_id]],
-            matched_rules=outcome.matched_rule_ids,
-        )
-        primary = decision.primary_finding
-        downgraded = (
-            primary is not None
-            and primary.source == "semantic"
-            and item.decision != decision.decision
-        )
-        if item.decision == "待定":
-            final = item
-            effect = "unchanged"
-            finding_ids = (
-                item_review_ids + item_question_ids + item_observation_ids
-            )
-        elif downgraded:
-            has_fact_conflict = primary is not None and primary.code == (
-                "SEMANTIC_FACT_CONFLICT"
-            )
-            final = item.model_copy(
-                update={
-                    "decision": decision.decision,
-                    "reason_type": decision.reason_type,
-                    "reason_code": decision.reason_code,
-                    "reason": (
-                        "通过证据守卫的申请语义与权威事实或其他原文证据冲突。"
-                        if has_fact_conflict
-                        else "存在经证据验证且被服务端影响策略列为人工复核的规则缺口。"
-                    ),
-                    "recommendation": (
-                        "核对冲突字段并补充无歧义的权威事实。"
-                        if has_fact_conflict
-                        else "提交人工复核，并由规则责任人评估是否补充正式规则。"
-                    ),
-                }
-            )
-            effect = "downgraded"
-            finding_ids = item_review_ids
-        elif item_question_ids:
-            final = item
-            effect = "question_only"
-            finding_ids = item_question_ids
-        elif item_observation_ids:
-            final = item
-            effect = "observation_only"
-            finding_ids = item_observation_ids
-        else:
-            final = item
-            effect = "unchanged"
-            finding_ids = []
-        result.append(
-            final.model_copy(
-                update={
-                    "decision_trace": DecisionTrace(
-                        deterministic_decision=item.decision,
-                        semantic_effect=effect,
-                        semantic_finding_ids=finding_ids,
-                        final_decision=final.decision,
-                        final_reason_code=final.reason_code,
-                    )
-                }
-            )
-        )
-    return result
+    return semantic_findings, review_ids, question_ids, observation_ids
 
 
 def _effect_target(
