@@ -133,8 +133,8 @@ def test_p0c01_normal_https_freezes_stage_order_and_call_counts(
     assert len(acl.calls) == 1
     assert llm.semantic_calls == 1
     assert llm.explanation_calls == 1
-    # a70ea45 双裁决基线：V4-P2 将改为 1（docs/v3-baseline.md §6，D1）
-    assert len(reducer.calls) == 2 * len(result.response.items)
+    # V4-P2：正式裁决每 item 恰好一次（D1 反转两次 reduce，已预注册）
+    assert len(reducer.calls) == len(result.response.items)
     # V4-P1：PolicyBundle.match 每 item 恰好一次（ACL gating 消费 RuleStage 结果）
     assert len(policies.match_calls) == 1
     assert result.model_raw["metrics"]["llm_added_pending_count"] == 0
@@ -174,7 +174,7 @@ def test_p0c02_network_not_found_freeze(settings: Settings) -> None:
     assert item.decision_trace.semantic_effect == "unchanged"
     # V4-P1：规则匹配只发生在 RuleStage（网络阻断时也恰好一次）
     assert len(policies.match_calls) == 1
-    assert len(reducer.calls) == 2
+    assert len(reducer.calls) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +207,7 @@ def test_p0c03_telnet_skip_mode_freeze(settings: Settings) -> None:
     assert acl.calls == []
     # V4-P1：gating 消费 RuleStage 结果，不再自行匹配；仅 RuleStage 匹配一次
     assert len(policies.match_calls) == 1
-    assert len(reducer.calls) == 2
+    assert len(reducer.calls) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -276,9 +276,9 @@ def test_p0c05_semantic_conflict_downgrade_freeze(settings: Settings) -> None:
     assert trace.semantic_effect == "downgraded"
     assert trace.final_decision == "待定"
     assert trace.final_reason_code == "SEMANTIC_FACT_CONFLICT"
-    # 降级指标基线：llm_added_pending_count = 1
+    # 降级指标基线：llm_added_pending_count = 1（改由 reducer 快照推导后不变）
     assert result.model_raw["metrics"]["llm_added_pending_count"] == 1
-    assert len(reducer.calls) == 2
+    assert len(reducer.calls) == 1
     assert len(acl.calls) == 1
 
 

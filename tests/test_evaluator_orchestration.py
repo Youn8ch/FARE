@@ -49,15 +49,25 @@ class RecordingAclClient:
 
 
 class RecordingDecisionReducer:
-    """Wrapper that records reduce invocations per item."""
+    """Wrapper that records formal per-item reduce invocations (V4-P2)."""
 
     def __init__(self) -> None:
         self.inner = DecisionReducer()
         self.calls: list[int] = []
 
-    def reduce(self, findings, *, matched_rules=()):
-        self.calls.append(len(list(findings)))
-        return self.inner.reduce(findings, matched_rules=matched_rules)
+    def primary_of(self, findings):
+        return self.inner.primary_of(findings)
+
+    def reduce_item(self, finding_set, *, matched_rules=(), semantic=None):
+        self.calls.append(
+            len(finding_set.network)
+            + len(finding_set.rules)
+            + len(finding_set.acl)
+            + len(finding_set.semantic)
+        )
+        return self.inner.reduce_item(
+            finding_set, matched_rules=matched_rules, semantic=semantic
+        )
 
 
 class StageRecorder:
@@ -101,11 +111,10 @@ def test_case01_stage_order_and_call_counts(settings: Settings) -> None:
         assert llm.semantic_calls == 1
         assert llm.explanation_calls == 1
         assert llm.semantic_item_ids == [[result.response.items[0].item_id]]
-        # reduce：最终裁决阶段每 item 恰好一次合并裁决；合计 reduce() 调用为
-        # 每 item 2 次（rules 阶段 1 次确定性裁决 + reduce 阶段 1 次最终裁决），
-        # 两次均经由唯一 DecisionReducer（decision_trace 的
-        # deterministic_decision -> final_decision 轨迹要求两者都存在）。
-        assert len(reducer.calls) == 2 * len(result.response.items)
+        # V4-P2：正式裁决每 item 恰好一次 reduce_item()；确定性快照与 final
+        # 在同一次调用内形成（D1 反转 AC-05 的两次 reduce，见
+        # docs/v3-baseline.md §6）。
+        assert len(reducer.calls) == len(result.response.items)
         assert result.response.decision == "合规"
     finally:
         asyncio.run(runtime.aclose())

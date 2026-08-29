@@ -13,7 +13,6 @@ from app.schemas import (
     AclAnalysis,
     AclCandidateAnalysis,
     AclRawResponse,
-    DecisionTrace,
     EvaluationItem,
     EvaluationRequest,
     EvaluationResponse,
@@ -34,6 +33,8 @@ from app.services.decision_reducer import (
     Decision,
     DecisionReducer,
     Finding,
+    ItemFindingSet,
+    SemanticTrace,
 )
 from app.services.evaluation_types import RuleStageResult, rule_findings
 from app.services.explanation_guard import ExplanationGuardError, guard_explanation_output
@@ -104,12 +105,20 @@ class _SemanticStage:
     observation_ids: dict[str, list[str]]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class _DeterministicOutcome:
-    """Findings a stage produced for one item; the reducer owns the decision."""
+    """One item's deterministic findings, partitioned for the formal reduce.
 
-    findings: tuple[Finding, ...]
+    The ACL-PATH-001 injection into ``item_matched_rules`` mirrors the
+    historical item output: it enters matched_rules only when it is the
+    deterministic primary (judged via the reducer's own priority algorithm).
+    """
+
+    network_findings: tuple[Finding, ...]
+    rule_findings: tuple[Finding, ...]
+    acl_findings: tuple[Finding, ...]
     matched_rule_ids: tuple[str, ...]
+    item_matched_rules: list[Rule]
 
 
 class Evaluator:
@@ -197,29 +206,33 @@ class Evaluator:
             "stages": {},
         }
 
-        # 确定性装配：组合 network + rules + catalog + acl findings（保持历史
-        # 首个命中的插入顺序），产出中间 items 与 outcomes。P2 将把该装配并入
-        # 每 item 恰好一次的单次 reduce 工作流。
-        items, analyses, outcomes = self._build_deterministic_stage(
+        # 确定性装配：分区收集 network/rules/acl findings（保持历史首个命中
+        # 的插入顺序）。本阶段不产生 decision；ACL-PATH-001 进入 matched_rules
+        # 的历史条件（恰为确定性 primary）由 reducer 的 primary_of 判定。
+        outcomes, analyses = self._assemble_deterministic_outcomes(
             rule_results, records
         )
+        deterministic_candidates = {
+            rule.id
+            for outcome in outcomes.values()
+            for rule in outcome.item_matched_rules
+        }
 
         self._stage("semantic")
         semantic_payload = self._semantic_payload(request, records)
         semantic_stage = await self._run_semantic_stage(
             records=records,
-            items=items,
             payload=semantic_payload,
             model_raw=model_raw,
             exceptions=exceptions,
-            outcomes=outcomes,
+            deterministic_candidates=deterministic_candidates,
         )
         semantic = semantic_stage.semantic
         semantic_succeeded = semantic_stage.succeeded
 
         self._stage("reduce")
         items, llm_added_pending_count = self._reduce_items(
-            items, outcomes, semantic_stage
+            records, outcomes, semantic_stage
         )
 
         acl_candidate_analysis: AclCandidateAnalysis | None = None
@@ -650,44 +663,46 @@ class Evaluator:
             )
         return tuple(findings)
 
-    def _build_deterministic_stage(
+    def _assemble_deterministic_outcomes(
         self,
         rule_results: tuple[RuleStageResult, ...],
         records: list[_AclRecord],
     ) -> tuple[
-        list[EvaluationItem],
-        list[AclAnalysis],
         dict[str, _DeterministicOutcome],
+        list[AclAnalysis],
     ]:
-        items: list[EvaluationItem] = []
+        """Partition each item's deterministic findings without deciding.
+
+        The frozen insertion order mirrors the historical first-match chain:
+        network error, matched rules, catalog errors, then ACL findings.
+        """
+
         outcomes: dict[str, _DeterministicOutcome] = {}
         for rule_result, record in zip(rule_results, records, strict=True):
-            findings = [
-                *self._network_findings(rule_result.combination),
+            network_findings = tuple(
+                [
+                    *self._network_findings(rule_result.combination),
+                    *self._catalog_findings(rule_result.combination),
+                ]
+            )
+            deterministic = [
+                *network_findings,
                 *rule_result.findings,
-                *self._catalog_findings(rule_result.combination),
                 *record.acl_findings,
             ]
-            matched = list(rule_result.matched_rules)
-            decision = self.decision_reducer.reduce(
-                findings, matched_rules=[rule.id for rule in matched]
-            )
+            primary = self.decision_reducer.primary_of(deterministic)
+            item_matched = list(rule_result.matched_rules)
+            no_path_rule = self.policies.acl_no_path_rule
+            if primary is not None and primary.code == no_path_rule.id:
+                item_matched.append(no_path_rule)
             outcomes[record.item_id] = _DeterministicOutcome(
-                findings=findings,
-                matched_rule_ids=tuple(rule.id for rule in matched),
-            )
-            items.append(
-                self._build_item(
-                    record.item_id,
-                    record.combination,
-                    record.facts,
-                    decision,
-                    matched,
-                ).model_copy(
-                    update=_network_item_fields(
-                        record.combination, record.verification_status
-                    )
-                )
+                network_findings=network_findings,
+                rule_findings=rule_result.findings,
+                acl_findings=record.acl_findings,
+                matched_rule_ids=tuple(
+                    rule.id for rule in rule_result.matched_rules
+                ),
+                item_matched_rules=item_matched,
             )
         analyses = [
             AclAnalysis(
@@ -697,7 +712,7 @@ class Evaluator:
             )
             for record in records
         ]
-        return items, analyses, outcomes
+        return outcomes, analyses
 
     def _network_findings(
         self, combination: AccessCombination
@@ -764,6 +779,13 @@ class Evaluator:
         decision: Decision,
         matched: list[Rule],
     ) -> EvaluationItem:
+        """Build the item from the reducer's deterministic snapshot.
+
+        ``matched`` is pre-injected by the deterministic assembly: ACL-PATH-001
+        is present only when it is the deterministic primary (historical
+        behavior preserved, judged via the reducer's priority algorithm).
+        """
+
         access = Access(
             source=combination.source_text,
             destination=combination.destination_text,
@@ -775,22 +797,12 @@ class Evaluator:
             MatchedRule(id=rule.id, name=rule.name, category=rule.category)
             for rule in matched
         ]
-        primary = decision.primary_finding
-        if primary is not None and primary.code == self.policies.acl_no_path_rule.id:
-            # ACL-PATH-001 由显式无路径事实驱动，不在 policies.match() 结果中；
-            # 历史行为将其与其它命中规则并列保留在 matched_rules。
-            matched_rules = matched_rules + [
-                MatchedRule(
-                    id=self.policies.acl_no_path_rule.id,
-                    name=self.policies.acl_no_path_rule.name,
-                    category=self.policies.acl_no_path_rule.category,
-                )
-            ]
+        primary = decision.deterministic_primary
         if primary is None:
             return EvaluationItem(
                 item_id=item_id,
                 access=access,
-                decision=decision.decision,
+                decision=decision.deterministic_decision,
                 evidence=evidence,
                 matched_rules=matched_rules,
                 reason=_COMPLIANT_REASON[0],
@@ -802,66 +814,46 @@ class Evaluator:
         return EvaluationItem(
             item_id=item_id,
             access=access,
-            decision=decision.decision,
-            reason_type=decision.reason_type,
-            reason_code=decision.reason_code,
+            decision=decision.deterministic_decision,
+            reason_type=primary.reason_type,
+            reason_code=primary.code,
             matched_rules=matched_rules,
             evidence=evidence,
             reason=reason,
             recommendation=recommendation,
         )
 
-    def _apply_semantic_failure(
-        self,
-        item: EvaluationItem,
-        outcome: _DeterministicOutcome,
-        failure_finding: Finding,
-    ) -> EvaluationItem:
-        """Downgrade a compliant item when the semantic failure finding is the
-        primary finding; deterministic pending items stay untouched."""
-
-        decision = self.decision_reducer.reduce(
-            [*outcome.findings, failure_finding],
-            matched_rules=outcome.matched_rule_ids,
-        )
-        primary = decision.primary_finding
-        if primary is None or primary.source != "semantic":
-            return item
-        return item.model_copy(
-            update={
-                "decision": decision.decision,
-                "reason_type": decision.reason_type,
-                "reason_code": decision.reason_code,
-                "reason": _SEMANTIC_FAILURE_TEXT[0],
-                "recommendation": _SEMANTIC_FAILURE_TEXT[1],
-            }
-        )
-
     async def _run_semantic_stage(
         self,
         *,
         records: list[_AclRecord],
-        items: list[EvaluationItem],
         payload: dict[str, Any],
         model_raw: dict[str, Any],
         exceptions: list[str],
-        outcomes: dict[str, _DeterministicOutcome],
+        deterministic_candidates: set[str],
     ) -> _SemanticStage:
         """Run the batch semantic analysis and produce semantic findings.
 
-        This stage never mutates items; the reduce stage owns every decision.
+        This stage never mutates items or decisions; the reduce stage owns
+        every decision. ``deterministic_candidates`` comes from the
+        deterministic assembly (matched rules incl. the ACL-PATH-001 primary
+        injection), preserving the historical candidate merge.
         """
 
         model_raw["semantic_input"] = payload
         started = perf_counter()
         error: Exception | None = None
         findings: dict[str, list[Finding]] = {
-            item.item_id: [] for item in items
+            record.item_id: [] for record in records
         }
-        review_ids: dict[str, list[str]] = {item.item_id: [] for item in items}
-        question_ids: dict[str, list[str]] = {item.item_id: [] for item in items}
+        review_ids: dict[str, list[str]] = {
+            record.item_id: [] for record in records
+        }
+        question_ids: dict[str, list[str]] = {
+            record.item_id: [] for record in records
+        }
         observation_ids: dict[str, list[str]] = {
-            item.item_id: [] for item in items
+            record.item_id: [] for record in records
         }
         try:
             raw_semantic, semantic_raw = await self.llm_client.analyze(payload)
@@ -873,13 +865,11 @@ class Evaluator:
                 valid_rule_ids=self.policies.rule_ids,
                 network_facts=_network_fact_bindings(records),
             )
-            deterministic_candidates = {
-                rule.id for item in items for rule in item.matched_rules
-            }
             semantic = semantic.model_copy(
                 update={
                     "candidate_rule_ids": sorted(
-                        deterministic_candidates | set(semantic.candidate_rule_ids)
+                        deterministic_candidates
+                        | set(semantic.candidate_rule_ids)
                     )
                 }
             )
@@ -888,7 +878,7 @@ class Evaluator:
             )
             findings, review_ids, question_ids, observation_ids = (
                 _semantic_stage_findings(
-                    items,
+                    records,
                     semantic,
                     fact_conflict_effect=self.semantic_effects.get(
                         "fact_conflict", "review_required"
@@ -911,7 +901,7 @@ class Evaluator:
                 priority=PRIORITY_SEMANTIC,
             )
             findings = {
-                item.item_id: [failure_finding] for item in items
+                record.item_id: [failure_finding] for record in records
             }
             succeeded = False
         _record_llm_stage(
@@ -933,32 +923,66 @@ class Evaluator:
 
     def _reduce_items(
         self,
-        items: list[EvaluationItem],
+        records: list[_AclRecord],
         outcomes: dict[str, _DeterministicOutcome],
         stage: _SemanticStage,
     ) -> tuple[list[EvaluationItem], int]:
-        """Consolidate deterministic and semantic findings per item.
-
-        This is the only place where final item decisions are produced, and
-        every decision goes through the DecisionReducer.
+        """Formal reduce stage: exactly one ``DecisionReducer.reduce_item()``
+        per item. The deterministic snapshot and the final decision are formed
+        inside that single workflow (V4-P2; the two-phase reduce of AC-05 was
+        deliberately reversed, see docs/v3-baseline.md §6 / D1).
         """
 
-        deterministic_pending_count = sum(
-            item.decision == "待定" for item in items
-        )
         result: list[EvaluationItem] = []
-        for item in items:
-            outcome = outcomes[item.item_id]
-            decision = self.decision_reducer.reduce(
-                [*outcome.findings, *stage.findings.get(item.item_id, [])],
+        deterministic_pending_count = 0
+        for record in records:
+            outcome = outcomes[record.item_id]
+            decision = self.decision_reducer.reduce_item(
+                ItemFindingSet(
+                    network=outcome.network_findings,
+                    rules=outcome.rule_findings,
+                    acl=outcome.acl_findings,
+                    semantic=tuple(stage.findings.get(record.item_id, ())),
+                ),
                 matched_rules=outcome.matched_rule_ids,
+                semantic=SemanticTrace(
+                    succeeded=stage.succeeded,
+                    review_ids=tuple(
+                        stage.review_ids.get(record.item_id, ())
+                    ),
+                    question_ids=tuple(
+                        stage.question_ids.get(record.item_id, ())
+                    ),
+                    observation_ids=tuple(
+                        stage.observation_ids.get(record.item_id, ())
+                    ),
+                ),
             )
+            if decision.trace is None or decision.deterministic_decision is None:
+                raise RuntimeError(
+                    "the formal reduce_item workflow must return a trace"
+                )
+            if decision.deterministic_decision == "待定":
+                deterministic_pending_count += 1
+            item = self._build_item(
+                record.item_id,
+                record.combination,
+                record.facts,
+                decision,
+                outcome.item_matched_rules,
+            )
+            item = self._materialize_final_item(item, decision)
             result.append(
-                self._materialize_final_item(item, decision, stage)
+                item.model_copy(
+                    update=_network_item_fields(
+                        record.combination, record.verification_status
+                    )
+                )
             )
         added_pending_count = max(
-            0, sum(item.decision == "待定" for item in result)
-            - deterministic_pending_count
+            0,
+            sum(item.decision == "待定" for item in result)
+            - deterministic_pending_count,
         )
         return result, added_pending_count
 
@@ -966,52 +990,39 @@ class Evaluator:
         self,
         item: EvaluationItem,
         decision: Decision,
-        stage: _SemanticStage,
     ) -> EvaluationItem:
-        deterministic_decision = item.decision
+        """Apply the reducer's semantic effect to the item text and attach the
+        trace produced by the same formal reduce call.
+
+        Decisions never change here: every updated decision field comes from
+        the reducer's final decision; this is text mapping + trace attachment
+        only.
+        """
+
+        trace = decision.trace
+        if trace is None:
+            return item
         primary = decision.primary_finding
-        item_review_ids = stage.review_ids.get(item.item_id, [])
-        item_question_ids = stage.question_ids.get(item.item_id, [])
-        item_observation_ids = stage.observation_ids.get(item.item_id, [])
-        if not stage.succeeded:
-            if primary is not None and primary.source == "semantic":
-                item = item.model_copy(
-                    update={
-                        "decision": decision.decision,
-                        "reason_type": decision.reason_type,
-                        "reason_code": decision.reason_code,
-                        "reason": _SEMANTIC_FAILURE_TEXT[0],
-                        "recommendation": _SEMANTIC_FAILURE_TEXT[1],
-                    }
-                )
-            final = item
-            return final.model_copy(
+        if (
+            trace.semantic_effect == "semantic_failure"
+            and primary is not None
+            and primary.source == "semantic"
+        ):
+            item = item.model_copy(
                 update={
-                    "decision_trace": DecisionTrace(
-                        deterministic_decision=deterministic_decision,
-                        semantic_effect="semantic_failure",
-                        semantic_finding_ids=[],
-                        final_decision=final.decision,
-                        final_reason_code=final.reason_code,
-                    )
+                    "decision": decision.decision,
+                    "reason_type": decision.reason_type,
+                    "reason_code": decision.reason_code,
+                    "reason": _SEMANTIC_FAILURE_TEXT[0],
+                    "recommendation": _SEMANTIC_FAILURE_TEXT[1],
                 }
             )
-        downgraded = (
-            primary is not None
-            and primary.source == "semantic"
-            and deterministic_decision != decision.decision
-        )
-        if deterministic_decision == "待定":
-            final = item
-            effect = "unchanged"
-            finding_ids = (
-                item_review_ids + item_question_ids + item_observation_ids
-            )
-        elif downgraded:
+        elif trace.semantic_effect == "downgraded":
             has_fact_conflict = (
-                primary is not None and primary.code == "SEMANTIC_FACT_CONFLICT"
+                primary is not None
+                and primary.code == "SEMANTIC_FACT_CONFLICT"
             )
-            final = item.model_copy(
+            item = item.model_copy(
                 update={
                     "decision": decision.decision,
                     "reason_type": decision.reason_type,
@@ -1028,31 +1039,7 @@ class Evaluator:
                     ),
                 }
             )
-            effect = "downgraded"
-            finding_ids = item_review_ids
-        elif item_question_ids:
-            final = item
-            effect = "question_only"
-            finding_ids = item_question_ids
-        elif item_observation_ids:
-            final = item
-            effect = "observation_only"
-            finding_ids = item_observation_ids
-        else:
-            final = item
-            effect = "unchanged"
-            finding_ids = []
-        return final.model_copy(
-            update={
-                "decision_trace": DecisionTrace(
-                    deterministic_decision=deterministic_decision,
-                    semantic_effect=effect,
-                    semantic_finding_ids=finding_ids,
-                    final_decision=final.decision,
-                    final_reason_code=final.reason_code,
-                )
-            }
-        )
+        return item.model_copy(update={"decision_trace": trace})
 
     def _semantic_payload(
         self, request: EvaluationRequest, records: list[_AclRecord]
@@ -1124,7 +1111,7 @@ def _apply_configured_semantic_effects(
 
 
 def _semantic_stage_findings(
-    items: list[EvaluationItem],
+    records: list[_AclRecord],
     semantic: SemanticAnalysis,
     *,
     fact_conflict_effect: str,
@@ -1140,11 +1127,17 @@ def _semantic_stage_findings(
     policy gaps. Question/observation buckets never downgrade decisions.
     """
 
-    review_ids: dict[str, list[str]] = {item.item_id: [] for item in items}
-    observation_ids: dict[str, list[str]] = {item.item_id: [] for item in items}
-    question_ids: dict[str, list[str]] = {item.item_id: [] for item in items}
+    review_ids: dict[str, list[str]] = {
+        record.item_id: [] for record in records
+    }
+    observation_ids: dict[str, list[str]] = {
+        record.item_id: [] for record in records
+    }
+    question_ids: dict[str, list[str]] = {
+        record.item_id: [] for record in records
+    }
     semantic_findings: dict[str, list[Finding]] = {
-        item.item_id: [] for item in items
+        record.item_id: [] for record in records
     }
 
     for claim in (*semantic.claims, *semantic.network_claims):
