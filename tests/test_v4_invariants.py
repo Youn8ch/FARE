@@ -20,19 +20,28 @@ def test_rule_match_is_called_exactly_once_per_item_path() -> None:
     """Invariant 4.2.1/4.2.2: the formal PolicyBundle.match() call lives only
     in the rule stage; ACL gating consumes RuleStageResult."""
 
+    rule_stage = _read("services/stages/rule_stage.py")
+    assert rule_stage.count("policies.match(") == 1
+    acl_stage = _read("services/stages/acl_stage.py")
+    assert ".match(" not in acl_stage
     evaluator = _read("services/evaluator.py")
-    assert evaluator.count("self.policies.match(") == 1
+    assert "policies.match(" not in evaluator
 
 
 def test_single_formal_reduce_entry() -> None:
     """Invariant 4.3.1/4.3.3: exactly one formal reduce_item() per item in the
-    evaluator; the pure reduce() algorithm is not called from the evaluator;
-    the dead two-phase helper stays deleted (V4-P2)."""
+    reduce stage; the pure reduce() algorithm is not called from stages or
+    evaluator; the dead two-phase helper stays deleted (V4-P2)."""
 
-    evaluator = _read("services/evaluator.py")
-    assert evaluator.count("self.decision_reducer.reduce_item(") == 1
-    assert ".reduce(" not in evaluator
-    assert "_apply_semantic_failure" not in evaluator
+    reduce_stage = _read("services/stages/reduce_stage.py")
+    assert reduce_stage.count("decision_reducer.reduce_item(") == 1
+    for module in ("services/evaluator.py", "services/stages/acl_stage.py",
+                   "services/stages/rule_stage.py",
+                   "services/stages/semantic_stage.py",
+                   "services/stages/post_decision_stage.py"):
+        body = _read(module)
+        assert ".reduce(" not in body, module
+        assert "_apply_semantic_failure" not in body, module
 
 
 def test_reducer_owns_the_priority_algorithm() -> None:

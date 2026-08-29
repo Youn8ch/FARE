@@ -1,75 +1,45 @@
+"""V4-P5b: the Evaluator is an orchestrator over named stages.
+
+Every stage is a separately owned step (app/services/stages/, app/services/
+finding_factory.py, item_assembler.py, request_decision.py,
+response_assembler.py); the Evaluator only expresses stage order, dependency
+wiring, and error propagation. Finding construction, text mapping, item
+mutation, metrics details, and shadow-stage flow live outside.
+"""
+
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass
-from time import perf_counter
 from typing import Any
 from uuid import uuid4
 
 from app.schemas import (
-    AclAnalysis,
-    AclCandidateAnalysis,
-    AclRawResponse,
-    EvaluationItem,
     EvaluationRequest,
     EvaluationResponse,
-    ExtractedFacts,
     ModelInfo,
-    RequestFindingsAnalysis,
-    SemanticAnalysis,
 )
-from app.services.acl_candidate_merge import merge_acl_candidate
-from app.services.acl_client import AclClient, AclDependencyError
+from app.services.acl_client import AclClient
 from app.services.acl_extract import AclFactExtractor
-from app.services.decision_reducer import (
-    PRIORITY_SEMANTIC,
-    DecisionReducer,
-    Finding,
-    ItemFindingSet,
-    SemanticTrace,
-)
-from app.services.evaluation_types import RuleStageResult, rule_findings
-from app.services.explanation_guard import ExplanationGuardError, guard_explanation_output
-from app.services.finding_factory import (
-    acl_findings,
-    acl_verification_status,
-    apply_configured_semantic_effects,
-    catalog_findings,
-    network_fact_blocks_acl,
-    network_facts_of,
-    network_findings,
-    segment_status,
-    semantic_stage_findings,
-)
-from app.services.item_assembler import (
-    build_item,
-    materialize_final_item,
-    network_item_fields,
-)
-from app.services.llm_client import (
-    LlmAclCandidateClientProtocol,
-    LlmClientProtocol,
-    LlmDependencyError,
-    LlmRequestFindingsClientProtocol,
-    guard_acl_candidates,
-)
+from app.services.decision_reducer import DecisionReducer
+from app.services.llm_client import LlmClientProtocol
 from app.services.network_plan_resolver import (
     EvaluationItemLimitError,
     NetworkPlanResolution,
     NetworkPlanResolver,
 )
-from app.services.output_guard import (
-    RequestFindingGuardError,
-    SemanticGuardError,
-    failed_semantic_analysis,
-    guard_request_findings,
-    guard_semantic_output,
-)
 from app.services.request_decision import aggregate_request_decision
 from app.services.response_assembler import aggregate_analyses
-from app.services.rule_loader import PolicyBundle, Rule
-from app.services.splitter import AccessCombination, split_resolved_request
+from app.services.rule_loader import PolicyBundle
+from app.services.splitter import split_resolved_request
+from app.services.stage_metrics import llm_metadata, llm_metrics
+from app.services.stages import (
+    acl_stage,
+    post_decision_stage,
+    reduce_stage,
+    rule_stage,
+    semantic_stage,
+)
 
 
 @dataclass(slots=True)
@@ -82,55 +52,10 @@ class EvaluationResult:
 
 
 @dataclass(slots=True)
-class _AclRecord:
-    item_id: str
-    combination: AccessCombination
-    raw: AclRawResponse | None
-    facts: ExtractedFacts
-    dependency_error: str | None
-    verification_status: str
-    acl_findings: tuple[Finding, ...] = ()
-
-
-@dataclass(slots=True)
 class _ResolutionStage:
-    resolution: NetworkPlanResolution | None
-    combinations: list[AccessCombination]
+    resolution: NetworkPlanResolution
+    combinations: list
     raw_records: list[dict[str, object]]
-
-
-@dataclass(slots=True)
-class _AclStage:
-    records: list[_AclRecord]
-    raw_records: list[dict[str, Any]]
-    exceptions: list[str]
-
-
-@dataclass(slots=True)
-class _SemanticStage:
-    semantic: SemanticAnalysis
-    succeeded: bool
-    findings: dict[str, list[Finding]]
-    review_ids: dict[str, list[str]]
-    question_ids: dict[str, list[str]]
-    observation_ids: dict[str, list[str]]
-
-
-@dataclass(slots=True)
-class _DeterministicOutcome:
-    """One item's deterministic findings, partitioned for the formal reduce.
-
-    The ACL-PATH-001 injection into ``item_matched_rules`` mirrors the
-    historical item output: it enters matched_rules only when it is the
-    deterministic primary (judged via the reducer's own priority algorithm).
-    """
-
-    network_findings: tuple[Finding, ...]
-    rule_findings: tuple[Finding, ...]
-    catalog_findings: tuple[Finding, ...]
-    acl_findings: tuple[Finding, ...]
-    matched_rule_ids: tuple[str, ...]
-    item_matched_rules: list[Rule]
 
 
 class Evaluator:
@@ -194,35 +119,41 @@ class Evaluator:
             )
 
     async def evaluate(self, request: EvaluationRequest) -> EvaluationResult:
-        # Orchestration only: every stage is a separately owned step and the
-        # stage order is observable through the injected stage observer.
+        # Orchestration only: stage order is observable through the injected
+        # stage observer; every step delegates to an owned stage module.
         self._stage("plan")
         self._guard_item_limit(request)
 
         self._stage("network")
         resolution_stage = await self._resolve_request_stage(request)
-        resolution = resolution_stage.resolution
         combinations = resolution_stage.combinations
-        network_plan_raw = resolution_stage.raw_records
 
         self._stage("rules")
-        rule_results = self._run_rule_stage(request.request_id, combinations)
+        rule_results = rule_stage.run(
+            self.policies, request.request_id, combinations
+        )
 
         self._stage("acl")
-        acl_stage = await self._run_acl_stage(rule_results)
-        records = acl_stage.records
-        raw_records = acl_stage.raw_records
-        exceptions = acl_stage.exceptions
+        acl_output = await acl_stage.run(
+            acl_client=self.acl_client,
+            extractor=self.extractor,
+            decision_mode=self.acl_decision_mode,
+            pending_mode=self.acl_deterministic_pending_mode,
+            no_path_rule=self.policies.acl_no_path_rule,
+            max_concurrency=self.acl_max_concurrency,
+            rule_results=rule_results,
+        )
+        records = acl_output.records
+        raw_records = acl_output.raw_records
+        exceptions = acl_output.exceptions
         model_raw: dict[str, Any] = {
-            "metadata": _llm_metadata(self.llm_client, self.policies.version),
+            "metadata": llm_metadata(self.llm_client, self.policies.version),
             "stages": {},
         }
 
-        # 确定性装配：分区收集 network/rules/acl findings（保持历史首个命中
-        # 的插入顺序）。本阶段不产生 decision；ACL-PATH-001 进入 matched_rules
-        # 的历史条件（恰为确定性 primary）由 reducer 的 primary_of 判定。
-        outcomes, analyses = self._assemble_deterministic_outcomes(
-            rule_results, records
+        # 确定性装配：分区收集 findings，不产生 decision；reduce 阶段统一裁决。
+        outcomes, analyses = reduce_stage.assemble_outcomes(
+            self.policies, self.decision_reducer, rule_results, records
         )
         deterministic_candidates = {
             rule.id
@@ -231,226 +162,45 @@ class Evaluator:
         }
 
         self._stage("semantic")
-        semantic_payload = self._semantic_payload(request, records)
-        semantic_stage = await self._run_semantic_stage(
+        semantic_result = await semantic_stage.run(
+            llm_client=self.llm_client,
+            policies=self.policies,
+            semantic_effects=self.semantic_effects,
+            request=request,
             records=records,
-            payload=semantic_payload,
             model_raw=model_raw,
             exceptions=exceptions,
             deterministic_candidates=deterministic_candidates,
         )
-        semantic = semantic_stage.semantic
-        semantic_succeeded = semantic_stage.succeeded
 
         self._stage("reduce")
-        items, llm_added_pending_count = self._reduce_items(
-            records, outcomes, semantic_stage
+        items, llm_added_pending_count = reduce_stage.reduce_items(
+            self.policies,
+            self.decision_reducer,
+            records,
+            outcomes,
+            semantic_result,
         )
 
-        acl_candidate_analysis: AclCandidateAnalysis | None = None
-        candidate_started = perf_counter()
-        candidate_status = "off"
-        candidate_error: Exception | None = None
-        if self.llm_acl_candidate_mode == "shadow":
-            candidate_status = "passed"
-            candidate_records = list(records)
-            candidate_inputs = [
-                {
-                    "item_id": record.item_id,
-                    "analysis": record.raw.analysis if record.raw else "",
-                    "config": record.raw.config if record.raw else "",
-                }
-                for record in candidate_records
-            ]
-            if candidate_inputs:
-                model_raw["acl_candidates_input"] = candidate_inputs
-                try:
-                    if not isinstance(
-                        self.llm_client, LlmAclCandidateClientProtocol
-                    ):
-                        raise LlmDependencyError(
-                            "LLM client does not support ACL candidate extraction"
-                        )
-                    untrusted_candidates = await self.llm_client.extract_acl_facts(
-                        candidate_inputs,
-                        request_id=request.request_id,
-                    )
-                    candidates = guard_acl_candidates(
-                        untrusted_candidates, candidate_inputs
-                    )
-                    expected_ids = {record.item_id for record in candidate_records}
-                    if set(candidates) != expected_ids:
-                        raise LlmDependencyError(
-                            "LLM ACL candidate item set does not match shadow input"
-                        )
-                    acl_candidate_analysis = AclCandidateAnalysis(
-                        items=[
-                            merge_acl_candidate(
-                                item_id=record.item_id,
-                                deterministic=record.facts,
-                                llm_candidate=candidates[record.item_id],
-                            )
-                            for record in candidate_records
-                        ]
-                    )
-                    model_raw["acl_candidates"] = acl_candidate_analysis.model_dump(
-                        mode="json"
-                    )
-                except LlmDependencyError as exc:
-                    candidate_status = "rejected"
-                    candidate_error = exc
-                    detail = str(exc)
-                    public_detail = "ACL candidate shadow output was rejected"
-                    exceptions.append(f"LLM ACL candidates: {detail}")
-                    acl_candidate_analysis = AclCandidateAnalysis(
-                        items=[
-                            merge_acl_candidate(
-                                item_id=record.item_id,
-                                deterministic=record.facts,
-                                rejection_reason=public_detail,
-                            )
-                            for record in candidate_records
-                        ]
-                    )
-                    model_raw["acl_candidates"] = {
-                        "error": detail,
-                        "result": acl_candidate_analysis.model_dump(mode="json"),
-                    }
-            else:
-                acl_candidate_analysis = AclCandidateAnalysis()
-                model_raw["acl_candidates"] = acl_candidate_analysis.model_dump(
-                    mode="json"
-                )
-        _record_llm_stage(
-            model_raw,
-            "acl_candidates",
-            candidate_started,
-            candidate_status,
-            candidate_error,
-            self.llm_client,
+        # Post-decision analysis (serial, D4): explanation / shadows may only
+        # observe and explain; they cannot change the business conclusion.
+        self._stage("post_decision")
+        items, acl_candidate_analysis, request_findings = (
+            await post_decision_stage.run(
+                llm_client=self.llm_client,
+                policies=self.policies,
+                request=request,
+                items=items,
+                records=records,
+                semantic_succeeded=semantic_result.succeeded,
+                semantic_payload_items=semantic_result.payload_items,
+                acl_candidate_mode=self.llm_acl_candidate_mode,
+                request_findings_mode=self.llm_request_findings_mode,
+                model_raw=model_raw,
+                exceptions=exceptions,
+            )
         )
-
-        request_findings: RequestFindingsAnalysis | None = None
-        findings_started = perf_counter()
-        findings_status = "off"
-        findings_error: Exception | None = None
-        if self.llm_request_findings_mode == "shadow":
-            findings_status = "passed"
-            finding_inputs = list(semantic_payload["items"])
-            item_ids = [record.item_id for record in records]
-            model_raw["request_findings_input"] = {
-                "request_id": request.request_id,
-                "items": finding_inputs,
-            }
-            try:
-                if not isinstance(
-                    self.llm_client, LlmRequestFindingsClientProtocol
-                ):
-                    raise LlmDependencyError(
-                        "LLM client does not support request findings analysis"
-                    )
-                untrusted_findings = await self.llm_client.analyze_request_findings(
-                    finding_inputs,
-                    request_id=request.request_id,
-                )
-                guarded_findings = guard_request_findings(
-                    untrusted_findings,
-                    evidence_sources=_evidence_sources(records),
-                )
-                request_findings = RequestFindingsAnalysis(
-                    status="completed",
-                    analyzed_item_ids=guarded_findings.analyzed_item_ids,
-                    findings=guarded_findings.findings,
-                )
-                model_raw["request_findings"] = request_findings.model_dump(
-                    mode="json"
-                )
-                model_raw["request_findings_stats"] = {
-                    "status": "completed",
-                    "finding_count": len(guarded_findings.findings),
-                    "affected_item_count": len(
-                        {
-                            item_id
-                            for finding in guarded_findings.findings
-                            for item_id in finding.affected_item_ids
-                        }
-                    ),
-                }
-            except (LlmDependencyError, RequestFindingGuardError) as exc:
-                findings_status = "rejected"
-                findings_error = exc
-                detail = str(exc)
-                public_detail = "Request findings shadow output was rejected"
-                exceptions.append(f"LLM request findings: {detail}")
-                request_findings = RequestFindingsAnalysis(
-                    status="rejected",
-                    analyzed_item_ids=item_ids,
-                    rejection_reason=public_detail,
-                )
-                model_raw["request_findings"] = {
-                    "error": detail,
-                    "result": request_findings.model_dump(mode="json"),
-                }
-                model_raw["request_findings_stats"] = {
-                    "status": "rejected",
-                    "finding_count": 0,
-                    "affected_item_count": 0,
-                }
-        _record_llm_stage(
-            model_raw,
-            "request_findings",
-            findings_started,
-            findings_status,
-            findings_error,
-            self.llm_client,
-        )
-
-        self._stage("explain")
-        explanation_started = perf_counter()
-        explanation_status = "skipped"
-        explanation_error: Exception | None = None
-        if semantic_succeeded:
-            explanation_status = "passed"
-            try:
-                explanation_payload = {
-                    "request_id": request.request_id,
-                    "policy_version": self.policies.version,
-                    "items": [item.model_dump(mode="json") for item in items],
-                }
-                model_raw["explanation_input"] = explanation_payload
-                explanation, explanation_raw = await self.llm_client.explain(
-                    explanation_payload
-                )
-                model_raw["explanation"] = explanation_raw
-                explained = guard_explanation_output(
-                    explanation,
-                    items=items,
-                    valid_rule_ids=self.policies.rule_ids,
-                )
-                items = [
-                    item.model_copy(
-                        update={
-                            "llm_explanation": explained[item.item_id].explanation,
-                            "llm_recommendation": explained[item.item_id].recommendation,
-                            "explanation_source": "llm",
-                        }
-                    )
-                    for item in items
-                ]
-            except (LlmDependencyError, ExplanationGuardError) as exc:
-                explanation_status = "rejected"
-                explanation_error = exc
-                exceptions.append(f"LLM explanation: {exc}")
-                model_raw["explanation"] = {"error": str(exc), "template_fallback": True}
-        _record_llm_stage(
-            model_raw,
-            "explanation",
-            explanation_started,
-            explanation_status,
-            explanation_error,
-            self.llm_client,
-        )
-        model_raw["metrics"] = _llm_metrics(
+        model_raw["metrics"] = llm_metrics(
             model_raw["stages"],
             llm_added_pending_count=llm_added_pending_count,
             items=items,
@@ -466,18 +216,20 @@ class Evaluator:
             policy_version=self.policies.version,
             model=ModelInfo(
                 name=(
-                    "mock-llm" if self.llm_client.mode == "mock" else "internal-openai-compatible"
+                    "mock-llm"
+                    if self.llm_client.mode == "mock"
+                    else "internal-openai-compatible"
                 ),
                 version=self.llm_client.model_name,
             ),
-            semantic_analysis=semantic,
+            semantic_analysis=semantic_result.semantic,
             items=items,
             acl_analysis=aggregate_analyses(
                 analyses,
                 [record.verification_status for record in records],
             ),
             audit_id=str(uuid4()),
-            network_analysis=resolution.analysis,
+            network_analysis=resolution_stage.resolution.analysis,
             acl_candidate_analysis=acl_candidate_analysis,
             request_findings=request_findings,
         )
@@ -486,7 +238,7 @@ class Evaluator:
             acl_raw=raw_records,
             model_raw=model_raw,
             exceptions=exceptions,
-            network_plan_raw=network_plan_raw,
+            network_plan_raw=resolution_stage.raw_records,
         )
 
     async def _resolve_request_stage(
@@ -505,547 +257,3 @@ class Evaluator:
             combinations=split_resolved_request(request, resolution),
             raw_records=list(resolution.raw_records),
         )
-
-    def _run_rule_stage(
-        self, request_id: str, combinations: list[AccessCombination]
-    ) -> tuple[RuleStageResult, ...]:
-        """Formal rule stage: exactly one PolicyBundle.match() per item.
-
-        item_id is minted here (before ACL) with the historical numbering;
-        the stage produces only matched rules and rule findings, never a
-        decision.
-        """
-
-        total_combinations = len(combinations)
-        results: list[RuleStageResult] = []
-        for index, combination in enumerate(combinations, start=1):
-            matched = self.policies.match(combination, total_combinations)
-            matched_rules = tuple(matched)
-            results.append(
-                RuleStageResult(
-                    item_id=f"{request_id}-{index:03d}",
-                    combination=combination,
-                    matched_rules=matched_rules,
-                    findings=rule_findings(matched_rules),
-                )
-            )
-        return tuple(results)
-
-    async def _run_acl_stage(
-        self,
-        rule_results: tuple[RuleStageResult, ...],
-    ) -> _AclStage:
-        semaphore = asyncio.Semaphore(self.acl_max_concurrency)
-        analyzed = await asyncio.gather(
-            *(
-                self._analyze_acl_item(rule_result, semaphore)
-                for rule_result in rule_results
-            )
-        )
-        records = [record for record, _ in analyzed]
-        return _AclStage(
-            records=records,
-            raw_records=[raw_record for _, raw_record in analyzed],
-            exceptions=[
-                f"ACL dependency: {record.dependency_error}"
-                for record in records
-                if record.dependency_error
-            ],
-        )
-
-    async def _analyze_acl_item(
-        self,
-        rule_result: RuleStageResult,
-        semaphore: asyncio.Semaphore,
-    ) -> tuple[_AclRecord, dict[str, Any]]:
-        combination = rule_result.combination
-        if network_fact_blocks_acl(combination):
-            return (
-                _skipped_acl_record(rule_result.item_id, combination),
-                {
-                    "item_id": rule_result.item_id,
-                    "skipped_due_to_network_fact": True,
-                },
-            )
-
-        # Gating consumes the RuleStage result; the rule engine is not
-        # invoked here (invariant 4.2.2).
-        if (
-            self.acl_deterministic_pending_mode == "skip"
-            and rule_result.matched_rules
-        ):
-            return (
-                _skipped_acl_record(rule_result.item_id, combination),
-                {
-                    "item_id": rule_result.item_id,
-                    "skipped": True,
-                    "skip_reason": "deterministic_pending_rule",
-                    "matched_rule_ids": [
-                        rule.id for rule in rule_result.matched_rules
-                    ],
-                },
-            )
-
-        raw: AclRawResponse | None = None
-        dependency_error: str | None = None
-        try:
-            async with semaphore:
-                raw = await self.acl_client.analyze(combination)
-            facts = self.extractor.extract(raw)
-            raw_record = {
-                "item_id": rule_result.item_id,
-                "response": raw.model_dump(mode="json"),
-            }
-            verification_status = acl_verification_status(combination, facts, None)
-        except AclDependencyError as exc:
-            dependency_error = str(exc)
-            facts = ExtractedFacts()
-            raw_record = {"item_id": rule_result.item_id, "error": dependency_error}
-            verification_status = "unverified"
-        return (
-            _AclRecord(
-                item_id=rule_result.item_id,
-                combination=combination,
-                raw=raw,
-                facts=facts,
-                dependency_error=dependency_error,
-                verification_status=verification_status,
-                acl_findings=acl_findings(
-                    combination,
-                    facts,
-                    dependency_error,
-                    decision_mode=self.acl_decision_mode,
-                    no_path_rule=self.policies.acl_no_path_rule,
-                ),
-            ),
-            raw_record,
-        )
-
-    def _assemble_deterministic_outcomes(
-        self,
-        rule_results: tuple[RuleStageResult, ...],
-        records: list[_AclRecord],
-    ) -> tuple[
-        dict[str, _DeterministicOutcome],
-        list[AclAnalysis],
-    ]:
-        """Partition each item's deterministic findings without deciding.
-
-        The frozen insertion order mirrors the historical first-match chain:
-        network error, matched rules, catalog errors, then ACL findings.
-        """
-
-        outcomes: dict[str, _DeterministicOutcome] = {}
-        for rule_result, record in zip(rule_results, records, strict=True):
-            network_finds = tuple(network_findings(rule_result.combination))
-            catalog_finds = tuple(catalog_findings(rule_result.combination))
-            deterministic = [
-                *network_finds,
-                *rule_result.findings,
-                *catalog_finds,
-                *record.acl_findings,
-            ]
-            primary = self.decision_reducer.primary_of(deterministic)
-            item_matched = list(rule_result.matched_rules)
-            no_path_rule = self.policies.acl_no_path_rule
-            if primary is not None and primary.code == no_path_rule.id:
-                item_matched.append(no_path_rule)
-            outcomes[record.item_id] = _DeterministicOutcome(
-                network_findings=network_finds,
-                rule_findings=rule_result.findings,
-                catalog_findings=catalog_finds,
-                acl_findings=record.acl_findings,
-                matched_rule_ids=tuple(
-                    rule.id for rule in rule_result.matched_rules
-                ),
-                item_matched_rules=item_matched,
-            )
-        analyses = [
-            AclAnalysis(
-                raw_analysis=record.raw.analysis if record.raw else "",
-                raw_config=record.raw.config if record.raw else "",
-                extracted_facts=record.facts,
-            )
-            for record in records
-        ]
-        return outcomes, analyses
-
-    async def _run_semantic_stage(
-        self,
-        *,
-        records: list[_AclRecord],
-        payload: dict[str, Any],
-        model_raw: dict[str, Any],
-        exceptions: list[str],
-        deterministic_candidates: set[str],
-    ) -> _SemanticStage:
-        """Run the batch semantic analysis and produce semantic findings.
-
-        This stage never mutates items or decisions; the reduce stage owns
-        every decision. ``deterministic_candidates`` comes from the
-        deterministic assembly (matched rules incl. the ACL-PATH-001 primary
-        injection), preserving the historical candidate merge.
-        """
-
-        model_raw["semantic_input"] = payload
-        started = perf_counter()
-        error: Exception | None = None
-        findings: dict[str, list[Finding]] = {
-            record.item_id: [] for record in records
-        }
-        review_ids: dict[str, list[str]] = {
-            record.item_id: [] for record in records
-        }
-        question_ids: dict[str, list[str]] = {
-            record.item_id: [] for record in records
-        }
-        observation_ids: dict[str, list[str]] = {
-            record.item_id: [] for record in records
-        }
-        try:
-            raw_semantic, semantic_raw = await self.llm_client.analyze(payload)
-            model_raw["semantic"] = semantic_raw
-            semantic = guard_semantic_output(
-                raw_semantic,
-                evidence_sources=_evidence_sources(records),
-                authoritative_facts=_authoritative_facts(records),
-                valid_rule_ids=self.policies.rule_ids,
-                network_facts=_network_fact_bindings(records),
-            )
-            semantic = semantic.model_copy(
-                update={
-                    "candidate_rule_ids": sorted(
-                        deterministic_candidates
-                        | set(semantic.candidate_rule_ids)
-                    )
-                }
-            )
-            semantic = apply_configured_semantic_effects(
-                semantic, self.semantic_effects
-            )
-            findings, review_ids, question_ids, observation_ids = (
-                semantic_stage_findings(
-                    [record.item_id for record in records],
-                    semantic,
-                    fact_conflict_effect=self.semantic_effects.get(
-                        "fact_conflict", "review_required"
-                    ),
-                )
-            )
-            succeeded = True
-        except (LlmDependencyError, SemanticGuardError) as exc:
-            error = exc
-            detail = str(exc)
-            exceptions.append(f"LLM semantic analysis: {detail}")
-            model_raw.setdefault("semantic", {"error": detail})
-            semantic = failed_semantic_analysis(
-                [record.item_id for record in records], detail
-            )
-            failure_finding = Finding(
-                code="LLM_SEMANTIC_ANALYSIS_FAILURE",
-                source="semantic",
-                reason_type="dependency_failure",
-                priority=PRIORITY_SEMANTIC,
-            )
-            findings = {
-                record.item_id: [failure_finding] for record in records
-            }
-            succeeded = False
-        _record_llm_stage(
-            model_raw,
-            "semantic",
-            started,
-            "passed" if succeeded else "rejected",
-            error,
-            self.llm_client,
-        )
-        return _SemanticStage(
-            semantic=semantic,
-            succeeded=succeeded,
-            findings=findings,
-            review_ids=review_ids,
-            question_ids=question_ids,
-            observation_ids=observation_ids,
-        )
-
-    def _reduce_items(
-        self,
-        records: list[_AclRecord],
-        outcomes: dict[str, _DeterministicOutcome],
-        stage: _SemanticStage,
-    ) -> tuple[list[EvaluationItem], int]:
-        """Formal reduce stage: exactly one ``DecisionReducer.reduce_item()``
-        per item. The deterministic snapshot and the final decision are formed
-        inside that single workflow (V4-P2; the two-phase reduce of AC-05 was
-        deliberately reversed, see docs/v3-baseline.md §6 / D1).
-        """
-
-        result: list[EvaluationItem] = []
-        deterministic_pending_count = 0
-        for record in records:
-            outcome = outcomes[record.item_id]
-            decision = self.decision_reducer.reduce_item(
-                ItemFindingSet(
-                    network=outcome.network_findings,
-                    rules=outcome.rule_findings,
-                    catalog=outcome.catalog_findings,
-                    acl=outcome.acl_findings,
-                    semantic=tuple(stage.findings.get(record.item_id, ())),
-                ),
-                matched_rules=outcome.matched_rule_ids,
-                semantic=SemanticTrace(
-                    succeeded=stage.succeeded,
-                    review_ids=tuple(
-                        stage.review_ids.get(record.item_id, ())
-                    ),
-                    question_ids=tuple(
-                        stage.question_ids.get(record.item_id, ())
-                    ),
-                    observation_ids=tuple(
-                        stage.observation_ids.get(record.item_id, ())
-                    ),
-                ),
-            )
-            if decision.trace is None or decision.deterministic_decision is None:
-                raise RuntimeError(
-                    "the formal reduce_item workflow must return a trace"
-                )
-            if decision.deterministic_decision == "待定":
-                deterministic_pending_count += 1
-            item = build_item(
-                item_id=record.item_id,
-                combination=record.combination,
-                facts=record.facts,
-                decision=decision,
-                matched=outcome.item_matched_rules,
-                no_path_rule=self.policies.acl_no_path_rule,
-            )
-            item = materialize_final_item(item, decision)
-            result.append(
-                item.model_copy(
-                    update=network_item_fields(
-                        record.combination, record.verification_status
-                    )
-                )
-            )
-        added_pending_count = max(
-            0,
-            sum(item.decision == "待定" for item in result)
-            - deterministic_pending_count,
-        )
-        return result, added_pending_count
-
-    def _semantic_payload(
-        self, request: EvaluationRequest, records: list[_AclRecord]
-    ) -> dict[str, Any]:
-        return {
-            "request_id": request.request_id,
-            "request_description": request.request_description,
-            "items": [
-                {
-                    "item_id": record.item_id,
-                    "access": {
-                        "source": record.combination.source_text,
-                        "destination": record.combination.destination_text,
-                        "protocol": record.combination.protocol,
-                        "port": record.combination.port.model_dump(mode="json"),
-                    },
-                    "source_description": record.combination.source_description,
-                    "destination_description": record.combination.destination_description,
-                    "request_description": record.combination.request_description,
-                    "authoritative_facts": _authoritative_fact(record),
-                    "source_network_facts": network_facts_of(record.combination.source),
-                    "destination_network_facts": network_facts_of(
-                        record.combination.destination
-                    ),
-                    "network_plan_status": {
-                        "source": segment_status(record.combination.source),
-                        "destination": segment_status(record.combination.destination),
-                    },
-                    "acl_analysis": record.raw.analysis if record.raw else "",
-                    "acl_config": record.raw.config if record.raw else "",
-                }
-                for record in records
-            ],
-            "rules": [rule.semantic_summary() for rule in self.policies.rules],
-        }
-
-
-_SEMANTIC_FAILURE_TEXT = (
-    "必要的全申请语义分析未通过依赖或输出守卫，未据此输出合规结论。",
-    "检查模型服务和输出契约后提交人工复核。",
-)
-
-def _authoritative_fact(record: _AclRecord) -> dict[str, str]:
-    source = record.combination.source
-    destination = record.combination.destination
-    facts: dict[str, str] = {}
-    if source.zone is not None:
-        facts.update(
-            source_zone=source.zone,
-            source_environment=source.environment or "",
-            source_object_type=source.object_type or "",
-        )
-    if destination.zone is not None:
-        facts.update(
-            destination_zone=destination.zone,
-            destination_environment=destination.environment or "",
-            destination_object_type=destination.object_type or "",
-        )
-    source_fact = source.primary_fact
-    destination_fact = destination.primary_fact
-    if source_fact is not None:
-        facts.setdefault("source_zone", source_fact.area_id)
-    if destination_fact is not None:
-        facts.setdefault("destination_zone", destination_fact.area_id)
-    return facts
-
-
-def _authoritative_facts(records: list[_AclRecord]) -> dict[str, dict[str, str]]:
-    return {record.item_id: _authoritative_fact(record) for record in records}
-
-
-def _network_fact_bindings(
-    records: list[_AclRecord],
-) -> dict[str, dict[str, dict[str, dict[str, str | None]]]]:
-    return {
-        record.item_id: {
-            role: {
-                fact.fact_id: {
-                    field: getattr(fact, field)
-                    for field in (
-                        "area_id",
-                        "area",
-                        "region_name",
-                        "platform_name",
-                        "network",
-                        "subnet",
-                        "usage_code",
-                        "description",
-                    )
-                }
-                for fact in getattr(segment, "network_facts", ())
-            }
-            for role, segment in (
-                ("source", record.combination.source),
-                ("destination", record.combination.destination),
-            )
-        }
-        for record in records
-    }
-
-
-def _evidence_sources(records: list[_AclRecord]) -> dict[str, dict[str, str]]:
-    return {
-        record.item_id: {
-            "request_description": record.combination.request_description,
-            "source_description": record.combination.source_description,
-            "destination_description": record.combination.destination_description,
-            "acl_analysis": record.raw.analysis if record.raw else "",
-            "acl_config": record.raw.config if record.raw else "",
-        }
-        for record in records
-    }
-
-
-def _skipped_acl_record(
-    item_id: str, combination: AccessCombination
-) -> _AclRecord:
-    return _AclRecord(
-        item_id=item_id,
-        combination=combination,
-        raw=None,
-        facts=ExtractedFacts(),
-        dependency_error=None,
-        verification_status="skipped",
-        acl_findings=(),
-    )
-
-
-def _llm_metadata(client: LlmClientProtocol, policy_version: str) -> dict[str, Any]:
-    return {
-        "client_mode": client.mode,
-        "model_version": client.model_name,
-        "policy_version": policy_version,
-        "prompt_versions": dict(getattr(client, "prompt_versions", {}) or {}),
-        "fixture_version": getattr(client, "fixture_version", None),
-    }
-
-
-def _record_llm_stage(
-    model_raw: dict[str, Any],
-    stage: str,
-    started: float,
-    status: str,
-    error: Exception | None,
-    client: LlmClientProtocol,
-) -> None:
-    trace = None
-    consume = getattr(client, "consume_completion_trace", None)
-    if callable(consume):
-        trace = consume()
-    record: dict[str, Any] = {
-        "status": status,
-        "duration_ms": round((perf_counter() - started) * 1000, 3),
-        "error_type": type(error).__name__ if error is not None else None,
-        "attempts": 0,
-        "corrections": 0,
-    }
-    if isinstance(trace, dict):
-        record["attempts"] = int(trace.get("attempts", 0))
-        record["corrections"] = int(trace.get("corrections", 0))
-        record["provider_duration_ms"] = trace.get("duration_ms")
-        record["completion_schema"] = trace.get("schema")
-        record["completion_status"] = trace.get("status")
-        record["completion_error_type"] = trace.get("error_type")
-        record["completion_error_detail"] = trace.get("error_detail")
-        if record["error_type"] is None and trace.get("error_type"):
-            record["error_type"] = str(trace["error_type"])
-    model_raw["stages"][stage] = record
-
-
-def _llm_metrics(
-    stages: dict[str, dict[str, Any]],
-    *,
-    llm_added_pending_count: int,
-    items: list[EvaluationItem],
-) -> dict[str, Any]:
-    attempts = sum(int(stage.get("attempts", 0)) for stage in stages.values())
-    corrections = sum(int(stage.get("corrections", 0)) for stage in stages.values())
-    rejected = sum(stage.get("status") == "rejected" for stage in stages.values())
-    schema_rejected = sum(
-        stage.get("completion_status") == "failed" for stage in stages.values()
-    )
-    output_guard_rejected = sum(
-        stage.get("status") == "rejected"
-        and stage.get("completion_status") == "passed"
-        for stage in stages.values()
-    )
-    dependency_failed = sum(
-        stage.get("status") == "rejected"
-        and stage.get("completion_status") not in {"passed", "failed"}
-        for stage in stages.values()
-    )
-    traces = [item.decision_trace for item in items if item.decision_trace is not None]
-    return {
-        "schema_attempt_count": attempts,
-        "schema_correction_count": corrections,
-        "schema_correction_rate": round(corrections / attempts, 6) if attempts else 0.0,
-        "guard_rejection_count": rejected,
-        "model_schema_rejection_count": schema_rejected,
-        "model_output_guard_rejection_count": output_guard_rejected,
-        "model_dependency_failure_count": dependency_failed,
-        "explanation_fallback_count": int(
-            stages.get("explanation", {}).get("status") != "passed"
-        ),
-        "llm_added_pending_count": llm_added_pending_count,
-        "model_business_downgrade_count": sum(
-            trace.semantic_effect == "downgraded" for trace in traces
-        ),
-        "model_observation_only_count": sum(
-            trace.semantic_effect == "observation_only" for trace in traces
-        ),
-        "model_question_only_count": sum(
-            trace.semantic_effect == "question_only" for trace in traces
-        ),
-    }

@@ -353,21 +353,3 @@ def _effect_target(
         return question_ids, False
     return observation_ids, False
 
-
-def acl_verification_status(
-    combination: AccessCombination,
-    facts: ExtractedFacts,
-    dependency_error: str | None,
-) -> str:
-    if network_fact_blocks_acl(combination):
-        return "skipped"
-    if facts.explicit_no_path or facts.ambiguous:
-        return "review_required"
-    if facts.observed_ports and not any(
-        combination.port.start <= port <= combination.port.end
-        for port in facts.observed_ports
-    ):
-        return "review_required"
-    if dependency_error or not facts.firewalls:
-        return "unverified"
-    return "verified"
