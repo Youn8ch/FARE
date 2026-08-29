@@ -146,18 +146,20 @@ class PolicyBundle:
 
 def _matches(rule: Rule, item: AccessCombination, total_combinations: int) -> bool:
     when = rule.when
-    source = item.source.entry
-    destination = item.destination.entry
-    source_fact = getattr(item.source, "primary_fact", None)
-    destination_fact = getattr(item.destination, "primary_fact", None)
+    source_segment = item.source
+    destination_segment = item.destination
+    source_fact = source_segment.primary_fact
+    destination_fact = destination_segment.primary_fact
     if rule.category == "zone_relation":
         values = {
             "source_zone": (
-                source.zone if source else (source_fact.area_id if source_fact else None)
+                source_segment.zone
+                if source_segment.zone is not None
+                else (source_fact.area_id if source_fact else None)
             ),
             "destination_zone": (
-                destination.zone
-                if destination
+                destination_segment.zone
+                if destination_segment.zone is not None
                 else (destination_fact.area_id if destination_fact else None)
             ),
             "source_area_id": source_fact.area_id if source_fact else None,
@@ -175,11 +177,13 @@ def _matches(rule: Rule, item: AccessCombination, total_combinations: int) -> bo
     if rule.category == "object_relation":
         checks = {
             "source_zone": (
-                source.zone if source else (source_fact.area_id if source_fact else None)
+                source_segment.zone
+                if source_segment.zone is not None
+                else (source_fact.area_id if source_fact else None)
             ),
             "destination_zone": (
-                destination.zone
-                if destination
+                destination_segment.zone
+                if destination_segment.zone is not None
                 else (destination_fact.area_id if destination_fact else None)
             ),
             "source_area_id": source_fact.area_id if source_fact else None,
@@ -192,20 +196,21 @@ def _matches(rule: Rule, item: AccessCombination, total_combinations: int) -> bo
             ),
             "source_usage_code": source_fact.usage_code if source_fact else None,
             "destination_usage_code": destination_fact.usage_code if destination_fact else None,
-            "source_environment": source.environment if source else None,
-            "destination_environment": destination.environment if destination else None,
-            "source_object_type": source.object_type if source else None,
-            "destination_object_type": destination.object_type if destination else None,
+            "source_environment": source_segment.environment,
+            "destination_environment": destination_segment.environment,
+            "source_object_type": source_segment.object_type,
+            "destination_object_type": destination_segment.object_type,
         }
         if not all(_eq(when, key, value) for key, value in checks.items()):
             return False
         if "source_labels" in when and (
-            not source or not set(when["source_labels"]).issubset(source.labels)
+            source_segment.catalog_entry_id is None
+            or not set(when["source_labels"]).issubset(source_segment.labels)
         ):
             return False
         if "destination_labels" in when and (
-            not destination
-            or not set(when["destination_labels"]).issubset(destination.labels)
+            destination_segment.catalog_entry_id is None
+            or not set(when["destination_labels"]).issubset(destination_segment.labels)
         ):
             return False
         return True
@@ -216,11 +221,13 @@ def _matches(rule: Rule, item: AccessCombination, total_combinations: int) -> bo
     if rule.category == "least_privilege":
         check = when.get("check")
         if check == "any_address":
-            return item.source.network is None or item.destination.network is None
-        if check == "prefix_too_broad":
-            return _prefix_too_broad(item.source.network, when) or _prefix_too_broad(
-                item.destination.network, when
+            return (
+                item.source.access_network is None or item.destination.access_network is None
             )
+        if check == "prefix_too_broad":
+            return _prefix_too_broad(
+                item.source.access_network, when
+            ) or _prefix_too_broad(item.destination.access_network, when)
         if check == "port_span":
             return item.port.end - item.port.start + 1 > int(when["max_ports"])
         if check == "combination_count":

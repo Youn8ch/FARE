@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.schemas import PortRange
+from app.services.canonical import canonical_from_catalog
 from app.services.catalog import NetworkCatalog
 from app.services.rule_loader import PolicyBundle
 from app.services.splitter import AccessCombination
@@ -24,8 +25,8 @@ def _combination(
     assert len(source_segments) == 1
     assert len(destination_segments) == 1
     return AccessCombination(
-        source=source_segments[0],
-        destination=destination_segments[0],
+        source=canonical_from_catalog("source", 0, source_segments[0], ""),
+        destination=canonical_from_catalog("destination", 0, destination_segments[0], ""),
         protocol="tcp",
         port=PortRange(start=443, end=443),
         source_description="",

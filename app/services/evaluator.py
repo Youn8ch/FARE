@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Any
@@ -994,33 +995,36 @@ def _catalog_evidence(item: AccessCombination) -> list[str]:
             evidence.append(
                 f"{role}地址引用网段事实 {fact['fact_id']}（区域 {fact['area_id']}）"
             )
-    if item.source.entry:
-        evidence.append(f"源地址命中 {item.source.entry.id}（区域 {item.source.entry.zone}）")
-    if item.destination.entry:
+    if item.source.zone is not None:
         evidence.append(
-            f"目的地址命中 {item.destination.entry.id}（区域 {item.destination.entry.zone}）"
+            f"源地址命中 {item.source.catalog_entry_id}（区域 {item.source.zone}）"
+        )
+    if item.destination.zone is not None:
+        evidence.append(
+            f"目的地址命中 {item.destination.catalog_entry_id}"
+            f"（区域 {item.destination.zone}）"
         )
     return evidence
 
 
 def _authoritative_fact(record: _AclRecord) -> dict[str, str]:
-    source = record.combination.source.entry
-    destination = record.combination.destination.entry
+    source = record.combination.source
+    destination = record.combination.destination
     facts: dict[str, str] = {}
-    if source:
+    if source.zone is not None:
         facts.update(
             source_zone=source.zone,
-            source_environment=source.environment,
-            source_object_type=source.object_type,
+            source_environment=source.environment or "",
+            source_object_type=source.object_type or "",
         )
-    if destination:
+    if destination.zone is not None:
         facts.update(
             destination_zone=destination.zone,
-            destination_environment=destination.environment,
-            destination_object_type=destination.object_type,
+            destination_environment=destination.environment or "",
+            destination_object_type=destination.object_type or "",
         )
-    source_fact = getattr(record.combination.source, "primary_fact", None)
-    destination_fact = getattr(record.combination.destination, "primary_fact", None)
+    source_fact = source.primary_fact
+    destination_fact = destination.primary_fact
     if source_fact is not None:
         facts.setdefault("source_zone", source_fact.area_id)
     if destination_fact is not None:
@@ -1135,6 +1139,8 @@ def _segment_status(segment: object) -> str:
 def _network_facts(segment: object) -> list[dict[str, Any]]:
     return [
         fact.model_dump(mode="json")
+        if hasattr(fact, "model_dump")
+        else dataclasses.asdict(fact)
         for fact in getattr(segment, "network_facts", ())
     ]
 

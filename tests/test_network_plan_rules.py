@@ -7,6 +7,7 @@ import pytest
 import yaml
 
 from app.schemas import NetworkPlanFact, PortRange
+from app.services.canonical import canonical_from_resolved
 from app.services.network_plan_resolver import ResolvedAddressSegment
 from app.services.rule_loader import PolicyBundle
 from app.services.splitter import AccessCombination
@@ -114,8 +115,10 @@ def test_zone_rule_matches_authoritative_planning_fields(tmp_path: Path) -> None
         "NPF-10DC1000", "16.220.16.0/24", "核心生产区", "数据库平台"
     )
     combination = AccessCombination(
-        source=_segment("source", "16.210.8.10/32", source_fact),
-        destination=_segment("destination", "16.220.16.20/32", destination_fact),
+        source=canonical_from_resolved(_segment("source", "16.210.8.10/32", source_fact)),
+        destination=canonical_from_resolved(
+            _segment("destination", "16.220.16.20/32", destination_fact)
+        ),
         protocol="tcp",
         port=PortRange(start=443, end=443),
         source_description="",

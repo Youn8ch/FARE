@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from app.schemas import PortRange
+from app.services.canonical import canonical_from_catalog
 from app.services.catalog import CatalogSegment, NetworkCatalog
 from app.services.rule_loader import PolicyBundle
 from app.services.splitter import AccessCombination
@@ -29,8 +30,8 @@ def _combination(
     port_end: int = 443,
 ) -> AccessCombination:
     return AccessCombination(
-        source=_segment(source),
-        destination=_segment(destination),
+        source=canonical_from_catalog("source", 0, _segment(source), ""),
+        destination=canonical_from_catalog("destination", 0, _segment(destination), ""),
         protocol=protocol,
         port=PortRange(start=port_start, end=port_end),
         source_description="",
