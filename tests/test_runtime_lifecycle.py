@@ -116,7 +116,7 @@ def test_runtime_close_attempts_every_resource_after_failure() -> None:
     acl = Resource("acl")
     network = Resource("network")
     evaluator = SimpleNamespace(llm_client=llm, acl_client=acl)
-    resolver = SimpleNamespace(client=network)
+    resolver = SimpleNamespace(provider=network)
     runtime = _runtime(evaluator=evaluator, audit=object(), resolver=resolver)
 
     with pytest.raises(RuntimeError, match="llm close failed"):

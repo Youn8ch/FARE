@@ -47,6 +47,40 @@ def test_reducer_owns_the_priority_algorithm() -> None:
     assert "class SemanticTrace" in reducer
 
 
+def test_resolver_has_no_second_fact_channel() -> None:
+    """Invariant 4.1.2/4.1.5 (V4-P3): the resolver never imports the catalog,
+    holds no offline_catalog, and consumes only the typed ProviderLookup."""
+
+    resolver = _read("services/network_plan_resolver.py")
+    for banned in (
+        "NetworkCatalog",
+        "NetworkEntry",
+        "legacy_entry",
+        "_legacy_entry(",
+        "offline_catalog",
+    ):
+        assert banned not in resolver, banned
+
+    provider = _read("services/network_fact_provider.py")
+    assert "class ProviderNetworkFact" in provider
+    assert "class ExplicitNetworkClassification" in provider
+    assert "class OfflineCatalogNetworkFactProvider" in provider
+
+
+def test_all_provider_modes_share_one_typed_result() -> None:
+    """Invariant 4.1.3: the three providers return the same ProviderLookup."""
+
+    provider = _read("services/network_fact_provider.py")
+    for cls in (
+        "class HttpNetworkFactProvider",
+        "class MockNetworkFactProvider",
+        "class OfflineCatalogNetworkFactProvider",
+    ):
+        assert cls in provider, cls
+    # 每个实现的 lookup 返回类型都是 ProviderLookup（ABC + 三个实现）
+    assert provider.count("async def lookup(self") == 4
+
+
 def test_stage_contracts_are_frozen_dataclasses() -> None:
     """Invariant: stage boundaries pass frozen dataclasses, not bare dicts."""
 

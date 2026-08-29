@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.schemas import EvaluationRequest
+from app.services.network_fact_provider import MockNetworkFactProvider
 from app.services.network_plan_client import MockNetworkPlanClient
 from app.services.network_plan_resolver import (
     NetworkPlanQueryLimitError,
@@ -24,7 +25,7 @@ def _request(sources: list[str], destinations: list[str] | None = None) -> Evalu
 
 def _resolver(limit: int = 64) -> NetworkPlanResolver:
     return NetworkPlanResolver(
-        MockNetworkPlanClient(None),
+        MockNetworkFactProvider(MockNetworkPlanClient(None)),
         max_subnets=limit,
         max_concurrency=2,
         lookup_timeout=1,

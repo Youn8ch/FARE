@@ -66,7 +66,7 @@ def test_query_limit_rejects_before_idempotency_claim_and_dependencies(settings)
         response = client.post(
             "/v1/evaluations", json=_payload("network-plan-query-limit")
         )
-        assert client.app.state.runtime.network_plan_resolver.client.calls == []
+        assert client.app.state.runtime.network_plan_resolver.provider.transport.calls == []
     assert response.status_code == 422
     assert response.json()["error"] == {
         "code": "NETWORK_PLAN_QUERY_LIMIT_EXCEEDED",

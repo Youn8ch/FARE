@@ -163,9 +163,9 @@ def test_local_network_rule_requirement_group(
         )
         resolver = runtime.network_plan_resolver
         assert resolver is not None
-        assert isinstance(resolver.client, MockNetworkPlanClient)
+        assert isinstance(resolver.provider.transport, MockNetworkPlanClient)
         assert isinstance(runtime.evaluator.acl_client, MockAclClient)
-        lookup_calls = list(resolver.client.calls)
+        lookup_calls = list(resolver.provider.transport.calls)
         acl_calls = list(runtime.evaluator.acl_client.calls)
 
     expected = case.expected

@@ -104,7 +104,7 @@ def test_case01_stage_order_and_call_counts(settings: Settings) -> None:
 
         assert recorder.stages == EXPECTED_STAGES
         # network: 1 batch resolve, 2 unique /24 lookups
-        assert len(runtime.network_plan_resolver.client.calls) == 2
+        assert len(runtime.network_plan_resolver.provider.transport.calls) == 2
         # acl: at most one call per applicable item
         assert len(acl.calls) == len(result.response.items) == 1
         # semantic: one batch; explanation: one batch after success
@@ -197,7 +197,7 @@ def test_case03_query_limit_rejects_before_any_stage(settings: Settings) -> None
         else:
             raise AssertionError("query limit must fail closed")
         assert recorder.stages == []
-        assert runtime.network_plan_resolver.client.calls == []
+        assert runtime.network_plan_resolver.provider.transport.calls == []
     finally:
         asyncio.run(runtime.aclose())
 

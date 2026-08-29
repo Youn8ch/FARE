@@ -85,7 +85,7 @@ def test_case01_single_ip_normal_access_baseline(settings: Settings) -> None:
     with TestClient(create_app(_mock_chain(settings))) as client:
         runtime = client.app.state.runtime
         status, body = _post(client, _payload("ac00-case-01"))
-        network_calls = list(runtime.network_plan_resolver.client.calls)
+        network_calls = list(runtime.network_plan_resolver.provider.transport.calls)
         acl_calls = list(runtime.evaluator.acl_client.calls)
     assert status == 200
     assert body["decision"] == "合规"
@@ -118,7 +118,7 @@ def test_case02_network_plan_not_found_baseline(settings: Settings) -> None:
     with TestClient(create_app(_mock_chain(settings))) as client:
         runtime = client.app.state.runtime
         status, body = _post(client, payload)
-        network_calls = list(runtime.network_plan_resolver.client.calls)
+        network_calls = list(runtime.network_plan_resolver.provider.transport.calls)
         acl_calls = list(runtime.evaluator.acl_client.calls)
     assert status == 200
     assert body["decision"] == "待定"
@@ -144,7 +144,7 @@ def test_case03_query_limit_baseline(settings: Settings) -> None:
         status, body = _post(client, _payload("ac00-case-03"))
         # 同一 request_id 重复提交不得卡在处理中，也不得消耗依赖
         repeat_status, repeat_body = _post(client, _payload("ac00-case-03"))
-        network_calls = list(runtime.network_plan_resolver.client.calls)
+        network_calls = list(runtime.network_plan_resolver.provider.transport.calls)
         acl_calls = list(runtime.evaluator.acl_client.calls)
     assert status == repeat_status == 422
     assert body["error"]["code"] == "NETWORK_PLAN_QUERY_LIMIT_EXCEEDED"
@@ -213,7 +213,7 @@ def test_case06_any_address_baseline(settings: Settings) -> None:
     with TestClient(create_app(_mock_chain(settings))) as client:
         runtime = client.app.state.runtime
         status, body = _post(client, payload)
-        network_calls = list(runtime.network_plan_resolver.client.calls)
+        network_calls = list(runtime.network_plan_resolver.provider.transport.calls)
         acl_calls = list(runtime.evaluator.acl_client.calls)
     assert status == 200
     assert body["decision"] == "待定"

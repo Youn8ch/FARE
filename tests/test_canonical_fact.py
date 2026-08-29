@@ -25,6 +25,7 @@ from app.services.canonical import (
     canonical_from_resolved,
 )
 from app.services.catalog import NetworkCatalog
+from app.services.network_fact_provider import MockNetworkFactProvider
 from app.services.network_plan_client import MockNetworkPlanClient
 from app.services.network_plan_resolver import NetworkPlanResolver
 from app.services.splitter import split_resolved_request
@@ -55,7 +56,9 @@ def _plan_fact(**overrides) -> NetworkPlanFact:
 def _canonical_combinations(settings: Settings, payload: dict):
     request = EvaluationRequest.model_validate(payload)
     resolver = NetworkPlanResolver(
-        MockNetworkPlanClient(settings.network_plan_mock_file),
+        MockNetworkFactProvider(
+            MockNetworkPlanClient(settings.network_plan_mock_file)
+        ),
         max_subnets=settings.network_plan_max_subnets_per_request,
         max_concurrency=settings.network_plan_max_concurrency,
         lookup_timeout=settings.network_plan_timeout_seconds,

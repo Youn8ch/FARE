@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from ipaddress import IPv4Address, IPv4Network, IPv6Network
 from typing import Literal
 
-from pydantic import ValidationError
-
 from app.schemas import (
     EvaluationCardinality,
     EvaluationRequest,
@@ -16,13 +14,14 @@ from app.schemas import (
     NetworkPlanFact,
     NetworkPlanLookup,
     NetworkRegion,
-    ProviderNetworkPlanResponse,
 )
-from app.services.catalog import NetworkCatalog, NetworkEntry
-from app.services.network_plan_client import (
-    NetworkPlanClient,
-    NetworkPlanTransportError,
+from app.services.network_fact_provider import (
+    ExplicitNetworkClassification,
+    NetworkFactProvider,
+    ProviderLookup,
+    failure_lookup,
 )
+from app.services.network_plan_client import NetworkPlanTransportError
 
 
 class NetworkPlanQueryLimitError(ValueError):
@@ -52,8 +51,9 @@ class ResolvedAddressSegment:
     region_key: tuple[str, ...] | None
     network_fact_status: NetworkFactStatus
     error_code: str | None
-    # Explicit catalog fields for the offline compatibility provider only.
-    legacy_entry: NetworkEntry | None = None
+    # Explicit catalog classification from the typed provider fact channel
+    # (offline compatibility source; never inferred).
+    classification: ExplicitNetworkClassification | None = None
 
     @property
     def primary_fact(self) -> NetworkPlanFact | None:
@@ -71,24 +71,22 @@ class NetworkPlanResolution:
 class NetworkPlanResolver:
     def __init__(
         self,
-        client: NetworkPlanClient,
+        provider: NetworkFactProvider,
         *,
         max_subnets: int,
         max_concurrency: int,
         lookup_timeout: float,
         batch_timeout: float,
-        offline_catalog: NetworkCatalog | None = None,
     ) -> None:
         if max_subnets < 1 or max_concurrency < 1:
             raise ValueError("network plan limits must be positive")
         if lookup_timeout <= 0 or batch_timeout <= 0:
             raise ValueError("network plan timeouts must be positive")
-        self.client = client
+        self.provider = provider
         self.max_subnets = max_subnets
         self.max_concurrency = max_concurrency
         self.lookup_timeout = lookup_timeout
         self.batch_timeout = batch_timeout
-        self.offline_catalog = offline_catalog
 
     def cardinality(self, request: EvaluationRequest) -> EvaluationCardinality:
         intervals: list[tuple[int, int]] = []
@@ -114,34 +112,38 @@ class NetworkPlanResolver:
     async def resolve(self, request: EvaluationRequest) -> NetworkPlanResolution:
         self.ensure_query_limit(request)
         query_subnets = _materialize_query_plan(request)
-        lookups, raw_records = await self._lookup_all(query_subnets)
-        lookup_by_subnet = {lookup.query_subnet: lookup for lookup in lookups}
+        provider_lookups, raw_records = await self._lookup_all(query_subnets)
+        lookup_by_subnet = {
+            provider_lookup.lookup.query_subnet: provider_lookup
+            for provider_lookup in provider_lookups
+        }
         sources = tuple(
             segment
             for index, item in enumerate(request.sources)
-            for segment in _resolve_address(
-                "source",
-                index,
-                item.address,
-                item.description,
-                lookup_by_subnet,
-                self.offline_catalog,
-            )
+                for segment in _resolve_address(
+                    "source",
+                    index,
+                    item.address,
+                    item.description,
+                    lookup_by_subnet,
+                )
         )
         destinations = tuple(
             segment
             for index, item in enumerate(request.destinations)
-            for segment in _resolve_address(
-                "destination",
-                index,
-                item.address,
-                item.description,
-                lookup_by_subnet,
-                self.offline_catalog,
-            )
+                for segment in _resolve_address(
+                    "destination",
+                    index,
+                    item.address,
+                    item.description,
+                    lookup_by_subnet,
+                )
         )
         analysis = NetworkAnalysis(
-            lookups=lookups,
+            lookups=[
+                provider_lookup.lookup
+                for provider_lookup in provider_lookups
+            ],
             source_regions=[_region(segment) for segment in sources],
             destination_regions=[_region(segment) for segment in destinations],
         )
@@ -154,13 +156,13 @@ class NetworkPlanResolver:
 
     async def _lookup_all(
         self, subnets: list[IPv4Network]
-    ) -> tuple[list[NetworkPlanLookup], list[dict[str, object]]]:
+    ) -> tuple[list[ProviderLookup], list[dict[str, object]]]:
         if not subnets:
             return [], []
         queue: asyncio.Queue[IPv4Network] = asyncio.Queue()
         for subnet in subnets:
             queue.put_nowait(subnet)
-        results: dict[str, NetworkPlanLookup] = {}
+        results: dict[str, ProviderLookup] = {}
         raw_records: dict[str, dict[str, object]] = {}
 
         async def worker() -> None:
@@ -169,9 +171,9 @@ class NetworkPlanResolver:
                     subnet = queue.get_nowait()
                 except asyncio.QueueEmpty:
                     return
-                lookup, raw = await self._lookup_one(subnet)
-                results[str(subnet)] = lookup
-                raw_records[str(subnet)] = raw
+                provider_lookup = await self._lookup_one(subnet)
+                results[str(subnet)] = provider_lookup
+                raw_records[str(subnet)] = provider_lookup.raw
                 queue.task_done()
 
         workers = [
@@ -187,17 +189,21 @@ class NetworkPlanResolver:
             for subnet in subnets:
                 key = str(subnet)
                 if key not in results:
-                    lookup = _failure_lookup(
+                    lookup = failure_lookup(
                         subnet,
                         "dependency_failure",
                         "NETWORK_PLAN_DEPENDENCY_FAILURE",
                         "network plan batch timeout",
                     )
-                    results[key] = lookup
-                    raw_records[key] = {
-                        "query_subnet": key,
-                        "error_code": lookup.error_code,
-                    }
+                    results[key] = ProviderLookup(
+                        lookup=lookup,
+                        fact=None,
+                        raw={
+                            "query_subnet": key,
+                            "error_code": lookup.error_code,
+                        },
+                    )
+                    raw_records[key] = results[key].raw
         except asyncio.CancelledError:
             for task in workers:
                 task.cancel()
@@ -209,175 +215,27 @@ class NetworkPlanResolver:
             [raw_records[key] for key in ordered_keys],
         )
 
-    async def _lookup_one(
-        self, subnet: IPv4Network
-    ) -> tuple[NetworkPlanLookup, dict[str, object]]:
+    async def _lookup_one(self, subnet: IPv4Network) -> ProviderLookup:
         try:
-            transport = await asyncio.wait_for(
-                self.client.lookup(subnet), timeout=self.lookup_timeout
+            return await asyncio.wait_for(
+                self.provider.lookup(subnet), timeout=self.lookup_timeout
             )
         except (TimeoutError, NetworkPlanTransportError) as exc:
-            lookup = _failure_lookup(
+            lookup = failure_lookup(
                 subnet,
                 "dependency_failure",
                 "NETWORK_PLAN_DEPENDENCY_FAILURE",
                 "network plan dependency failed",
             )
-            return lookup, {
-                "query_subnet": str(subnet),
-                "transport_error": type(exc).__name__,
-                "validation": lookup.model_dump(mode="json"),
-            }
-        lookup = validate_network_plan_response(subnet, transport.http_status, transport.body)
-        raw: dict[str, object] = {
-            "query_subnet": str(subnet),
-            "http_status": transport.http_status,
-            "validation": lookup.model_dump(mode="json"),
-        }
-        if transport.body is not None:
-            raw["body"] = transport.body
-        elif transport.raw_text is not None:
-            raw["raw_text"] = transport.raw_text
-        return lookup, raw
-
-
-def validate_network_plan_response(
-    query_subnet: IPv4Network, http_status: int, body: object | None
-) -> NetworkPlanLookup:
-    if query_subnet.prefixlen != 24:
-        raise ValueError("network plan response validation requires an IPv4 /24")
-    if http_status in {401, 403}:
-        return _failure_lookup(
-            query_subnet,
-            "dependency_failure",
-            "NETWORK_PLAN_AUTH_FAILURE",
-            "network plan authorization failed",
-        )
-    if http_status >= 500 or http_status in {408, 429}:
-        return _failure_lookup(
-            query_subnet,
-            "dependency_failure",
-            "NETWORK_PLAN_DEPENDENCY_FAILURE",
-            "network plan dependency failed",
-        )
-    if http_status not in {200, 404} or body is None:
-        return _failure_lookup(
-            query_subnet,
-            "invalid_response",
-            "NETWORK_PLAN_INVALID_RESPONSE",
-            "network plan response is invalid",
-        )
-    try:
-        provider = ProviderNetworkPlanResponse.model_validate(body)
-    except ValidationError:
-        return _failure_lookup(
-            query_subnet,
-            "invalid_response",
-            "NETWORK_PLAN_INVALID_RESPONSE",
-            "network plan response is invalid",
-        )
-    if (
-        provider.code == 404
-        and provider.success is False
-        and provider.data is None
-        and http_status in {200, 404}
-    ):
-        return _failure_lookup(
-            query_subnet,
-            "not_found",
-            "NETWORK_PLAN_NOT_FOUND",
-            "network plan does not exist",
-        )
-    if http_status == 404:
-        return _failure_lookup(
-            query_subnet,
-            "invalid_response",
-            "NETWORK_PLAN_INVALID_RESPONSE",
-            "network plan response is invalid",
-        )
-    if provider.code != 200 or provider.success is not True or provider.data is None:
-        return _failure_lookup(
-            query_subnet,
-            "invalid_response",
-            "NETWORK_PLAN_INVALID_RESPONSE",
-            "network plan response is invalid",
-        )
-    data = provider.data
-    try:
-        returned_subnet = ipaddress.ip_network(data.subnet, strict=True)
-        network = ipaddress.ip_network(data.network, strict=True)
-        if not isinstance(returned_subnet, IPv4Network) or returned_subnet.prefixlen != 24:
-            raise ValueError
-        if not isinstance(network, IPv4Network):
-            raise ValueError
-        if data.gateway is not None:
-            gateway = ipaddress.ip_address(data.gateway)
-            if not isinstance(gateway, IPv4Address):
-                raise ValueError
-    except ValueError:
-        return _failure_lookup(
-            query_subnet,
-            "invalid_response",
-            "NETWORK_PLAN_INVALID_RESPONSE",
-            "network plan response is invalid",
-        )
-    if returned_subnet != query_subnet:
-        return _failure_lookup(
-            query_subnet,
-            "invalid_response",
-            "NETWORK_PLAN_SUBNET_MISMATCH",
-            "network plan subnet does not match the query",
-        )
-    if not returned_subnet.subnet_of(network):
-        return _failure_lookup(
-            query_subnet,
-            "invalid_response",
-            "NETWORK_PLAN_NETWORK_MISMATCH",
-            "network plan subnet is outside its planned network",
-        )
-    fact_id = _identifier("NPF", query_subnet)
-    fact = NetworkPlanFact(
-        fact_id=fact_id,
-        query_subnet=str(query_subnet),
-        area=data.area,
-        area_id=data.area_id,
-        region_name=data.region_name,
-        platform_name=data.platform_name,
-        network=str(network),
-        gateway=data.gateway,
-        subnet=str(returned_subnet),
-        vlan_id=data.vlan_id,
-        usage_code=data.usage_code,
-        description=data.description,
-    )
-    return NetworkPlanLookup(
-        lookup_id=_identifier("NPL", query_subnet),
-        query_subnet=str(query_subnet),
-        status="resolved",
-        fact_id=fact_id,
-        data=fact,
-    )
-
-
-def _failure_lookup(
-    subnet: IPv4Network,
-    status: Literal[
-        "not_found", "dependency_failure", "invalid_response", "conflict"
-    ],
-    code: str,
-    message: str,
-) -> NetworkPlanLookup:
-    return NetworkPlanLookup(
-        lookup_id=_identifier("NPL", subnet),
-        query_subnet=str(subnet),
-        status=status,
-        error_code=code,
-        error_message=message,
-    )
-
-
-def _identifier(prefix: str, subnet: IPv4Network) -> str:
-    return f"{prefix}-{int(subnet.network_address):08X}"
+            return ProviderLookup(
+                lookup=lookup,
+                fact=None,
+                raw={
+                    "query_subnet": str(subnet),
+                    "transport_error": type(exc).__name__,
+                    "validation": lookup.model_dump(mode="json"),
+                },
+            )
 
 
 def _collect_intervals(items: list[object], intervals: list[tuple[int, int]]) -> int:
@@ -430,15 +288,19 @@ def _materialize_query_plan(request: EvaluationRequest) -> list[IPv4Network]:
 class _Piece:
     lower: int
     upper: int
-    lookup: NetworkPlanLookup
+    provider_lookup: ProviderLookup
 
     @property
     def key(self) -> tuple[object, ...]:
-        fact = self.lookup.data
+        provider_fact = self.provider_lookup.fact
+        fact = provider_fact.fact if provider_fact is not None else None
         if fact is None:
-            return (self.lookup.status, self.lookup.error_code)
+            return (
+                self.provider_lookup.lookup.status,
+                self.provider_lookup.lookup.error_code,
+            )
         return (
-            self.lookup.status,
+            self.provider_lookup.lookup.status,
             fact.area_id,
             fact.region_name,
             fact.platform_name,
@@ -452,8 +314,7 @@ def _resolve_address(
     original_index: int,
     address: str,
     description: str,
-    lookups: dict[str, NetworkPlanLookup],
-    offline_catalog: NetworkCatalog | None,
+    lookups: dict[str, ProviderLookup],
 ) -> list[ResolvedAddressSegment]:
     if address.lower() == "any":
         return [
@@ -495,12 +356,11 @@ def _resolve_address(
     pieces: list[_Piece] = []
     for value in range(first, last + 1):
         query = IPv4Network((value << 8, 24))
-        lookup = lookups[str(query)]
         pieces.append(
             _Piece(
                 lower=max(lower, int(query.network_address)),
                 upper=min(upper, int(query.broadcast_address)),
-                lookup=lookup,
+                provider_lookup=lookups[str(query)],
             )
         )
     groups: list[list[_Piece]] = []
@@ -524,27 +384,32 @@ def _resolve_address(
                 if piece.lower <= int(summarized.broadcast_address)
                 and piece.upper >= int(summarized.network_address)
             ]
-            resolved = [piece.lookup.data for piece in relevant if piece.lookup.data]
-            facts = tuple(fact for fact in resolved if fact is not None)
+            resolved = [
+                piece.provider_lookup.fact.fact
+                for piece in relevant
+                if piece.provider_lookup.fact is not None
+            ]
+            facts = tuple(resolved)
             fact_ids = tuple(dict.fromkeys(fact.fact_id for fact in facts))
             query_subnets = tuple(
-                IPv4Network(piece.lookup.query_subnet) for piece in relevant
+                IPv4Network(piece.provider_lookup.lookup.query_subnet)
+                for piece in relevant
             )
-            lookup = relevant[0].lookup
-            fact = facts[0] if facts else None
+            lookup = relevant[0].provider_lookup.lookup
             status = _fact_status(lookup)
+            classification = _common_classification(relevant)
+            primary_fact = facts[0] if facts else None
             region_key = (
                 (
-                    fact.area_id,
-                    fact.region_name,
-                    fact.platform_name,
-                    fact.network,
-                    fact.usage_code or "",
+                    primary_fact.area_id,
+                    primary_fact.region_name,
+                    primary_fact.platform_name,
+                    primary_fact.network,
+                    primary_fact.usage_code or "",
                 )
-                if fact
+                if primary_fact
                 else None
             )
-            legacy_entry = _legacy_entry(offline_catalog, summarized)
             segments.append(
                 ResolvedAddressSegment(
                     role=role,
@@ -558,7 +423,7 @@ def _resolve_address(
                     region_key=region_key,
                     network_fact_status=status,
                     error_code=lookup.error_code,
-                    legacy_entry=legacy_entry,
+                    classification=classification,
                 )
             )
     return segments
@@ -574,13 +439,29 @@ def _fact_status(lookup: NetworkPlanLookup) -> NetworkFactStatus:
     }[lookup.status]  # type: ignore[return-value]
 
 
-def _legacy_entry(
-    catalog: NetworkCatalog | None, network: IPv4Network
-) -> NetworkEntry | None:
-    if catalog is None:
+def _common_classification(
+    pieces: list[_Piece],
+) -> ExplicitNetworkClassification | None:
+    """The segment's explicit classification from its provider facts.
+
+    The historical second-query condition is preserved: a classification
+    exists only when every resolved fact in the segment shares the same
+    explicit classification (equivalent to the summarized network falling
+    inside exactly one catalog entry).
+    """
+
+    values = [
+        piece.provider_lookup.fact.classification
+        for piece in pieces
+        if piece.provider_lookup.fact is not None
+        and piece.provider_lookup.fact.classification is not None
+    ]
+    if not values:
         return None
-    matches = [entry for entry in catalog.entries if network.subnet_of(entry.network)]
-    return matches[0] if len(matches) == 1 else None
+    first = values[0]
+    if all(value == first for value in values[1:]):
+        return first
+    return None
 
 
 def _region(segment: ResolvedAddressSegment) -> NetworkRegion:

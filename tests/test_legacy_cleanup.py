@@ -85,5 +85,9 @@ def test_resolved_segment_shim_properties_are_removed() -> None:
     )
     for shim in shims:
         assert shim not in resolver
-    # legacy_entry 字段保留：offline 兼容 Provider 的显式目录事实通道
-    assert "legacy_entry: NetworkEntry | None" in resolver
+    # V4-P3：legacy_entry 第二事实通道已删除，显式目录分类走 typed provider
+    # 通道（app/services/network_fact_provider.py）。
+    assert "legacy_entry" not in resolver
+    assert "offline_catalog" not in resolver
+    assert "NetworkCatalog" not in resolver
+    assert "NetworkEntry" not in resolver

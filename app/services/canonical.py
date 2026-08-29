@@ -95,7 +95,7 @@ def canonical_from_resolved(segment: ResolvedAddressSegment) -> CanonicalAddress
     """Normalize a resolver segment verbatim, preserving explicit catalog data."""
 
     facts = tuple(canonical_fact_from_plan(fact) for fact in segment.network_facts)
-    entry = segment.legacy_entry
+    entry = segment.classification
     return CanonicalAddressSegment(
         role=segment.role,
         original_index=segment.original_index,
@@ -108,7 +108,7 @@ def canonical_from_resolved(segment: ResolvedAddressSegment) -> CanonicalAddress
         region_key=segment.region_key,
         network_fact_status=segment.network_fact_status,
         error_code=segment.error_code,
-        catalog_entry_id=entry.id if entry is not None else None,
+        catalog_entry_id=entry.catalog_entry_id if entry is not None else None,
         zone=entry.zone if entry is not None else None,
         environment=entry.environment if entry is not None else None,
         object_type=entry.object_type if entry is not None else None,

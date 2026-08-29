@@ -166,11 +166,11 @@ def test_requirement_source_runs_area_matrix_with_mock_dependencies(
         runtime = client.app.state.runtime
         resolver = runtime.network_plan_resolver
         assert resolver is not None
-        assert isinstance(resolver.client, MockNetworkPlanClient)
+        assert isinstance(resolver.provider.transport, MockNetworkPlanClient)
         assert isinstance(runtime.evaluator.acl_client, MockAclClient)
 
         for request in requests:
-            network_before = len(resolver.client.calls)
+            network_before = len(resolver.provider.transport.calls)
             acl_before = len(runtime.evaluator.acl_client.calls)
             response = client.post(
                 "/v1/evaluations", json=request.model_dump(mode="json")
@@ -182,7 +182,7 @@ def test_requirement_source_runs_area_matrix_with_mock_dependencies(
             assert body["decision"] == expected["decision"]
             assert len(body["items"]) == expected["item_count"]
             assert (
-                len(resolver.client.calls) - network_before
+                len(resolver.provider.transport.calls) - network_before
                 == expected["lookup_count"]
             )
             assert (

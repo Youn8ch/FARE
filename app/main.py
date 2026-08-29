@@ -16,6 +16,11 @@ from app.services.audit import AuditStore, redact_evaluation_response, request_h
 from app.services.catalog import NetworkCatalog
 from app.services.evaluator import Evaluator
 from app.services.llm_client import LlmClient
+from app.services.network_fact_provider import (
+    HttpNetworkFactProvider,
+    MockNetworkFactProvider,
+    OfflineCatalogNetworkFactProvider,
+)
 from app.services.network_plan_client import (
     HttpNetworkPlanClient,
     MockNetworkPlanClient,
@@ -132,7 +137,7 @@ class Runtime:
         resources = [
             self.evaluator.llm_client,
             self.evaluator.acl_client,
-            self.network_plan_resolver.client,
+            self.network_plan_resolver.provider,
         ]
         seen: set[int] = set()
         errors: list[BaseException] = []
@@ -210,31 +215,37 @@ def build_runtime(settings: Settings) -> Runtime:
         thinking=settings.llm_thinking,
     )
     # Every provider mode goes through the same resolver main path; the
-    # offline catalog acts as an explicit compatibility provider.
+    # offline catalog acts as an explicit compatibility provider whose
+    # explicit classification travels the typed provider-fact channel.
     if settings.network_plan_client_mode == "mock":
-        network_plan_client = MockNetworkPlanClient(settings.network_plan_mock_file)
+        transport = MockNetworkPlanClient(settings.network_plan_mock_file)
     elif settings.network_plan_client_mode == "http":
-        network_plan_client = HttpNetworkPlanClient(
+        transport = HttpNetworkPlanClient(
             settings.network_plan_api_url or "",
             settings.network_plan_timeout_seconds,
             query_parameter=settings.network_plan_http_query_parameter,
             token=settings.network_plan_api_token,
         )
     else:
-        network_plan_client = OfflineCatalogNetworkPlanClient(catalog)
+        transport = OfflineCatalogNetworkPlanClient(catalog)
     if settings.network_plan_cache_ttl_seconds > 0:
-        network_plan_client = TtlNetworkPlanClient(
-            network_plan_client,
+        transport = TtlNetworkPlanClient(
+            transport,
             settings.network_plan_cache_ttl_seconds,
             settings.network_plan_cache_max_entries,
         )
+    if settings.network_plan_client_mode == "mock":
+        provider = MockNetworkFactProvider(transport)
+    elif settings.network_plan_client_mode == "http":
+        provider = HttpNetworkFactProvider(transport)
+    else:
+        provider = OfflineCatalogNetworkFactProvider(transport, catalog)
     network_plan_resolver = NetworkPlanResolver(
-        network_plan_client,
+        provider,
         max_subnets=settings.network_plan_max_subnets_per_request,
         max_concurrency=settings.network_plan_max_concurrency,
         lookup_timeout=settings.network_plan_timeout_seconds,
         batch_timeout=settings.network_plan_batch_timeout_seconds,
-        offline_catalog=catalog,
     )
     evaluator = Evaluator(
         policies=policies,
