@@ -25,6 +25,16 @@ from app.schemas import (
 from app.services.acl_candidate_merge import merge_acl_candidate
 from app.services.acl_client import AclClient, AclDependencyError
 from app.services.acl_extract import AclFactExtractor
+from app.services.decision_reducer import (
+    PRIORITY_ACL,
+    PRIORITY_CATALOG,
+    PRIORITY_NETWORK,
+    PRIORITY_RULE,
+    PRIORITY_SEMANTIC,
+    Decision,
+    DecisionReducer,
+    Finding,
+)
 from app.services.explanation_guard import ExplanationGuardError, guard_explanation_output
 from app.services.llm_client import (
     LlmAclCandidateClientProtocol,
@@ -90,6 +100,14 @@ class _SemanticStage:
     added_pending_count: int
 
 
+@dataclass(frozen=True, slots=True)
+class _DeterministicOutcome:
+    """Findings a stage produced for one item; the reducer owns the decision."""
+
+    findings: tuple[Finding, ...]
+    matched_rule_ids: tuple[str, ...]
+
+
 class Evaluator:
     def __init__(
         self,
@@ -130,6 +148,7 @@ class Evaluator:
         self.acl_max_concurrency = acl_max_concurrency
         self.acl_decision_mode = acl_decision_mode
         self.acl_deterministic_pending_mode = acl_deterministic_pending_mode
+        self.decision_reducer = DecisionReducer()
         self.config_id = config_id
         self.environment = environment
         self.config_fingerprint = config_fingerprint
@@ -149,7 +168,9 @@ class Evaluator:
             "stages": {},
         }
 
-        items, analyses = self._build_deterministic_stage(records, len(combinations))
+        items, analyses, outcomes = self._build_deterministic_stage(
+            records, len(combinations)
+        )
 
         semantic_payload = self._semantic_payload(request, records)
         semantic_stage = await self._run_semantic_stage(
@@ -158,6 +179,7 @@ class Evaluator:
             payload=semantic_payload,
             model_raw=model_raw,
             exceptions=exceptions,
+            outcomes=outcomes,
         )
         semantic = semantic_stage.semantic
         items = semantic_stage.items
@@ -505,21 +527,38 @@ class Evaluator:
         self,
         records: list[_AclRecord],
         total_combinations: int,
-    ) -> tuple[list[EvaluationItem], list[AclAnalysis]]:
-        items = [
-            self._evaluate_item(
-                record.item_id,
-                record.combination,
-                record.facts,
-                record.dependency_error,
-                total_combinations,
-            ).model_copy(
-                update=_network_item_fields(
-                    record.combination, record.verification_status
+    ) -> tuple[
+        list[EvaluationItem],
+        list[AclAnalysis],
+        dict[str, _DeterministicOutcome],
+    ]:
+        items: list[EvaluationItem] = []
+        outcomes: dict[str, _DeterministicOutcome] = {}
+        for record in records:
+            matched = self.policies.match(record.combination, total_combinations)
+            findings = self._collect_deterministic_findings(
+                record.combination, record.facts, record.dependency_error, matched
+            )
+            decision = self.decision_reducer.reduce(
+                findings, matched_rules=[rule.id for rule in matched]
+            )
+            outcomes[record.item_id] = _DeterministicOutcome(
+                findings=findings,
+                matched_rule_ids=tuple(rule.id for rule in matched),
+            )
+            items.append(
+                self._build_item(
+                    record.item_id,
+                    record.combination,
+                    record.facts,
+                    decision,
+                    matched,
+                ).model_copy(
+                    update=_network_item_fields(
+                        record.combination, record.verification_status
+                    )
                 )
             )
-            for record in records
-        ]
         analyses = [
             AclAnalysis(
                 raw_analysis=record.raw.analysis if record.raw else "",
@@ -528,7 +567,202 @@ class Evaluator:
             )
             for record in records
         ]
-        return items, analyses
+        return items, analyses, outcomes
+
+    def _collect_deterministic_findings(
+        self,
+        combination: AccessCombination,
+        facts: ExtractedFacts,
+        dependency_error: str | None,
+        matched: list[Rule],
+    ) -> list[Finding]:
+        """Collect network / rule / ACL findings in stable insertion order.
+
+        The order mirrors the historical first-match chain: network error,
+        matched rules, catalog errors, then ACL findings (dependency, no path,
+        ambiguous, port mismatch, unresolved firewall).
+        """
+
+        findings: list[Finding] = []
+        network_error = _primary_network_error(combination)
+        if network_error is not None:
+            reason_type = (
+                "fact_conflict"
+                if network_error
+                in {
+                    "NETWORK_PLAN_FACT_CONFLICT",
+                    "NETWORK_PLAN_SUBNET_MISMATCH",
+                    "NETWORK_PLAN_NETWORK_MISMATCH",
+                }
+                else (
+                    "dependency_failure"
+                    if network_error
+                    in {
+                        "NETWORK_PLAN_DEPENDENCY_FAILURE",
+                        "NETWORK_PLAN_AUTH_FAILURE",
+                    }
+                    else "fact_incomplete"
+                )
+            )
+            findings.append(
+                Finding(
+                    code=network_error,
+                    source="network",
+                    reason_type=reason_type,
+                    priority=PRIORITY_NETWORK,
+                )
+            )
+        for rule in matched:
+            findings.append(
+                Finding(
+                    code=rule.id,
+                    source="rule",
+                    reason_type=rule.reason_type,
+                    priority=PRIORITY_RULE,
+                )
+            )
+        catalog_error = combination.source.error_code or combination.destination.error_code
+        if network_error is None and catalog_error:
+            findings.append(
+                Finding(
+                    code=catalog_error,
+                    source="network",
+                    reason_type=(
+                        "fact_conflict" if catalog_error == "ZONE_CONFLICT" else "fact_incomplete"
+                    ),
+                    priority=PRIORITY_CATALOG,
+                )
+            )
+        if dependency_error and self.acl_decision_mode == "required":
+            findings.append(
+                Finding(
+                    code="ACL_DEPENDENCY_FAILURE",
+                    source="acl",
+                    reason_type="dependency_failure",
+                    priority=PRIORITY_ACL,
+                )
+            )
+        if facts.explicit_no_path:
+            findings.append(
+                Finding(
+                    code=self.policies.acl_no_path_rule.id,
+                    source="acl",
+                    reason_type=self.policies.acl_no_path_rule.reason_type,
+                    priority=PRIORITY_ACL,
+                )
+            )
+        if facts.ambiguous:
+            findings.append(
+                Finding(
+                    code="ACL_FACT_AMBIGUOUS",
+                    source="acl",
+                    reason_type="fact_conflict",
+                    priority=PRIORITY_ACL,
+                )
+            )
+        if facts.observed_ports and not any(
+            combination.port.start <= port <= combination.port.end
+            for port in facts.observed_ports
+        ):
+            findings.append(
+                Finding(
+                    code="ACL_PORT_MISMATCH",
+                    source="acl",
+                    reason_type="fact_conflict",
+                    priority=PRIORITY_ACL,
+                )
+            )
+        if not facts.firewalls and self.acl_decision_mode == "required":
+            findings.append(
+                Finding(
+                    code="ACL_FIREWALL_UNRESOLVED",
+                    source="acl",
+                    reason_type="fact_incomplete",
+                    priority=PRIORITY_ACL,
+                )
+            )
+        return findings
+
+    def _build_item(
+        self,
+        item_id: str,
+        combination: AccessCombination,
+        facts: ExtractedFacts,
+        decision: Decision,
+        matched: list[Rule],
+    ) -> EvaluationItem:
+        access = Access(
+            source=combination.source_text,
+            destination=combination.destination_text,
+            protocol=combination.protocol,
+            port=combination.port,
+        )
+        evidence = _catalog_evidence(combination) + facts.evidence
+        matched_rules = [
+            MatchedRule(id=rule.id, name=rule.name, category=rule.category)
+            for rule in matched
+        ]
+        primary = decision.primary_finding
+        if primary is not None and primary.code == self.policies.acl_no_path_rule.id:
+            # ACL-PATH-001 由显式无路径事实驱动，不在 policies.match() 结果中；
+            # 历史行为将其与其它命中规则并列保留在 matched_rules。
+            matched_rules = matched_rules + [
+                MatchedRule(
+                    id=self.policies.acl_no_path_rule.id,
+                    name=self.policies.acl_no_path_rule.name,
+                    category=self.policies.acl_no_path_rule.category,
+                )
+            ]
+        if primary is None:
+            return EvaluationItem(
+                item_id=item_id,
+                access=access,
+                decision=decision.decision,
+                evidence=evidence,
+                matched_rules=matched_rules,
+                reason=_COMPLIANT_REASON[0],
+                recommendation=_COMPLIANT_REASON[1],
+            )
+        reason, recommendation = _finding_text(
+            primary, matched, self.policies.acl_no_path_rule
+        )
+        return EvaluationItem(
+            item_id=item_id,
+            access=access,
+            decision=decision.decision,
+            reason_type=decision.reason_type,
+            reason_code=decision.reason_code,
+            matched_rules=matched_rules,
+            evidence=evidence,
+            reason=reason,
+            recommendation=recommendation,
+        )
+
+    def _apply_semantic_failure(
+        self,
+        item: EvaluationItem,
+        outcome: _DeterministicOutcome,
+        failure_finding: Finding,
+    ) -> EvaluationItem:
+        """Downgrade a compliant item when the semantic failure finding is the
+        primary finding; deterministic pending items stay untouched."""
+
+        decision = self.decision_reducer.reduce(
+            [*outcome.findings, failure_finding],
+            matched_rules=outcome.matched_rule_ids,
+        )
+        primary = decision.primary_finding
+        if primary is None or primary.source != "semantic":
+            return item
+        return item.model_copy(
+            update={
+                "decision": decision.decision,
+                "reason_type": decision.reason_type,
+                "reason_code": decision.reason_code,
+                "reason": _SEMANTIC_FAILURE_TEXT[0],
+                "recommendation": _SEMANTIC_FAILURE_TEXT[1],
+            }
+        )
 
     async def _run_semantic_stage(
         self,
@@ -538,6 +772,7 @@ class Evaluator:
         payload: dict[str, Any],
         model_raw: dict[str, Any],
         exceptions: list[str],
+        outcomes: dict[str, _DeterministicOutcome],
     ) -> _SemanticStage:
         deterministic_items = list(items)
         deterministic_pending_count = sum(
@@ -575,6 +810,8 @@ class Evaluator:
                 fact_conflict_effect=self.semantic_effects.get(
                     "fact_conflict", "review_required"
                 ),
+                outcomes=outcomes,
+                reducer=self.decision_reducer,
             )
             succeeded = True
         except (LlmDependencyError, SemanticGuardError) as exc:
@@ -585,8 +822,14 @@ class Evaluator:
             semantic = failed_semantic_analysis(
                 [record.item_id for record in records], detail
             )
+            failure_finding = Finding(
+                code="LLM_SEMANTIC_ANALYSIS_FAILURE",
+                source="semantic",
+                reason_type="dependency_failure",
+                priority=PRIORITY_SEMANTIC,
+            )
             items = [
-                _semantic_failed(item) if item.decision == "合规" else item
+                self._apply_semantic_failure(item, outcomes[item.item_id], failure_finding)
                 for item in items
             ]
             items = [
@@ -660,135 +903,6 @@ class Evaluator:
             "rules": [rule.semantic_summary() for rule in self.policies.rules],
         }
 
-    def _evaluate_item(
-        self,
-        item_id: str,
-        combination: AccessCombination,
-        facts: ExtractedFacts,
-        dependency_error: str | None,
-        total_combinations: int,
-    ) -> EvaluationItem:
-        access = Access(
-            source=combination.source_text,
-            destination=combination.destination_text,
-            protocol=combination.protocol,
-            port=combination.port,
-        )
-        matched = self.policies.match(combination, total_combinations)
-        evidence = _catalog_evidence(combination) + facts.evidence
-        network_error = _primary_network_error(combination)
-        if network_error is not None:
-            reason_type = (
-                "fact_conflict"
-                if network_error in {
-                    "NETWORK_PLAN_FACT_CONFLICT",
-                    "NETWORK_PLAN_SUBNET_MISMATCH",
-                    "NETWORK_PLAN_NETWORK_MISMATCH",
-                }
-                else (
-                    "dependency_failure"
-                    if network_error
-                    in {
-                        "NETWORK_PLAN_DEPENDENCY_FAILURE",
-                        "NETWORK_PLAN_AUTH_FAILURE",
-                    }
-                    else "fact_incomplete"
-                )
-            )
-            return EvaluationItem(
-                item_id=item_id,
-                access=access,
-                decision="待定",
-                reason_type=reason_type,
-                reason_code=network_error,
-                matched_rules=[
-                    MatchedRule(id=rule.id, name=rule.name, category=rule.category)
-                    for rule in matched
-                ],
-                evidence=evidence,
-                reason="网段规划权威事实未完整解析，无法形成确定性合规结论。",
-                recommendation="核实网段规划数据或依赖状态后重新评估。",
-            )
-        if matched:
-            return _pending(item_id, access, matched[0], matched, evidence)
-        catalog_error = combination.source.error_code or combination.destination.error_code
-        if catalog_error:
-            reason_type = "fact_conflict" if catalog_error == "ZONE_CONFLICT" else "fact_incomplete"
-            messages = {
-                "ADDRESS_ANY": "地址使用 any，且未命中已批准的最小开放规则。",
-                "ADDRESS_INVALID": "地址无法解析；前置校验契约未满足。",
-                "ZONE_UNRESOLVED": "地址子范围未命中唯一的权威网络目录。",
-                "ZONE_CONFLICT": "地址子范围同时命中多个权威网络目录项。",
-            }
-            return EvaluationItem(
-                item_id=item_id,
-                access=access,
-                decision="待定",
-                reason_type=reason_type,
-                reason_code=catalog_error,
-                evidence=evidence,
-                reason=messages[catalog_error],
-                recommendation="补充或修正权威网络目录，并确保每个地址子范围唯一归属。",
-            )
-        if dependency_error and self.acl_decision_mode == "required":
-            return EvaluationItem(
-                item_id=item_id,
-                access=access,
-                decision="待定",
-                reason_type="dependency_failure",
-                reason_code="ACL_DEPENDENCY_FAILURE",
-                evidence=evidence,
-                reason="ACL 分析依赖调用失败，无法形成完整的候选路径事实。",
-                recommendation="检查评估依赖并提交人工复核；如流程允许，创建新的评估版本。",
-            )
-        if facts.explicit_no_path:
-            rule = self.policies.acl_no_path_rule
-            return _pending(item_id, access, rule, [rule], evidence)
-        if facts.ambiguous:
-            return EvaluationItem(
-                item_id=item_id,
-                access=access,
-                decision="待定",
-                reason_type="fact_conflict",
-                reason_code="ACL_FACT_AMBIGUOUS",
-                evidence=evidence,
-                reason="ACL 候选路径或拟配置分析存在歧义或冲突。",
-                recommendation="由网络团队核实 ACL 分析原文并补充无歧义事实。",
-            )
-        if facts.observed_ports and not any(
-            combination.port.start <= port <= combination.port.end
-            for port in facts.observed_ports
-        ):
-            return EvaluationItem(
-                item_id=item_id,
-                access=access,
-                decision="待定",
-                reason_type="fact_conflict",
-                reason_code="ACL_PORT_MISMATCH",
-                evidence=evidence,
-                reason="ACL 候选分析中明确出现的端口与申请端口不一致。",
-                recommendation="核对申请端口和 ACL 分析输入后重新评估。",
-            )
-        if not facts.firewalls and self.acl_decision_mode == "required":
-            return EvaluationItem(
-                item_id=item_id,
-                access=access,
-                decision="待定",
-                reason_type="fact_incomplete",
-                reason_code="ACL_FIREWALL_UNRESOLVED",
-                evidence=evidence,
-                reason="ACL 分析未能确认候选路径中的防火墙；这不等同于明确无路径。",
-                recommendation="补充可解析的候选防火墙路径事实。",
-            )
-        return EvaluationItem(
-            item_id=item_id,
-            access=access,
-            decision="合规",
-            evidence=evidence,
-            reason="权威网络事实完整，且未命中规则包中的拒绝规则。",
-            recommendation="按既有审批流程继续处理。",
-        )
-
 
 def _apply_configured_semantic_effects(
     semantic: SemanticAnalysis, effects: dict[str, str]
@@ -827,47 +941,69 @@ def _apply_semantic_findings(
     items: list[EvaluationItem],
     semantic: SemanticAnalysis,
     *,
-    fact_conflict_effect: str = "review_required",
+    fact_conflict_effect: str,
+    outcomes: dict[str, _DeterministicOutcome],
+    reducer: DecisionReducer,
 ) -> list[EvaluationItem]:
     review_ids: dict[str, list[str]] = {item.item_id: [] for item in items}
     observation_ids: dict[str, list[str]] = {item.item_id: [] for item in items}
     question_ids: dict[str, list[str]] = {item.item_id: [] for item in items}
-    fact_conflict_ids: set[str] = set()
+    # Semantic downgrade findings per item, in stable insertion order
+    # (conflicts first, then policy gaps).
+    semantic_findings: dict[str, list[Finding]] = {
+        item.item_id: [] for item in items
+    }
 
     for claim in (*semantic.claims, *semantic.network_claims):
         if claim.status == "conflict":
-            fact_conflict_ids.add(claim.claim_id)
-            target = (
-                review_ids
-                if fact_conflict_effect == "review_required"
-                else question_ids
-                if fact_conflict_effect == "question_only"
-                else observation_ids
+            target, downgrades = _effect_target(
+                fact_conflict_effect, review_ids, question_ids, observation_ids
             )
             target[claim.scope].append(claim.claim_id)
+            if downgrades:
+                semantic_findings[claim.scope].append(
+                    Finding(
+                        code="SEMANTIC_FACT_CONFLICT",
+                        source="semantic",
+                        reason_type="fact_conflict",
+                        detail=claim.claim_id,
+                        priority=PRIORITY_SEMANTIC,
+                    )
+                )
     for contradiction in semantic.contradictions:
         if contradiction.status != "verified":
             continue
-        fact_conflict_ids.add(contradiction.contradiction_id)
-        target = (
-            review_ids
-            if contradiction.applied_effect == "review_required"
-            else question_ids
-            if contradiction.applied_effect == "question_only"
-            else observation_ids
+        target, downgrades = _effect_target(
+            contradiction.applied_effect, review_ids, question_ids, observation_ids
         )
         target[contradiction.scope].append(contradiction.contradiction_id)
+        if downgrades:
+            semantic_findings[contradiction.scope].append(
+                Finding(
+                    code="SEMANTIC_FACT_CONFLICT",
+                    source="semantic",
+                    reason_type="fact_conflict",
+                    detail=contradiction.contradiction_id,
+                    priority=PRIORITY_SEMANTIC,
+                )
+            )
     for gap in semantic.policy_gaps:
         if gap.status != "verified":
             continue
-        target = (
-            review_ids
-            if gap.applied_effect == "review_required"
-            else question_ids
-            if gap.applied_effect == "question_only"
-            else observation_ids
+        target, downgrades = _effect_target(
+            gap.applied_effect, review_ids, question_ids, observation_ids
         )
         target[gap.scope].append(gap.gap_id)
+        if downgrades:
+            semantic_findings[gap.scope].append(
+                Finding(
+                    code="SEMANTIC_POLICY_GAP",
+                    source="semantic",
+                    reason_type="risk_uncertain",
+                    detail=gap.gap_id,
+                    priority=PRIORITY_SEMANTIC,
+                )
+            )
     for missing in semantic.missing_information:
         question_ids[missing.item_id].append(missing.missing_id)
 
@@ -876,25 +1012,32 @@ def _apply_semantic_findings(
         item_review_ids = review_ids[item.item_id]
         item_question_ids = question_ids[item.item_id]
         item_observation_ids = observation_ids[item.item_id]
+        outcome = outcomes[item.item_id]
+        decision = reducer.reduce(
+            [*outcome.findings, *semantic_findings[item.item_id]],
+            matched_rules=outcome.matched_rule_ids,
+        )
+        primary = decision.primary_finding
+        downgraded = (
+            primary is not None
+            and primary.source == "semantic"
+            and item.decision != decision.decision
+        )
         if item.decision == "待定":
             final = item
             effect = "unchanged"
             finding_ids = (
                 item_review_ids + item_question_ids + item_observation_ids
             )
-        elif item_review_ids:
-            has_fact_conflict = bool(set(item_review_ids) & fact_conflict_ids)
+        elif downgraded:
+            has_fact_conflict = primary is not None and primary.code == (
+                "SEMANTIC_FACT_CONFLICT"
+            )
             final = item.model_copy(
                 update={
-                    "decision": "待定",
-                    "reason_type": (
-                        "fact_conflict" if has_fact_conflict else "risk_uncertain"
-                    ),
-                    "reason_code": (
-                        "SEMANTIC_FACT_CONFLICT"
-                        if has_fact_conflict
-                        else "SEMANTIC_POLICY_GAP"
-                    ),
+                    "decision": decision.decision,
+                    "reason_type": decision.reason_type,
+                    "reason_code": decision.reason_code,
                     "reason": (
                         "通过证据守卫的申请语义与权威事实或其他原文证据冲突。"
                         if has_fact_conflict
@@ -937,39 +1080,79 @@ def _apply_semantic_findings(
     return result
 
 
-def _semantic_failed(item: EvaluationItem) -> EvaluationItem:
-    return item.model_copy(
-        update={
-            "decision": "待定",
-            "reason_type": "dependency_failure",
-            "reason_code": "LLM_SEMANTIC_ANALYSIS_FAILURE",
-            "reason": "必要的全申请语义分析未通过依赖或输出守卫，未据此输出合规结论。",
-            "recommendation": "检查模型服务和输出契约后提交人工复核。",
-        }
-    )
+def _effect_target(
+    effect: str,
+    review_ids: dict[str, list[str]],
+    question_ids: dict[str, list[str]],
+    observation_ids: dict[str, list[str]],
+) -> tuple[dict[str, list[str]], bool]:
+    if effect == "review_required":
+        return review_ids, True
+    if effect == "question_only":
+        return question_ids, False
+    return observation_ids, False
 
 
-def _pending(
-    item_id: str,
-    access: Access,
-    primary: Rule,
-    matched: list[Rule],
-    evidence: list[str],
-) -> EvaluationItem:
-    return EvaluationItem(
-        item_id=item_id,
-        access=access,
-        decision="待定",
-        reason_type=primary.reason_type,
-        reason_code=primary.id,
-        matched_rules=[
-            MatchedRule(id=rule.id, name=rule.name, category=rule.category)
-            for rule in matched
-        ],
-        evidence=evidence,
-        reason=primary.reason_template,
-        recommendation=primary.recommendation,
-    )
+_SEMANTIC_FAILURE_TEXT = (
+    "必要的全申请语义分析未通过依赖或输出守卫，未据此输出合规结论。",
+    "检查模型服务和输出契约后提交人工复核。",
+)
+
+_COMPLIANT_REASON = (
+    "权威网络事实完整，且未命中规则包中的拒绝规则。",
+    "按既有审批流程继续处理。",
+)
+
+_NETWORK_ERROR_TEXT = (
+    "网段规划权威事实未完整解析，无法形成确定性合规结论。",
+    "核实网段规划数据或依赖状态后重新评估。",
+)
+
+_CATALOG_ERROR_TEXT = {
+    "ADDRESS_ANY": "地址使用 any，且未命中已批准的最小开放规则。",
+    "ADDRESS_INVALID": "地址无法解析；前置校验契约未满足。",
+    "ZONE_UNRESOLVED": "地址子范围未命中唯一的权威网络目录。",
+    "ZONE_CONFLICT": "地址子范围同时命中多个权威网络目录项。",
+}
+
+_ACL_ERROR_TEXT = {
+    "ACL_DEPENDENCY_FAILURE": (
+        "ACL 分析依赖调用失败，无法形成完整的候选路径事实。",
+        "检查评估依赖并提交人工复核；如流程允许，创建新的评估版本。",
+    ),
+    "ACL_FACT_AMBIGUOUS": (
+        "ACL 候选路径或拟配置分析存在歧义或冲突。",
+        "由网络团队核实 ACL 分析原文并补充无歧义事实。",
+    ),
+    "ACL_PORT_MISMATCH": (
+        "ACL 候选分析中明确出现的端口与申请端口不一致。",
+        "核对申请端口和 ACL 分析输入后重新评估。",
+    ),
+    "ACL_FIREWALL_UNRESOLVED": (
+        "ACL 分析未能确认候选路径中的防火墙；这不等同于明确无路径。",
+        "补充可解析的候选防火墙路径事实。",
+    ),
+}
+
+
+def _finding_text(
+    primary: Finding, matched: list[Rule], acl_no_path_rule: Rule
+) -> tuple[str, str]:
+    if primary.code in _ACL_ERROR_TEXT:
+        return _ACL_ERROR_TEXT[primary.code]
+    if primary.code in _CATALOG_ERROR_TEXT:
+        return (
+            _CATALOG_ERROR_TEXT[primary.code],
+            "补充或修正权威网络目录，并确保每个地址子范围唯一归属。",
+        )
+    if primary.source == "network":
+        return _NETWORK_ERROR_TEXT
+    if primary.code == acl_no_path_rule.id:
+        return acl_no_path_rule.reason_template, acl_no_path_rule.recommendation
+    for rule in matched:
+        if rule.id == primary.code:
+            return rule.reason_template, rule.recommendation
+    return _COMPLIANT_REASON
 
 
 def _catalog_evidence(item: AccessCombination) -> list[str]:
