@@ -221,6 +221,22 @@ class DecisionTrace(StrictModel):
     final_reason_code: str | None = None
 
 
+class DecisionFinding(StrictModel):
+    """One adjudication finding exposed on the item (V4-P4, additive).
+
+    Mirrors the reducer's ``Finding`` in frozen insertion order; the internal
+    priority is not exposed. ``is_primary`` marks the single finding that
+    determined ``reason_code`` / ``reason_type``.
+    """
+
+    code: str
+    source: Literal["network", "rule", "acl", "semantic"]
+    reason_type: ReasonType | None = None
+    affects_decision: bool = True
+    detail: str | None = None
+    is_primary: bool = False
+
+
 class EvaluationItem(StrictModel):
     item_id: str
     access: Access
@@ -228,6 +244,7 @@ class EvaluationItem(StrictModel):
     reason_type: ReasonType | None = None
     reason_code: str | None = None
     matched_rules: list[MatchedRule] = Field(default_factory=list)
+    decision_findings: list[DecisionFinding] = Field(default_factory=list)
     evidence: list[str] = Field(default_factory=list)
     reason: str
     recommendation: str

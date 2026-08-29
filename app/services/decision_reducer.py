@@ -50,12 +50,16 @@ class Finding:
 class ItemFindingSet:
     """One item's findings, partitioned by producing stage.
 
-    The deterministic snapshot is ``network + rules + acl``; the final
-    decision additionally consumes ``semantic``.
+    The flat finding order mirrors the historical first-match chain:
+    network error, matched rules, catalog fact errors, ACL findings,
+    semantic findings. The deterministic snapshot is
+    ``network + rules + catalog + acl``; the final decision additionally
+    consumes ``semantic``.
     """
 
     network: tuple[Finding, ...] = ()
     rules: tuple[Finding, ...] = ()
+    catalog: tuple[Finding, ...] = ()
     acl: tuple[Finding, ...] = ()
     semantic: tuple[Finding, ...] = ()
 
@@ -146,6 +150,7 @@ class DecisionReducer:
         deterministic_findings = (
             *finding_set.network,
             *finding_set.rules,
+            *finding_set.catalog,
             *finding_set.acl,
         )
         all_findings = (*deterministic_findings, *finding_set.semantic)

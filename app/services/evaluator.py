@@ -13,6 +13,7 @@ from app.schemas import (
     AclAnalysis,
     AclCandidateAnalysis,
     AclRawResponse,
+    DecisionFinding,
     EvaluationItem,
     EvaluationRequest,
     EvaluationResponse,
@@ -116,6 +117,7 @@ class _DeterministicOutcome:
 
     network_findings: tuple[Finding, ...]
     rule_findings: tuple[Finding, ...]
+    catalog_findings: tuple[Finding, ...]
     acl_findings: tuple[Finding, ...]
     matched_rule_ids: tuple[str, ...]
     item_matched_rules: list[Rule]
@@ -680,14 +682,15 @@ class Evaluator:
         outcomes: dict[str, _DeterministicOutcome] = {}
         for rule_result, record in zip(rule_results, records, strict=True):
             network_findings = tuple(
-                [
-                    *self._network_findings(rule_result.combination),
-                    *self._catalog_findings(rule_result.combination),
-                ]
+                self._network_findings(rule_result.combination)
+            )
+            catalog_findings = tuple(
+                self._catalog_findings(rule_result.combination)
             )
             deterministic = [
                 *network_findings,
                 *rule_result.findings,
+                *catalog_findings,
                 *record.acl_findings,
             ]
             primary = self.decision_reducer.primary_of(deterministic)
@@ -698,6 +701,7 @@ class Evaluator:
             outcomes[record.item_id] = _DeterministicOutcome(
                 network_findings=network_findings,
                 rule_findings=rule_result.findings,
+                catalog_findings=catalog_findings,
                 acl_findings=record.acl_findings,
                 matched_rule_ids=tuple(
                     rule.id for rule in rule_result.matched_rules
@@ -941,6 +945,7 @@ class Evaluator:
                 ItemFindingSet(
                     network=outcome.network_findings,
                     rules=outcome.rule_findings,
+                    catalog=outcome.catalog_findings,
                     acl=outcome.acl_findings,
                     semantic=tuple(stage.findings.get(record.item_id, ())),
                 ),
@@ -992,12 +997,12 @@ class Evaluator:
         decision: Decision,
     ) -> EvaluationItem:
         """Apply the reducer's semantic effect to the item text and attach the
-        trace produced by the same formal reduce call.
+        trace + full finding list produced by the same formal reduce call.
 
         Decisions never change here: every updated decision field comes from
-        the reducer's final decision; this is text mapping + trace attachment
-        only.
-        """
+        the reducer's final decision; this is text mapping + audit material
+        attachment only. ``decision_findings`` mirrors the reducer's findings
+        one-to-one in frozen insertion order (V4-P4)."""
 
         trace = decision.trace
         if trace is None:
@@ -1039,7 +1044,23 @@ class Evaluator:
                     ),
                 }
             )
-        return item.model_copy(update={"decision_trace": trace})
+        decision_findings = [
+            DecisionFinding(
+                code=finding.code,
+                source=finding.source,
+                reason_type=finding.reason_type,
+                affects_decision=finding.affects_decision,
+                detail=finding.detail,
+                is_primary=finding is decision.primary_finding,
+            )
+            for finding in decision.findings
+        ]
+        return item.model_copy(
+            update={
+                "decision_trace": trace,
+                "decision_findings": decision_findings,
+            }
+        )
 
     def _semantic_payload(
         self, request: EvaluationRequest, records: list[_AclRecord]
