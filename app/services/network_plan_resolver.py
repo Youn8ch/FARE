@@ -52,23 +52,8 @@ class ResolvedAddressSegment:
     region_key: tuple[str, ...] | None
     network_fact_status: NetworkFactStatus
     error_code: str | None
+    # Explicit catalog fields for the offline compatibility provider only.
     legacy_entry: NetworkEntry | None = None
-
-    @property
-    def network(self) -> IPv4Network | IPv6Network | None:
-        return self.access_network
-
-    @property
-    def original(self) -> str:
-        return self.original_address
-
-    @property
-    def matches(self) -> tuple[NetworkEntry, ...]:
-        return (self.legacy_entry,) if self.legacy_entry is not None else ()
-
-    @property
-    def entry(self) -> NetworkEntry | None:
-        return self.legacy_entry
 
     @property
     def primary_fact(self) -> NetworkPlanFact | None:

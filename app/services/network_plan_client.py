@@ -329,7 +329,9 @@ class OfflineCatalogNetworkPlanClient(NetworkPlanClient):
                     "gateway": None,
                     "subnet": str(subnet),
                     "vlanId": None,
-                    "usageCode": entry.object_type,
+                    # usage_code is NOT masqueraded: object_type stays an
+                    # explicit catalog field carried via legacy_entry only.
+                    "usageCode": None,
                     "description": entry.id,
                 },
                 "success": True,

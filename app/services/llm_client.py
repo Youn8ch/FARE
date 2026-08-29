@@ -14,12 +14,10 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from app.schemas import (
-    EvaluationItem,
     LlmAclExtractionItem,
     LlmAclExtractionResponse,
     LlmExplanationResponse,
     LlmRequestFindingsResponse,
-    LlmReviewResponse,
     LlmSemanticClaim,
     LlmSemanticResponse,
 )
@@ -416,27 +414,6 @@ class LlmClient:
             raise LlmDependencyError(
                 f"LLM request findings output was rejected: {exc}"
             ) from exc
-
-    async def review(
-        self, items: list[EvaluationItem], valid_rule_ids: set[str]
-    ) -> dict[str, Any]:
-        if not items:
-            return {}
-        messages = [
-            {"role": "system", "content": "返回受限风险复核 JSON，不得返回最终结论。"},
-            {
-                "role": "user",
-                "content": json.dumps(
-                    {
-                        "valid_rule_ids": sorted(valid_rule_ids),
-                        "items": [item.model_dump(mode="json") for item in items],
-                    },
-                    ensure_ascii=False,
-                ),
-            },
-        ]
-        parsed, _ = await self._complete(messages, LlmReviewResponse)
-        return {item.item_id: item for item in parsed.items}
 
     async def _complete(
         self, messages: list[dict[str, str]], schema: type[T], timeout: float | None = None

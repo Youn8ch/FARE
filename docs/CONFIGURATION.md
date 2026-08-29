@@ -1,5 +1,11 @@
 # FARE 统一 YAML 配置使用说明
 
+> 本文档描述 YAML schema 的完整字段与模式切换方法。仓库内跟踪的 `config/*.yaml`
+> 一律不携带真实 `llm.http.api_key`；真实密钥放在未入库的 `config/fare.local.yaml`。
+> 开发/测试默认（`config/fare.yaml` 与测试 conftest）为全 mock：
+> `network_plan.mode=mock`（绑定版本化 fixture）、`acl.decision_mode=advisory`、
+> `llm.mode=mock`、shadow 特性 `off`；`offline_catalog` 与 `required` 必须显式指定。
+
 ## 1. 配置文件和原则
 
 FARE 只读取一个配置文件：

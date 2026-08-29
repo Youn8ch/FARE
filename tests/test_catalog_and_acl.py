@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.schemas import AclRawResponse, EvaluationRequest
+from app.schemas import AclRawResponse
 from app.services.acl_extract import AclFactExtractor
+from app.services.canonical import canonical_from_catalog
 from app.services.catalog import NetworkCatalog
 from app.services.rule_loader import PolicyBundle, Rule
-from app.services.splitter import split_request
 
 
 def test_catalog_splits_request_at_authoritative_boundary():
@@ -50,15 +50,6 @@ def test_acl_facts_are_extracted_without_claiming_live_state():
 
 def test_zone_rule_engine_is_only_enabled_by_an_explicit_test_rule():
     catalog = NetworkCatalog.load(Path("policies/network_catalog.yaml"))
-    request = EvaluationRequest.model_validate(
-        {
-            "request_id": "zone-fixture",
-            "sources": [{"address": "20.1.10.10"}],
-            "destinations": [{"address": "16.1.30.20"}],
-            "protocol": "tcp",
-            "ports": [{"start": 443, "end": 443}],
-        }
-    )
     rule = Rule(
         id="ZONE-TEST-001",
         name="区域规则测试夹具",
@@ -74,5 +65,22 @@ def test_zone_rule_engine_is_only_enabled_by_an_explicit_test_rule():
         remediation_template="仅用于测试。",
     )
     bundle = PolicyBundle(version=catalog.version, released_at="2026-07-14", rules=(rule,))
-    combination = split_request(request, catalog)[0]
+    source_segments = catalog.split_and_resolve("20.1.10.10")
+    destination_segments = catalog.split_and_resolve("16.1.30.20")
+    combination = _combination(source_segments[0], destination_segments[0])
     assert [matched.id for matched in bundle.match(combination, 1)] == ["ZONE-TEST-001"]
+
+
+def _combination(source, destination):
+    from app.schemas import PortRange
+    from app.services.splitter import AccessCombination
+
+    return AccessCombination(
+        source=canonical_from_catalog("source", 0, source, ""),
+        destination=canonical_from_catalog("destination", 0, destination, ""),
+        protocol="tcp",
+        port=PortRange(start=443, end=443),
+        source_description="",
+        destination_description="",
+        request_description="",
+    )

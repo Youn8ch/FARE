@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any
 
 from app.services.catalog import NetworkCatalog
-from app.services.splitter import split_request
 from tests.case_schema import CaseSuite, EvaluationCase
 
 TEST_ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +48,30 @@ def load_all_suites(case_root: Path) -> list[CaseSuite]:
     return suites
 
 
+def _combination_count(case: EvaluationCase, catalog: NetworkCatalog) -> int:
+    """Production item count: resolved source/destination segments x ports.
+
+    offline_catalog cases count catalog segments exactly like the explicit
+    compatibility provider; provider-backed cases count the raw combinations
+    (every v2 request address resolves to a single segment).
+    """
+
+    ports = len(case.request.ports)
+    if case.dependencies.network_plan_mode == "offline_catalog":
+        source_count = sum(
+            len(catalog.split_and_resolve(item.address))
+            for item in case.request.sources
+        )
+        destination_count = sum(
+            len(catalog.split_and_resolve(item.address))
+            for item in case.request.destinations
+        )
+    else:
+        source_count = len(case.request.sources)
+        destination_count = len(case.request.destinations)
+    return source_count * destination_count * ports
+
+
 def prepare_case(case: EvaluationCase) -> LoadedCase:
     policy_dir = _policy_path(case.dependencies.policy_dir)
     catalog = NetworkCatalog.load(policy_dir / "network_catalog.yaml")
@@ -59,15 +82,15 @@ def prepare_case(case: EvaluationCase) -> LoadedCase:
     )
     if raw_count > 4:
         raise ValueError("ordinary end-to-end cases may not exceed four combinations")
-    combinations = split_request(case.request, catalog)
-    if len(combinations) > 4:
+    combinations = _combination_count(case, catalog)
+    if combinations > 4:
         raise ValueError("ordinary end-to-end cases may not exceed four combinations")
-    if len(case.expected.items) != len(combinations):
+    if len(case.expected.items) != combinations:
         raise ValueError("expected item set must match production splitter output")
 
     item_ids = [
         f"{case.request.request_id}-{index:03d}"
-        for index in range(1, len(combinations) + 1)
+        for index in range(1, combinations + 1)
     ]
     acl_fixture = (
         _safe_path(FIXTURE_ROOT, case.dependencies.acl_fixture)

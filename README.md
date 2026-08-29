@@ -68,7 +68,7 @@ OpenAPI 位于 `/docs`，存活和就绪探针分别为 `/healthz`、`/readyz`�
 
 默认结果写入 `run_results/network_requirement_results.json`。本地文件和需求 API 都使用
 `fare-requirement-batch/v1` 契约；示例见 `inputs/network_requirements/example.json`。所有相对路径
-均相对于 `fare.yaml` 所在目录解析。完整字段和模式切换方法见《统一 YAML 配置使用说明》。
+均相对于 `fare.yaml` 所在目录解析。完整字段和模式切换方法见 [docs/CONFIGURATION.md](docs/CONFIGURATION.md)。
 批处理与 HTTP API 复用同一个评估 Runtime，并按 `server.max_concurrent_evaluations`
 执行有界并发；轮询模式不会为每个批次重复初始化规则、连接池和审计存储。
 
@@ -176,6 +176,6 @@ mixed batch 每份包含8条交叉网络需求，另有24个 generated batch 每
 .\.venv\Scripts\python.exe -u -m evals.llm.run_real_semantic_acceptance
 ```
 
-真实 ACL 合约、生产规则审批、鉴权与组织级日志脱敏策略仍属于上线前外部依赖，详见原方案文档。
+真实 ACL 合约、生产规则审批、鉴权与组织级日志脱敏策略仍属于上线前外部依赖，见 [docs/INTEGRATION.md](docs/INTEGRATION.md)。
 
-本仓库只包含独立 FARE 服务。定时项目中的 `fare_evaluations` 表、原子任务领取、租约恢复、有限并发和重试逻辑需在现有定时项目仓库中按《FARE-定时任务集成方案》落地；FARE 本身不会连接业务工单数据库或生成技术失败对应的业务结论。
+本仓库只包含独立 FARE 服务。定时项目中的 `fare_evaluations` 表、原子任务领取、租约恢复、有限并发和重试逻辑需在现有定时项目仓库中落地（原《FARE-定时任务集成方案》已随方案文档归档移除，集成契约以本 README 与 [docs/INTEGRATION.md](docs/INTEGRATION.md) 为准）；FARE 本身不会连接业务工单数据库或生成技术失败对应的业务结论。

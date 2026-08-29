@@ -756,20 +756,6 @@ class AclRawResponse(StrictModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-class LlmReviewItem(StrictModel):
-    item_id: str
-    review_required: bool
-    risk_category: str | None = None
-    candidate_rule_ids: list[str] = Field(default_factory=list)
-    evidence: list[str] = Field(default_factory=list)
-    reason: str = ""
-    recommendation: str = ""
-
-
-class LlmReviewResponse(StrictModel):
-    items: list[LlmReviewItem]
-
-
 class LlmSemanticClaim(_SemanticClaimBase):
     pass
 
