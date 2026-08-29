@@ -33,12 +33,12 @@ from tests.test_evaluator_orchestration import (
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-# a70ea45 真实阶段顺序（docs/v3-baseline.md §2）
+# V4-P1 起的真实阶段顺序（docs/v3-baseline.md §6 预注册的变更）
 BASELINE_STAGES = [
     "plan",
     "network",
-    "acl",
     "rules",
+    "acl",
     "semantic",
     "reduce",
     "explain",
@@ -135,8 +135,8 @@ def test_p0c01_normal_https_freezes_stage_order_and_call_counts(
     assert llm.explanation_calls == 1
     # a70ea45 双裁决基线：V4-P2 将改为 1（docs/v3-baseline.md §6，D1）
     assert len(reducer.calls) == 2 * len(result.response.items)
-    # a70ea45 双匹配基线：ACL gating 1 次 + Rules 阶段 1 次；V4-P1 将改为 1
-    assert len(policies.match_calls) == 2
+    # V4-P1：PolicyBundle.match 每 item 恰好一次（ACL gating 消费 RuleStage 结果）
+    assert len(policies.match_calls) == 1
     assert result.model_raw["metrics"]["llm_added_pending_count"] == 0
     assert list(result.model_raw["stages"]) == CURRENT_STAGES_METRICS_ORDER
     assert result.model_raw["stages"]["acl_candidates"]["status"] == "off"
@@ -172,7 +172,7 @@ def test_p0c02_network_not_found_freeze(settings: Settings) -> None:
     assert item.decision_trace is not None
     assert item.decision_trace.deterministic_decision == "待定"
     assert item.decision_trace.semantic_effect == "unchanged"
-    # 网络阻断时 ACL gating 不匹配；Rules 阶段仍匹配一次
+    # V4-P1：规则匹配只发生在 RuleStage（网络阻断时也恰好一次）
     assert len(policies.match_calls) == 1
     assert len(reducer.calls) == 2
 
@@ -205,8 +205,8 @@ def test_p0c03_telnet_skip_mode_freeze(settings: Settings) -> None:
     assert [rule.id for rule in item.matched_rules] == ["PORT-001"]
     assert item.acl_verification_status == "skipped"
     assert acl.calls == []
-    # gating 需要一次匹配判定 skip；Rules 阶段再一次
-    assert len(policies.match_calls) == 2
+    # V4-P1：gating 消费 RuleStage 结果，不再自行匹配；仅 RuleStage 匹配一次
+    assert len(policies.match_calls) == 1
     assert len(reducer.calls) == 2
 
 

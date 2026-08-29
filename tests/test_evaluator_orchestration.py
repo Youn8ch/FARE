@@ -1,8 +1,9 @@
 """AC-05 acceptance: the evaluator is an orchestrator over named stages.
 
-The stage order plan/network/acl/rules/semantic/reduce/explain/assemble is
-observed with recording doubles; failure paths terminate early with explicit
-assertions (plan 9.4/9.5).
+The stage order is observed with recording doubles; failure paths terminate
+early with explicit assertions (plan 9.4/9.5). V4-P1 re-ordered the real chain
+to plan/network/rules/acl/... so the formal rule match happens before ACL
+gating (docs/v3-baseline.md §6).
 """
 
 from __future__ import annotations
@@ -19,8 +20,8 @@ from tests.test_architecture_baseline import _mock_chain, _payload
 EXPECTED_STAGES = [
     "plan",
     "network",
-    "acl",
     "rules",
+    "acl",
     "semantic",
     "reduce",
     "explain",

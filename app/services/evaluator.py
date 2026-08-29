@@ -30,12 +30,12 @@ from app.services.decision_reducer import (
     PRIORITY_ACL,
     PRIORITY_CATALOG,
     PRIORITY_NETWORK,
-    PRIORITY_RULE,
     PRIORITY_SEMANTIC,
     Decision,
     DecisionReducer,
     Finding,
 )
+from app.services.evaluation_types import RuleStageResult, rule_findings
 from app.services.explanation_guard import ExplanationGuardError, guard_explanation_output
 from app.services.llm_client import (
     LlmAclCandidateClientProtocol,
@@ -77,6 +77,7 @@ class _AclRecord:
     facts: ExtractedFacts
     dependency_error: str | None
     verification_status: str
+    acl_findings: tuple[Finding, ...] = ()
 
 
 @dataclass(slots=True)
@@ -183,8 +184,11 @@ class Evaluator:
         combinations = resolution_stage.combinations
         network_plan_raw = resolution_stage.raw_records
 
+        self._stage("rules")
+        rule_results = self._run_rule_stage(request.request_id, combinations)
+
         self._stage("acl")
-        acl_stage = await self._run_acl_stage(request.request_id, combinations)
+        acl_stage = await self._run_acl_stage(rule_results)
         records = acl_stage.records
         raw_records = acl_stage.raw_records
         exceptions = acl_stage.exceptions
@@ -193,9 +197,11 @@ class Evaluator:
             "stages": {},
         }
 
-        self._stage("rules")
+        # 确定性装配：组合 network + rules + catalog + acl findings（保持历史
+        # 首个命中的插入顺序），产出中间 items 与 outcomes。P2 将把该装配并入
+        # 每 item 恰好一次的单次 reduce 工作流。
         items, analyses, outcomes = self._build_deterministic_stage(
-            records, len(combinations)
+            rule_results, records
         )
 
         self._stage("semantic")
@@ -472,22 +478,40 @@ class Evaluator:
             raw_records=list(resolution.raw_records),
         )
 
-    async def _run_acl_stage(
-        self,
-        request_id: str,
-        combinations: list[AccessCombination],
-    ) -> _AclStage:
-        semaphore = asyncio.Semaphore(self.acl_max_concurrency)
+    def _run_rule_stage(
+        self, request_id: str, combinations: list[AccessCombination]
+    ) -> tuple[RuleStageResult, ...]:
+        """Formal rule stage: exactly one PolicyBundle.match() per item.
+
+        item_id is minted here (before ACL) with the historical numbering;
+        the stage produces only matched rules and rule findings, never a
+        decision.
+        """
+
         total_combinations = len(combinations)
-        analyzed = await asyncio.gather(
-            *(
-                self._analyze_acl_combination(
+        results: list[RuleStageResult] = []
+        for index, combination in enumerate(combinations, start=1):
+            matched = self.policies.match(combination, total_combinations)
+            matched_rules = tuple(matched)
+            results.append(
+                RuleStageResult(
                     item_id=f"{request_id}-{index:03d}",
                     combination=combination,
-                    total_combinations=total_combinations,
-                    semaphore=semaphore,
+                    matched_rules=matched_rules,
+                    findings=rule_findings(matched_rules),
                 )
-                for index, combination in enumerate(combinations, start=1)
+            )
+        return tuple(results)
+
+    async def _run_acl_stage(
+        self,
+        rule_results: tuple[RuleStageResult, ...],
+    ) -> _AclStage:
+        semaphore = asyncio.Semaphore(self.acl_max_concurrency)
+        analyzed = await asyncio.gather(
+            *(
+                self._analyze_acl_item(rule_result, semaphore)
+                for rule_result in rule_results
             )
         )
         records = [record for record, _ in analyzed]
@@ -501,29 +525,36 @@ class Evaluator:
             ],
         )
 
-    async def _analyze_acl_combination(
+    async def _analyze_acl_item(
         self,
-        *,
-        item_id: str,
-        combination: AccessCombination,
-        total_combinations: int,
+        rule_result: RuleStageResult,
         semaphore: asyncio.Semaphore,
     ) -> tuple[_AclRecord, dict[str, Any]]:
+        combination = rule_result.combination
         if _network_fact_blocks_acl(combination):
             return (
-                _skipped_acl_record(item_id, combination),
-                {"item_id": item_id, "skipped_due_to_network_fact": True},
+                _skipped_acl_record(rule_result.item_id, combination),
+                {
+                    "item_id": rule_result.item_id,
+                    "skipped_due_to_network_fact": True,
+                },
             )
 
-        matched_rules = self.policies.match(combination, total_combinations)
-        if self.acl_deterministic_pending_mode == "skip" and matched_rules:
+        # Gating consumes the RuleStage result; the rule engine is not
+        # invoked here (invariant 4.2.2).
+        if (
+            self.acl_deterministic_pending_mode == "skip"
+            and rule_result.matched_rules
+        ):
             return (
-                _skipped_acl_record(item_id, combination),
+                _skipped_acl_record(rule_result.item_id, combination),
                 {
-                    "item_id": item_id,
+                    "item_id": rule_result.item_id,
                     "skipped": True,
                     "skip_reason": "deterministic_pending_rule",
-                    "matched_rule_ids": [rule.id for rule in matched_rules],
+                    "matched_rule_ids": [
+                        rule.id for rule in rule_result.matched_rules
+                    ],
                 },
             )
 
@@ -534,137 +565,41 @@ class Evaluator:
                 raw = await self.acl_client.analyze(combination)
             facts = self.extractor.extract(raw)
             raw_record = {
-                "item_id": item_id,
+                "item_id": rule_result.item_id,
                 "response": raw.model_dump(mode="json"),
             }
             verification_status = _acl_verification_status(combination, facts, None)
         except AclDependencyError as exc:
             dependency_error = str(exc)
             facts = ExtractedFacts()
-            raw_record = {"item_id": item_id, "error": dependency_error}
+            raw_record = {"item_id": rule_result.item_id, "error": dependency_error}
             verification_status = "unverified"
         return (
             _AclRecord(
-                item_id,
-                combination,
-                raw,
-                facts,
-                dependency_error,
-                verification_status,
+                item_id=rule_result.item_id,
+                combination=combination,
+                raw=raw,
+                facts=facts,
+                dependency_error=dependency_error,
+                verification_status=verification_status,
+                acl_findings=self._acl_findings(
+                    combination, facts, dependency_error
+                ),
             ),
             raw_record,
         )
 
-    def _build_deterministic_stage(
-        self,
-        records: list[_AclRecord],
-        total_combinations: int,
-    ) -> tuple[
-        list[EvaluationItem],
-        list[AclAnalysis],
-        dict[str, _DeterministicOutcome],
-    ]:
-        items: list[EvaluationItem] = []
-        outcomes: dict[str, _DeterministicOutcome] = {}
-        for record in records:
-            matched = self.policies.match(record.combination, total_combinations)
-            findings = self._collect_deterministic_findings(
-                record.combination, record.facts, record.dependency_error, matched
-            )
-            decision = self.decision_reducer.reduce(
-                findings, matched_rules=[rule.id for rule in matched]
-            )
-            outcomes[record.item_id] = _DeterministicOutcome(
-                findings=findings,
-                matched_rule_ids=tuple(rule.id for rule in matched),
-            )
-            items.append(
-                self._build_item(
-                    record.item_id,
-                    record.combination,
-                    record.facts,
-                    decision,
-                    matched,
-                ).model_copy(
-                    update=_network_item_fields(
-                        record.combination, record.verification_status
-                    )
-                )
-            )
-        analyses = [
-            AclAnalysis(
-                raw_analysis=record.raw.analysis if record.raw else "",
-                raw_config=record.raw.config if record.raw else "",
-                extracted_facts=record.facts,
-            )
-            for record in records
-        ]
-        return items, analyses, outcomes
-
-    def _collect_deterministic_findings(
+    def _acl_findings(
         self,
         combination: AccessCombination,
         facts: ExtractedFacts,
         dependency_error: str | None,
-        matched: list[Rule],
-    ) -> list[Finding]:
-        """Collect network / rule / ACL findings in stable insertion order.
-
-        The order mirrors the historical first-match chain: network error,
-        matched rules, catalog errors, then ACL findings (dependency, no path,
-        ambiguous, port mismatch, unresolved firewall).
-        """
+    ) -> tuple[Finding, ...]:
+        """ACL findings owned by the ACL stage, in the historical order:
+        dependency failure, explicit no path, ambiguity, port mismatch,
+        unresolved firewall."""
 
         findings: list[Finding] = []
-        network_error = _primary_network_error(combination)
-        if network_error is not None:
-            reason_type = (
-                "fact_conflict"
-                if network_error
-                in {
-                    "NETWORK_PLAN_FACT_CONFLICT",
-                    "NETWORK_PLAN_SUBNET_MISMATCH",
-                    "NETWORK_PLAN_NETWORK_MISMATCH",
-                }
-                else (
-                    "dependency_failure"
-                    if network_error
-                    in {
-                        "NETWORK_PLAN_DEPENDENCY_FAILURE",
-                        "NETWORK_PLAN_AUTH_FAILURE",
-                    }
-                    else "fact_incomplete"
-                )
-            )
-            findings.append(
-                Finding(
-                    code=network_error,
-                    source="network",
-                    reason_type=reason_type,
-                    priority=PRIORITY_NETWORK,
-                )
-            )
-        for rule in matched:
-            findings.append(
-                Finding(
-                    code=rule.id,
-                    source="rule",
-                    reason_type=rule.reason_type,
-                    priority=PRIORITY_RULE,
-                )
-            )
-        catalog_error = combination.source.error_code or combination.destination.error_code
-        if network_error is None and catalog_error:
-            findings.append(
-                Finding(
-                    code=catalog_error,
-                    source="network",
-                    reason_type=(
-                        "fact_conflict" if catalog_error == "ZONE_CONFLICT" else "fact_incomplete"
-                    ),
-                    priority=PRIORITY_CATALOG,
-                )
-            )
         if dependency_error and self.acl_decision_mode == "required":
             findings.append(
                 Finding(
@@ -713,7 +648,113 @@ class Evaluator:
                     priority=PRIORITY_ACL,
                 )
             )
+        return tuple(findings)
+
+    def _build_deterministic_stage(
+        self,
+        rule_results: tuple[RuleStageResult, ...],
+        records: list[_AclRecord],
+    ) -> tuple[
+        list[EvaluationItem],
+        list[AclAnalysis],
+        dict[str, _DeterministicOutcome],
+    ]:
+        items: list[EvaluationItem] = []
+        outcomes: dict[str, _DeterministicOutcome] = {}
+        for rule_result, record in zip(rule_results, records, strict=True):
+            findings = [
+                *self._network_findings(rule_result.combination),
+                *rule_result.findings,
+                *self._catalog_findings(rule_result.combination),
+                *record.acl_findings,
+            ]
+            matched = list(rule_result.matched_rules)
+            decision = self.decision_reducer.reduce(
+                findings, matched_rules=[rule.id for rule in matched]
+            )
+            outcomes[record.item_id] = _DeterministicOutcome(
+                findings=findings,
+                matched_rule_ids=tuple(rule.id for rule in matched),
+            )
+            items.append(
+                self._build_item(
+                    record.item_id,
+                    record.combination,
+                    record.facts,
+                    decision,
+                    matched,
+                ).model_copy(
+                    update=_network_item_fields(
+                        record.combination, record.verification_status
+                    )
+                )
+            )
+        analyses = [
+            AclAnalysis(
+                raw_analysis=record.raw.analysis if record.raw else "",
+                raw_config=record.raw.config if record.raw else "",
+                extracted_facts=record.facts,
+            )
+            for record in records
+        ]
+        return items, analyses, outcomes
+
+    def _network_findings(
+        self, combination: AccessCombination
+    ) -> list[Finding]:
+        """Network facts findings; the frozen insertion order starts here."""
+
+        findings: list[Finding] = []
+        network_error = _primary_network_error(combination)
+        if network_error is not None:
+            reason_type = (
+                "fact_conflict"
+                if network_error
+                in {
+                    "NETWORK_PLAN_FACT_CONFLICT",
+                    "NETWORK_PLAN_SUBNET_MISMATCH",
+                    "NETWORK_PLAN_NETWORK_MISMATCH",
+                }
+                else (
+                    "dependency_failure"
+                    if network_error
+                    in {
+                        "NETWORK_PLAN_DEPENDENCY_FAILURE",
+                        "NETWORK_PLAN_AUTH_FAILURE",
+                    }
+                    else "fact_incomplete"
+                )
+            )
+            findings.append(
+                Finding(
+                    code=network_error,
+                    source="network",
+                    reason_type=reason_type,
+                    priority=PRIORITY_NETWORK,
+                )
+            )
         return findings
+
+    def _catalog_findings(
+        self, combination: AccessCombination
+    ) -> list[Finding]:
+        """Catalog error findings; emitted only without a network error."""
+
+        catalog_error = combination.source.error_code or combination.destination.error_code
+        if _primary_network_error(combination) is None and catalog_error:
+            return [
+                Finding(
+                    code=catalog_error,
+                    source="network",
+                    reason_type=(
+                        "fact_conflict"
+                        if catalog_error == "ZONE_CONFLICT"
+                        else "fact_incomplete"
+                    ),
+                    priority=PRIORITY_CATALOG,
+                )
+            ]
+        return []
 
     def _build_item(
         self,
@@ -1416,6 +1457,7 @@ def _skipped_acl_record(
         facts=ExtractedFacts(),
         dependency_error=None,
         verification_status="skipped",
+        acl_findings=(),
     )
 
 
