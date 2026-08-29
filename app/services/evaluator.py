@@ -25,7 +25,6 @@ from app.schemas import (
 from app.services.acl_candidate_merge import merge_acl_candidate
 from app.services.acl_client import AclClient, AclDependencyError
 from app.services.acl_extract import AclFactExtractor
-from app.services.catalog import NetworkCatalog
 from app.services.explanation_guard import ExplanationGuardError, guard_explanation_output
 from app.services.llm_client import (
     LlmAclCandidateClientProtocol,
@@ -47,7 +46,7 @@ from app.services.output_guard import (
     guard_semantic_output,
 )
 from app.services.rule_loader import PolicyBundle, Rule
-from app.services.splitter import AccessCombination, split_request, split_resolved_request
+from app.services.splitter import AccessCombination, split_resolved_request
 
 
 @dataclass(slots=True)
@@ -95,7 +94,6 @@ class Evaluator:
     def __init__(
         self,
         *,
-        catalog: NetworkCatalog | None,
         policies: PolicyBundle,
         acl_client: AclClient,
         extractor: AclFactExtractor,
@@ -120,7 +118,6 @@ class Evaluator:
             raise ValueError(
                 "ACL deterministic pending mode must be 'skip' or 'analyze'"
             )
-        self.catalog = catalog
         self.policies = policies
         self.acl_client = acl_client
         self.extractor = extractor
@@ -392,7 +389,7 @@ class Evaluator:
             items=items,
             acl_analysis=_aggregate_analyses(analyses, records),
             audit_id=str(uuid4()),
-            network_analysis=resolution.analysis if resolution else None,
+            network_analysis=resolution.analysis,
             acl_candidate_analysis=acl_candidate_analysis,
             request_findings=request_findings,
         )
@@ -407,30 +404,18 @@ class Evaluator:
     async def _resolve_request_stage(
         self, request: EvaluationRequest
     ) -> _ResolutionStage:
-        if self.network_plan_resolver is not None:
-            resolution = await self.network_plan_resolver.resolve(request)
-            item_count = len(resolution.sources) * len(resolution.destinations) * len(
-                request.ports
-            )
-            if item_count > self.max_evaluation_items:
-                raise EvaluationItemLimitError(item_count, self.max_evaluation_items)
-            return _ResolutionStage(
-                resolution=resolution,
-                combinations=split_resolved_request(request, resolution),
-                raw_records=list(resolution.raw_records),
-            )
-
-        if self.catalog is None:
+        if self.network_plan_resolver is None:
             raise RuntimeError("an evaluator requires a network plan resolver")
-        combinations = split_request(request, self.catalog)
-        if len(combinations) > self.max_evaluation_items:
-            raise EvaluationItemLimitError(
-                len(combinations), self.max_evaluation_items
-            )
+        resolution = await self.network_plan_resolver.resolve(request)
+        item_count = len(resolution.sources) * len(resolution.destinations) * len(
+            request.ports
+        )
+        if item_count > self.max_evaluation_items:
+            raise EvaluationItemLimitError(item_count, self.max_evaluation_items)
         return _ResolutionStage(
-            resolution=None,
-            combinations=combinations,
-            raw_records=[],
+            resolution=resolution,
+            combinations=split_resolved_request(request, resolution),
+            raw_records=list(resolution.raw_records),
         )
 
     async def _run_acl_stage(

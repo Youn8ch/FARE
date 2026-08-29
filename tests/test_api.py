@@ -84,7 +84,8 @@ def test_unknown_catalog_address_is_fact_incomplete(client: TestClient):
     )
     body = client.post("/v1/evaluations", json=value).json()
     assert body["items"][0]["reason_type"] == "fact_incomplete"
-    assert body["items"][0]["reason_code"] == "ZONE_UNRESOLVED"
+    # AC-02：offline 目录经统一 resolver 主链路，未规划网段与 provider 404 同码
+    assert body["items"][0]["reason_code"] == "NETWORK_PLAN_NOT_FOUND"
 
 
 def test_any_is_policy_violation_not_a_parser_error(client: TestClient):

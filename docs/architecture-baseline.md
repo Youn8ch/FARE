@@ -79,3 +79,23 @@ AC-05 / AC-06 的对照基线；调整必须伴随显式评审。
 4. offline client 将 `entry.object_type` 冒充 `usageCode`（AC-03/AC-08 清理）。
 5. RuleEngine 通过 `.entry` / `primary_fact` 双路径读取事实（AC-03 收口）。
 6. `LlmClient.review` 为死代码（AC-08 清理）。
+
+## 6. AC-02 收口记录（2026-08-30）
+
+offline_catalog 改为显式兼容 Provider，三种 mode 共享同一
+`provider -> resolver -> canonical segment` 主链路。随统一发生的、计划批准的
+行为变更（offline 链，AC-00 表征值 -> 新值）：
+
+| 场景 | AC-00 基线 | AC-02 统一后 |
+|---|---|---|
+| 目录未规划地址 | 待定 ZONE_UNRESOLVED（status complete） | 待定 NETWORK_PLAN_NOT_FOUND（status not_found） |
+| IPv4 过大前缀（/15，>64 个 /24） | 待定 LEAST-CIDR-001 | 422 NETWORK_PLAN_QUERY_LIMIT_EXCEEDED（query limit 不再被 offline 绕过） |
+| any 地址 | status complete（兜底） | status not_applicable（与 resolver 链一致） |
+| 目录多义命中 | 待定 ZONE_CONFLICT | 待定 NETWORK_PLAN_INVALID_RESPONSE（409 冲突体） |
+| offline 响应 | network_analysis=None、无 network_plan_raw | 携带 network_analysis.lookups 与 provider raw 记录 |
+
+LEAST-CIDR-001 的 IPv4 正例端到端不可达（任何 prefixlen<16 的 /24 数都超过
+query limit），规则级正/反例由 `tests/test_rule_limits.py` 覆盖；v2 套件的
+`ipv4_prefix_too_broad_v2` 改为 `ipv6_prefix_too_broad_v2`（IPv6 不产生 /24
+查询，可端到端表达前缀检查）。OBJECT-001 经 offline 目录显式字段
+（legacy_entry -> canonical zone/environment/object_type）继续命中，行为不变。

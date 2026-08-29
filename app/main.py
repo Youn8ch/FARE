@@ -19,6 +19,7 @@ from app.services.llm_client import LlmClient
 from app.services.network_plan_client import (
     HttpNetworkPlanClient,
     MockNetworkPlanClient,
+    OfflineCatalogNetworkPlanClient,
     TtlNetworkPlanClient,
 )
 from app.services.network_plan_resolver import (
@@ -35,12 +36,13 @@ class Runtime:
     evaluator: Evaluator
     audit: AuditStore
     semaphore: asyncio.Semaphore
-    network_plan_resolver: NetworkPlanResolver | None
+    network_plan_resolver: NetworkPlanResolver
 
     async def evaluate_request(self, payload: EvaluationRequest) -> EvaluationResponse:
         try:
-            if self.network_plan_resolver is not None:
-                self.network_plan_resolver.ensure_query_limit(payload)
+            # Every provider mode shares the same resolver main path, so the
+            # query limit is enforced identically for mock/http/offline_catalog.
+            self.network_plan_resolver.ensure_query_limit(payload)
         except NetworkPlanQueryLimitError as exc:
             raise EvaluationServiceError(
                 422,
@@ -130,7 +132,7 @@ class Runtime:
         resources = [
             self.evaluator.llm_client,
             self.evaluator.acl_client,
-            self.network_plan_resolver.client if self.network_plan_resolver else None,
+            self.network_plan_resolver.client,
         ]
         seen: set[int] = set()
         errors: list[BaseException] = []
@@ -207,7 +209,8 @@ def build_runtime(settings: Settings) -> Runtime:
         stop=settings.llm_stop,
         thinking=settings.llm_thinking,
     )
-    network_plan_resolver = None
+    # Every provider mode goes through the same resolver main path; the
+    # offline catalog acts as an explicit compatibility provider.
     if settings.network_plan_client_mode == "mock":
         network_plan_client = MockNetworkPlanClient(settings.network_plan_mock_file)
     elif settings.network_plan_client_mode == "http":
@@ -218,25 +221,22 @@ def build_runtime(settings: Settings) -> Runtime:
             token=settings.network_plan_api_token,
         )
     else:
-        # Explicit compatibility mode keeps the legacy splitter and reason codes.
-        # It is never selected as a fallback from mock/http modes.
-        network_plan_client = None
-    if network_plan_client is not None:
-        if settings.network_plan_cache_ttl_seconds > 0:
-            network_plan_client = TtlNetworkPlanClient(
-                network_plan_client,
-                settings.network_plan_cache_ttl_seconds,
-                settings.network_plan_cache_max_entries,
-            )
-        network_plan_resolver = NetworkPlanResolver(
+        network_plan_client = OfflineCatalogNetworkPlanClient(catalog)
+    if settings.network_plan_cache_ttl_seconds > 0:
+        network_plan_client = TtlNetworkPlanClient(
             network_plan_client,
-            max_subnets=settings.network_plan_max_subnets_per_request,
-            max_concurrency=settings.network_plan_max_concurrency,
-            lookup_timeout=settings.network_plan_timeout_seconds,
-            batch_timeout=settings.network_plan_batch_timeout_seconds,
+            settings.network_plan_cache_ttl_seconds,
+            settings.network_plan_cache_max_entries,
         )
+    network_plan_resolver = NetworkPlanResolver(
+        network_plan_client,
+        max_subnets=settings.network_plan_max_subnets_per_request,
+        max_concurrency=settings.network_plan_max_concurrency,
+        lookup_timeout=settings.network_plan_timeout_seconds,
+        batch_timeout=settings.network_plan_batch_timeout_seconds,
+        offline_catalog=catalog,
+    )
     evaluator = Evaluator(
-        catalog=catalog,
         policies=policies,
         acl_client=acl_client,
         extractor=AclFactExtractor(),

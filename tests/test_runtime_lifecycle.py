@@ -14,13 +14,20 @@ def _request(request_id: str) -> EvaluationRequest:
     return EvaluationRequest.model_validate(payload(request_id=request_id))
 
 
+class _FakeResolver:
+    """Query-limit boundary double for runtime-level lifecycle tests."""
+
+    def ensure_query_limit(self, request: EvaluationRequest) -> None:
+        return None
+
+
 def _runtime(*, evaluator: object, audit: object, resolver: object | None = None) -> Runtime:
     return Runtime(
         settings=None,  # type: ignore[arg-type]
         evaluator=evaluator,  # type: ignore[arg-type]
         audit=audit,  # type: ignore[arg-type]
         semaphore=asyncio.Semaphore(1),
-        network_plan_resolver=resolver,  # type: ignore[arg-type]
+        network_plan_resolver=resolver or _FakeResolver(),  # type: ignore[arg-type]
     )
 
 

@@ -223,7 +223,6 @@ def test_guarded_mode_is_rejected_by_evaluator_even_without_settings(settings) -
     runtime = build_runtime(settings)
     with pytest.raises(ValueError, match="guarded mode is not approved"):
         type(runtime.evaluator)(
-            catalog=runtime.evaluator.catalog,
             policies=runtime.evaluator.policies,
             acl_client=runtime.evaluator.acl_client,
             extractor=runtime.evaluator.extractor,
