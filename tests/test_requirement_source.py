@@ -170,6 +170,11 @@ def test_local_requirement_source_rejects_duplicate_ids(tmp_path: Path) -> None:
 
 
 def test_requirement_runner_evaluates_local_input_and_writes_result(tmp_path: Path) -> None:
+    # 示例需求（办公终端 -> 生产数据库）依赖 OBJECT-001；该规则已从默认规则包
+    # 禁用（AC-03 7.4），因此 CLI 批量链路测试改用对象关系 fixture 规则包。
+    object_policy = (
+        PROJECT_ROOT / "tests/fixtures/policies/network_plan_object_relation"
+    )
     source_settings = replace(
         CONFIG.requirement_source,
         output_file=tmp_path / "result.json",
@@ -181,6 +186,7 @@ def test_requirement_runner_evaluates_local_input_and_writes_result(tmp_path: Pa
             CONFIG.settings,
             audit_log_dir=tmp_path / "audit",
             llm_client_mode="mock",
+            policy_dir=object_policy,
         ),
     )
 

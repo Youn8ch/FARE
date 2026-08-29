@@ -1,0 +1,14 @@
+version: "test.object-relation.1"
+networks:
+  - id: OFFICE-CLIENTS
+    cidr: 20.1.0.0/16
+    zone: office
+    environment: office
+    object_type: endpoint
+    labels: [office-client]
+  - id: PROD-DB
+    cidr: 16.1.20.0/24
+    zone: production
+    environment: production
+    object_type: database
+    labels: [production-db]

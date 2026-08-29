@@ -89,7 +89,7 @@
       "category": "core",
       "dependencies": {
         "acl_fixture": null,
-        "policy_dir": null
+        "policy_dir": "tests/fixtures/policies/network_plan_object_relation"
       },
       "feature_flags": {
         "llm_acl_candidate_mode": "off",

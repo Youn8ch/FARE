@@ -1,4 +1,4 @@
-version: "2026.07.0"
+version: "2026.08.0"
 networks:
   - id: OFFICE-CLIENTS
     cidr: 20.1.0.0/16

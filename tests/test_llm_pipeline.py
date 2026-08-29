@@ -19,9 +19,9 @@ pytestmark = pytest.mark.llm_pipeline
         (False, "clean", None, 1),
         (False, "policy_gap", "SEMANTIC_POLICY_GAP", 1),
         (False, "failure", "LLM_SEMANTIC_ANALYSIS_FAILURE", 0),
-        (True, "clean", "OBJECT-001", 1),
-        (True, "policy_gap", "OBJECT-001", 1),
-        (True, "failure", "OBJECT-001", 0),
+        (True, "clean", "LEAST-ANY-001", 1),
+        (True, "policy_gap", "LEAST-ANY-001", 1),
+        (True, "failure", "LEAST-ANY-001", 0),
     ],
 )
 def test_one_way_decision_matrix(
@@ -34,10 +34,12 @@ def test_one_way_decision_matrix(
     request_id = f"decision-{int(deterministic_pending)}-{semantic_mode}"
     value = payload(request_id=request_id)
     if deterministic_pending:
+        # OBJECT-001 已从默认规则包禁用（AC-03 7.4）；确定性待定改由 any 地址
+        # 触发 LEAST-ANY-001。
         value.update(
-            sources=[{"address": "20.1.10.10", "description": "办公终端"}],
+            sources=[{"address": "any", "description": "全来源"}],
             destinations=[
-                {"address": "16.1.20.20", "description": "生产数据库"}
+                {"address": "16.1.30.20", "description": "生产应用"}
             ],
         )
     semantic = None
@@ -128,13 +130,14 @@ def test_all_shadow_stages_are_single_batch_and_do_not_upgrade_pending(settings)
     request = EvaluationRequest.model_validate(
         payload(
             request_id="pipeline-all-shadow",
+            ports=[{"start": 23, "end": 23}],
             sources=[
-                {"address": "20.1.10.10", "description": "办公终端 A"},
-                {"address": "20.1.10.11", "description": "办公终端 B"},
+                {"address": "16.1.30.10", "description": "生产应用 A"},
+                {"address": "16.1.30.11", "description": "生产应用 B"},
             ],
             destinations=[
-                {"address": "16.1.20.20", "description": "生产数据库 A"},
-                {"address": "16.1.20.21", "description": "生产数据库 B"},
+                {"address": "16.1.30.20", "description": "生产应用 C"},
+                {"address": "16.1.30.21", "description": "生产应用 D"},
             ],
         )
     )
@@ -143,7 +146,7 @@ def test_all_shadow_stages_are_single_batch_and_do_not_upgrade_pending(settings)
 
     assert len(result.response.items) == 4
     assert all(item.decision == "待定" for item in result.response.items)
-    assert all(item.reason_code == "OBJECT-001" for item in result.response.items)
+    assert all(item.reason_code == "PORT-001" for item in result.response.items)
     assert recorder.semantic_calls == 1
     assert recorder.acl_candidate_calls == 1
     assert recorder.request_finding_calls == 1

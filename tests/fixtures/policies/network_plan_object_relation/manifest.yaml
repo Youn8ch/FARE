@@ -1,0 +1,9 @@
+version: "test.object-relation.1"
+released_at: "2026-08-30"
+sources:
+  - id: TEST-OBJECT-RELATION
+    name: 对象隔离规则测试包（仅测试使用）
+approvals:
+  - role: network-security-owner
+    approver: test-owner
+    approved_at: "2026-08-30"

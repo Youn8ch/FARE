@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import replace
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -29,13 +30,22 @@ def test_complete_facts_without_rejection_are_compliant(client: TestClient):
     assert "MOCK-FW-01" in body["acl_analysis"]["extracted_facts"]["firewalls"]
 
 
-def test_object_rule_is_deterministic_without_unapproved_zone_rule(client: TestClient):
+def test_object_rule_is_deterministic_without_unapproved_zone_rule(settings):
+    # OBJECT-001 已从默认规则包禁用（AC-03 7.4）；对象关系能力由本 fixture 包
+    # （显式 object_type 事实来源）端到端保留。
+    fixture_policy = (
+        Path(__file__).resolve().parent
+        / "fixtures/policies/network_plan_object_relation"
+    )
     value = payload(
         request_id="fare-test-zone",
         sources=[{"address": "20.1.10.10", "description": "办公终端"}],
         destinations=[{"address": "16.1.20.20", "description": "生产数据库"}],
     )
-    body = client.post("/v1/evaluations", json=value).json()
+    with TestClient(
+        create_app(replace(settings, policy_dir=fixture_policy))
+    ) as test_client:
+        body = test_client.post("/v1/evaluations", json=value).json()
     assert body["decision"] == "待定"
     assert body["items"][0]["reason_type"] == "policy_violation"
     assert {rule["id"] for rule in body["items"][0]["matched_rules"]} == {"OBJECT-001"}

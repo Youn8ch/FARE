@@ -1,20 +1,10 @@
+# OBJECT-001（object_relation，办公终端不得访问生产数据库）自 2026.08.0 起
+# 暂时禁用：canonical 事实链上不存在正式的 usageCode->object_type 映射，
+# 该规则的显式 object_type 事实仅来自 offline 兼容目录，不具备主路径事实来源
+# （FARE-架构收口修复计划 AC-03 7.4）。取得正式数据字典后，在具备显式
+# mapping 事实来源的前提下恢复启用；规则正文保留在
+# tests/fixtures/policies/network_plan_object_relation/ 供回归。
 rules:
-  - id: OBJECT-001
-    name: 办公终端不得访问生产数据库
-    description: 禁止办公终端直接访问已登记的生产数据库对象
-    category: object_relation
-    decision: 待定
-    reason_type: policy_violation
-    when:
-      source_object_type: endpoint
-      destination_object_type: database
-      destination_environment: production
-    semantic_keywords: [办公终端, 生产数据库, 对象隔离]
-    evidence_requirements: [source_object_type, destination_object_type, destination_environment]
-    reason_template: 办公终端不得直接访问生产数据库对象。
-    recommendation: 使用受控运维入口或进入例外审批流程。
-    remediation_template: 改用受控运维入口，或按正式例外流程审批。
-
   - id: PORT-001
     name: 禁止 Telnet
     description: 禁止使用已正式列管的明文管理协议

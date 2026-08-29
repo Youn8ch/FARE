@@ -1,0 +1,33 @@
+# OBJECT-001 在默认正式规则包中暂时禁用（无正式 usageCode->object_type 映射，
+# 见 FARE-架构收口修复计划 AC-03 7.4）；本测试包保留其显式 object_type 事实来源，
+# 用于 RuleEngine object_relation 能力回归。
+rules:
+  - id: OBJECT-001
+    name: 办公终端不得访问生产数据库
+    description: 禁止办公终端直接访问已登记的生产数据库对象
+    category: object_relation
+    decision: 待定
+    reason_type: policy_violation
+    when:
+      source_object_type: endpoint
+      destination_object_type: database
+      destination_environment: production
+    semantic_keywords: [办公终端, 生产数据库, 对象隔离]
+    evidence_requirements: [source_object_type, destination_object_type, destination_environment]
+    reason_template: 办公终端不得直接访问生产数据库对象。
+    recommendation: 使用受控运维入口或进入例外审批流程。
+    remediation_template: 改用受控运维入口，或按正式例外流程审批。
+
+  - id: ACL-PATH-001
+    name: 未找到途径防火墙
+    description: ACL API 明确表达没有途径防火墙时进行人工复核
+    category: least_privilege
+    decision: 待定
+    reason_type: acl_no_path
+    when:
+      explicit_no_path: true
+    semantic_keywords: [未找到防火墙, 无路径, 候选路径]
+    evidence_requirements: [acl_explicit_no_path]
+    reason_template: ACL API 明确表示未找到该访问组合经过的防火墙。
+    recommendation: 核实网络目录、候选路径和申请地址后提交人工复核。
+    remediation_template: 核实网络目录、候选路径和申请地址后提交人工复核。
