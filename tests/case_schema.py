@@ -23,11 +23,15 @@ class StrictModel(BaseModel):
 class Dependencies(StrictModel):
     acl_fixture: str | None = None
     policy_dir: str | None = None
+    # None keeps the harness default (mock + versioned core fixture);
+    # offline_catalog runs the explicit compatibility provider chain.
+    network_plan_mode: Literal["mock", "offline_catalog"] | None = None
 
 
 class FeatureFlags(StrictModel):
     llm_acl_candidate_mode: Literal["off", "shadow"] = "off"
     llm_request_findings_mode: Literal["off", "shadow"] = "off"
+    acl_decision_mode: Literal["advisory", "required"] = "advisory"
 
 
 class LlmProfile(StrictModel):

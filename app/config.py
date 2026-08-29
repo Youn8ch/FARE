@@ -275,7 +275,7 @@ class Settings:
     max_concurrent_evaluations: int
     llm_acl_candidate_mode: str = "off"
     llm_request_findings_mode: str = "off"
-    network_plan_client_mode: str = "offline_catalog"
+    network_plan_client_mode: str = "mock"
     network_plan_mock_file: Path | None = None
     network_plan_api_url: str | None = None
     network_plan_http_query_parameter: str | None = None
@@ -287,7 +287,7 @@ class Settings:
     network_plan_cache_max_entries: int = 1024
     max_evaluation_items: int = 256
     acl_max_concurrency: int = 8
-    acl_decision_mode: str = "required"
+    acl_decision_mode: str = "advisory"
     acl_deterministic_pending_mode: str = "analyze"
     acl_api_token: str | None = None
     network_plan_api_token: str | None = None

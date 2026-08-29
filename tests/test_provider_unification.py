@@ -86,7 +86,9 @@ def test_mock_and_offline_produce_identical_items_for_equivalent_facts(
     settings: Settings, tmp_path: Path
 ) -> None:
     fixture = _write_fixture(tmp_path)
-    offline_settings = settings
+    offline_settings = replace(
+        settings, network_plan_client_mode="offline_catalog"
+    )
     mock_settings = _mock_chain(settings, network_plan_mock_file=fixture)
     with TestClient(create_app(offline_settings)) as client:
         offline_status, offline_body = _run(client, _same_request("ac02-equiv-offline"))
@@ -158,7 +160,10 @@ def test_all_provider_modes_build_a_runtime_resolver(settings: Settings) -> None
 
     import asyncio
 
-    offline_runtime = build_runtime(settings)
+    # conftest dev default is mock; offline must be declared explicitly.
+    offline_runtime = build_runtime(
+        replace(settings, network_plan_client_mode="offline_catalog")
+    )
     try:
         assert offline_runtime.network_plan_resolver is not None
         assert (

@@ -43,7 +43,14 @@ def test_object_rule_is_deterministic_without_unapproved_zone_rule(settings):
         destinations=[{"address": "16.1.20.20", "description": "生产数据库"}],
     )
     with TestClient(
-        create_app(replace(settings, policy_dir=fixture_policy))
+        create_app(
+            replace(
+                settings,
+                policy_dir=fixture_policy,
+                # OBJECT-001 的显式 object_type 事实只来自 offline 兼容目录
+                network_plan_client_mode="offline_catalog",
+            )
+        )
     ) as test_client:
         body = test_client.post("/v1/evaluations", json=value).json()
     assert body["decision"] == "待定"
@@ -149,7 +156,13 @@ def test_host_address_and_explicit_host_prefix_are_same_idempotent_input(client:
 
 
 def test_http_acl_mode_fails_closed_as_business_pending(settings):
-    http_settings = replace(settings, acl_client_mode="http", acl_api_url="http://acl.invalid")
+    # required 模式语义：ACL 依赖失败必须降为待定（dev 默认为 advisory）
+    http_settings = replace(
+        settings,
+        acl_client_mode="http",
+        acl_api_url="http://acl.invalid",
+        acl_decision_mode="required",
+    )
     with TestClient(create_app(http_settings)) as client:
         response = client.post(
             "/v1/evaluations", json=payload(request_id="fare-test-http-adapter")

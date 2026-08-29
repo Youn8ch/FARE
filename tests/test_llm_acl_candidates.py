@@ -259,6 +259,7 @@ def test_shadow_deterministic_only_and_conflict_do_not_change_decision(
         settings,
         acl_mock_file=acl_fixture,
         llm_acl_candidate_mode="shadow",
+        acl_decision_mode="required",  # 未确认防火墙仅在 required 模式降为待定
     )
     fixed_only = _evaluate(shadow_settings, RecordingLlmClient(), request_payload)
     conflict_id = "acl-candidate-fixed-conflict-001"
@@ -307,6 +308,7 @@ def test_llm_only_firewall_cannot_resolve_deterministic_missing_fact(
         settings,
         acl_mock_file=acl_fixture,
         llm_acl_candidate_mode="shadow",
+        acl_decision_mode="required",  # 未确认防火墙仅在 required 模式降为待定
     )
     result = _evaluate(
         shadow_settings,
@@ -363,6 +365,7 @@ def test_acl_dependency_item_is_still_in_shadow_batch(settings) -> None:
         acl_client_mode="http",
         acl_api_url="https://acl.invalid",
         llm_acl_candidate_mode="shadow",
+        acl_decision_mode="required",  # 依赖失败仅在 required 模式降为待定
     )
     result = _evaluate(
         shadow_settings,

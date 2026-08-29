@@ -187,6 +187,8 @@ def test_requirement_runner_evaluates_local_input_and_writes_result(tmp_path: Pa
             audit_log_dir=tmp_path / "audit",
             llm_client_mode="mock",
             policy_dir=object_policy,
+            # OBJECT-001 的显式 object_type 事实只来自 offline 兼容目录
+            network_plan_client_mode="offline_catalog",
         ),
     )
 

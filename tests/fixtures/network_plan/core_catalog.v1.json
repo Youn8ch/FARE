@@ -1,0 +1,22 @@
+{
+  "fixture_version": "2026.08.0",
+  "purpose": "dev/test 默认网段规划 fixture：与 policies/network_catalog.yaml 等价的 API 形状事实（AC-07 四入口统一）",
+  "responses": {
+    "16.1.20.0/24": {
+      "http_status": 200,
+      "body": {"code": 200, "msg": "success", "data": {"area": "production", "areaId": "production", "regionName": "production", "platformName": "production", "network": "16.1.20.0/24", "gateway": null, "subnet": "16.1.20.0/24", "vlanId": null, "usageCode": "database", "description": "PROD-DB"}, "success": true}
+    },
+    "16.1.30.0/24": {
+      "http_status": 200,
+      "body": {"code": 200, "msg": "success", "data": {"area": "production", "areaId": "production", "regionName": "production", "platformName": "production", "network": "16.1.30.0/24", "gateway": null, "subnet": "16.1.30.0/24", "vlanId": null, "usageCode": "application", "description": "PROD-APP"}, "success": true}
+    },
+    "20.1.10.0/24": {
+      "http_status": 200,
+      "body": {"code": 200, "msg": "success", "data": {"area": "office", "areaId": "office", "regionName": "office", "platformName": "office", "network": "20.1.0.0/16", "gateway": null, "subnet": "20.1.10.0/24", "vlanId": null, "usageCode": "endpoint", "description": "OFFICE-CLIENTS"}, "success": true}
+    },
+    "192.0.2.0/24": {
+      "http_status": 200,
+      "body": {"code": 404, "msg": "网段规划不存在", "data": null, "success": false}
+    }
+  }
+}

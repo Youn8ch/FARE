@@ -30,9 +30,9 @@ requirement_source:
   output_file: ../run_results/network_requirement_results.json
 
 network_plan:
-  mode: offline_catalog
+  mode: mock
   mock:
-    fixture: null
+    fixture: ../tests/fixtures/network_plan/core_catalog.v1.json
   http:
     url: http://127.0.0.1:9001/v1/network-plan
     query_parameter: subnet
@@ -61,7 +61,7 @@ acl:
       token: test-acl-token
 
 llm:
-  mode: http
+  mode: mock
   mock:
     fixture: null
   http:
@@ -78,8 +78,8 @@ llm:
     stop: null
     thinking: disabled
   features:
-    acl_candidate_mode: "shadow"
-    request_findings_mode: "shadow"
+    acl_candidate_mode: "off"
+    request_findings_mode: "off"
 
 evaluation:
   max_items: 256

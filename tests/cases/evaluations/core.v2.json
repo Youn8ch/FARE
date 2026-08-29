@@ -89,7 +89,8 @@
       "category": "core",
       "dependencies": {
         "acl_fixture": null,
-        "policy_dir": "tests/fixtures/policies/network_plan_object_relation"
+        "policy_dir": "tests/fixtures/policies/network_plan_object_relation",
+        "network_plan_mode": "offline_catalog"
       },
       "feature_flags": {
         "llm_acl_candidate_mode": "off",
@@ -869,7 +870,8 @@
       },
       "feature_flags": {
         "llm_acl_candidate_mode": "off",
-        "llm_request_findings_mode": "off"
+        "llm_request_findings_mode": "off",
+        "acl_decision_mode": "required"
       },
       "request": {
         "request_id": "v2-core-acl-no-firewall",

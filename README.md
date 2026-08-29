@@ -83,9 +83,18 @@ OpenAPI 位于 `/docs`，存活和就绪探针分别为 `/healthz`、`/readyz`�
 切换前可先校验并查看配置指纹：
 
 ```powershell
-.\.venv\Scripts\python.exe -m app validate-config --config config/fare.external-test.yaml
+.\.venv\Scripts\python.exe -m app validate-config --config config/fare.yaml
 .\.venv\Scripts\python.exe -m app validate-config --config config/fare.intranet-uat.yaml
 ```
+
+`config/fare.yaml` 是开发/测试默认 profile，四个默认入口保持一致
+（Settings dataclass 默认、YAML schema 默认、测试 conftest fixture、dev profile）：
+`network_plan.mode=mock`（显式绑定版本化 fixture
+`tests/fixtures/network_plan/core_catalog.v1.json`）、`acl.mode=mock`、
+`acl.decision_mode=advisory`、`llm.mode=mock`、LLM shadow 特性默认 `off`。
+`offline_catalog` 与 `acl.decision_mode=required` 永远不会作为隐式默认，
+只能在各 profile 中显式指定。真实 HTTP 依赖使用 `fare.intranet-uat.yaml` 等
+profile，或复制出本地未跟踪副本后填写。
 
 服务需要重启才能应用新 Profile。每个响应和审计记录都会携带 `config_id`、`environment`
 和 `config_fingerprint`；幂等缓存也按配置指纹隔离，因此同一 `request_id` 切换环境后会重新评估。

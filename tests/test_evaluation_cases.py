@@ -45,7 +45,13 @@ def test_v2_evaluation_case(loaded: LoadedCase, settings: Settings) -> None:
         llm_request_findings_mode=(
             loaded.case.feature_flags.llm_request_findings_mode
         ),
+        acl_decision_mode=loaded.case.feature_flags.acl_decision_mode,
     )
+    if loaded.case.dependencies.network_plan_mode is not None:
+        case_settings = replace(
+            case_settings,
+            network_plan_client_mode=loaded.case.dependencies.network_plan_mode,
+        )
     with TestClient(create_app(case_settings)) as client:
         client.app.state.runtime.evaluator.llm_client = recorder
         response = client.post(
