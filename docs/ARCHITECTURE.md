@@ -8,31 +8,33 @@
 EvaluationRequest
     │
     ▼
-plan        原始组合数 item 上限守卫
+plan           原始组合数 item 上限守卫
     │
     ▼
-network     NetworkFactProvider（mock / http / offline_catalog 兼容 Provider）
-    │         → NetworkPlanResolver（唯一；查询粒度 /24，query limit 全模式生效）
+network        NetworkFactProvider（mock / http / offline_catalog 兼容 Provider）
+    │          → NetworkPlanResolver（唯一；查询粒度 /24，query limit 全模式生效）
     ▼
-CanonicalNetworkFact / CanonicalAddressSegment   ← 规范化层（app/services/canonical.py）
+Canonical      CanonicalNetworkFact / CanonicalAddressSegment
+    │          ← 规范化层（app/services/canonical.py）
+    ▼
+rules          RuleStage：PolicyBundle.match 每 item 恰好一次（只读 canonical 字段）
+    │          → rule Findings（不产生 decision）
+    ▼
+acl            ACL Stage：gating 消费 RuleStageResult；每个可评估组合至多
+    │          1 次 ACL 调用（网络事实失败/确定性待定可跳过）→ ACL findings
+    ▼
+semantic       Semantic Stage（批量 1 次）→ 语义 findings（冲突/缺口/失败）
     │
     ▼
-acl         AclEnricher：每个可评估组合至多 1 次 ACL 调用（网络事实失败/确定性待定可跳过）
+reduce         DecisionReducer（唯一裁决入口，见 docs/DECISION_MODEL.md）
     │
     ▼
-rules       RuleEngine（只读 canonical 字段）→ rule Findings
-    │
+post_decision  串行（D4）：Explanation / ACL Candidate Shadow / Request Findings Shadow
+    │          Explanation 语义成功后 1 批次，失败仅模板回退。
+    │          post_decision 不参与正式业务裁决，不得修改 decision / reason /
+    │          primary finding / decision_findings。
     ▼
-semantic    SemanticReviewer（批量 1 次）→ 语义 findings（冲突/缺口/失败）
-    │
-    ▼
-reduce      DecisionReducer（唯一裁决入口，见 docs/DECISION_MODEL.md）
-    │
-    ▼
-explain     Explanation（语义成功后 1 批次；失败仅模板回退）
-    │
-    ▼
-assemble    ResponseAssembler（EvaluationResponse）
+assemble       EvaluationResponse（request 级聚合 + ACL 分析聚合）
     │
     ▼
 AuditStore（SQLite 权威幂等 + JSONL 归档）
@@ -46,8 +48,10 @@ AuditStore（SQLite 权威幂等 + JSONL 归档）
 - **唯一事实词汇**：`CanonicalNetworkFact` / `CanonicalAddressSegment`（`app/services/canonical.py`）。
   只做规范化：字段逐字拷贝，不做业务推断；`usage_code` 不映射 `object_type`，
   `platform_name` 不映射 `environment`，不从 `description` 推断任何字段。
-  `object_type` / `environment` 仅允许显式正式来源（offline 目录条目经
-  `legacy_entry` 携带）。
+  `object_type` / `environment` 仅允许显式正式来源：offline_catalog 通过
+  Offline Provider 转换为统一 typed provider fact，显式 classification 字段经
+  `ProviderLookup` / `ExplicitNetworkClassification` 进入 Resolver 与 Canonical；
+  Resolver 不直接读取 `NetworkCatalog`。
 - **Provider 唯一主路径**：三种 `network_plan.mode` 都构造 `NetworkPlanResolver`：
   - `mock`：版本化 fixture；
   - `http`：真实 API（合约确认前不发出请求）；
