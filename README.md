@@ -30,6 +30,25 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m app serve --config config/fare.yaml
 ```
 
+### 依赖锁定与可复现构建
+
+仓库根目录的 `constraints.txt` 锁定 0.3.0 已验证的完整生产依赖解析集（含
+`instructor==1.16.0`、`openai==2.54.0`；openai 不得解析到 3.x）。生产部署与
+构建一律通过 constraints 安装：
+
+```powershell
+# 从 wheel 安装（推荐）
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install dist/fare-0.3.0-py3-none-any.whl -c constraints.txt
+
+# 构建 wheel（在独立构建环境中）
+python -m pip wheel . --no-deps -w dist/
+```
+
+安装后可用 `python scripts/wheel_smoke_check.py`（在仓库根目录运行）验证
+distribution 元数据为 0.3.0、`/v2` OpenAPI 响应 schema 完整、mock 评估可用、
+no-auth 请求不携带 Authorization 头。
+
 `python --version` 必须输出 `Python 3.13.7`；`.python-version` 用于支持该文件的
 版本管理工具。项目包元数据接受 `3.13.7` 及后续 `3.13.x` 安全修订版，但不接受其他
 Python 次版本。

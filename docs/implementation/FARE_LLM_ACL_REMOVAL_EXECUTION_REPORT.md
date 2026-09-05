@@ -579,10 +579,48 @@ merge_authorized: false
 
 ### 实际依赖版本
 
-- instructor **1.16.0**（范围 `>=1.16,<1.17`）
-- openai **2.54.0**（范围 `>=2.0,<3.0`）
+- instructor **1.16.0**（范围 `>=1.16,<1.17`；constraints 硬锁）
+- openai **2.54.0**（范围 `>=2.0,<3.0`；constraints 硬锁，绝不解析到 3.x）
 - 执行日（2026-09-05）PyPI 核对：Instructor 最新 1.16.0 依赖 `openai>=2.0,<3`；
   openai-python 3.x 已发布故不可无界安装——与方案预判一致。
+
+### 依赖锁定与 clean wheel 安装证据（hardening 追加）
+
+仓库根目录新增 `constraints.txt`：锁定 0.3.0 已验证的完整生产依赖解析集
+（52 个 pin，含全部 transitive；dev 工具 pytest/ruff 不入锁）。构建后端
+`hatchling` 在 `pyproject.toml` 中硬锁为 `1.32.0`。
+
+clean build/install 流程与证据（2026-09-06，Python 3.13.7 / pip 25.2 构建、
+pip 26.2.1 安装环境）：
+
+```text
+1. 全新临时 venv（非仓库 .venv）内构建：
+   python -m pip wheel . --no-deps -w <tmp>/dist
+   → fare-0.3.0-py3-none-any.whl
+2. wheel sha256:
+   e97259caf87d9211e706af3b1741f2cf0b3cf2ec221c004a4360f7d000d60cf2
+   （isolation 构建与 pinned-hatchling 无 isolation 构建产出哈希一致）
+3. wheel 内容仅含 app/ + fare-0.3.0.dist-info（44 项）：
+   无 tests/evals/config/policies/audit_logs/本地 secrets。
+4. 另一全新临时 venv 按 constraints 从 wheel 安装：
+   python -m pip install <wheel> -c constraints.txt
+   → fare==0.3.0, instructor==1.16.0, openai==2.54.0,
+     fastapi==0.141.1, pydantic==2.13.4, httpx==0.28.1,
+     PyYAML==6.0.3, uvicorn==0.52.4（完整冻结清单与
+     constraints.txt 逐项一致）
+5. wheel smoke（scripts/wheel_smoke_check.py）全部通过：
+   - importlib.metadata.version("fare") == "0.3.0"
+   - Requires-Dist 含 instructor、openai
+   - OpenAPI EvaluationResponse 12 字段 / EvaluationItem 18 字段
+   - mock /v2/evaluations 200；disabled shadow stage 保持省略
+   - no-auth outbound 请求无 Authorization 头，占位 key 不上线
+6. 开发 .venv 重新安装同一 wheel 后 pip show fare：
+   Version 0.3.0；Requires: fastapi, httpx, instructor, openai,
+   pydantic, pyyaml, uvicorn（旧 0.2.0 陈旧元数据已闭环）。
+```
+
+构建产物与临时 venv 均在系统临时目录，未进入 Git（dist/、build/ 已在
+.gitignore）。
 
 ### 回退步骤（阶段级 git revert，逆序）
 
