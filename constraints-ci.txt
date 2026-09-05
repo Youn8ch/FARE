@@ -1,0 +1,12 @@
+# FARE CI-only dependency constraints, layered on top of the production lock.
+#
+# Usage:
+#   pip install -c constraints-ci.txt -e ".[dev]"
+#
+# Production dependency versions come exclusively from constraints.txt (via
+# the `-c constraints.txt` include below); this file only adds the exact
+# pytest/ruff pins the release-gating workflow (`.github/workflows/ci.yml`)
+# is verified against. Never move production pins here.
+-c constraints.txt
+pytest==8.4.2
+ruff==0.16.4
