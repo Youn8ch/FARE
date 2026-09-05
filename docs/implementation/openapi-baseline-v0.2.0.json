@@ -1,0 +1,1802 @@
+{
+  "components": {
+    "schemas": {
+      "Access": {
+        "additionalProperties": false,
+        "properties": {
+          "destination": {
+            "title": "Destination",
+            "type": "string"
+          },
+          "port": {
+            "$ref": "#/components/schemas/PortRange"
+          },
+          "protocol": {
+            "title": "Protocol",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "destination",
+          "protocol",
+          "port"
+        ],
+        "title": "Access",
+        "type": "object"
+      },
+      "AclAnalysis": {
+        "additionalProperties": false,
+        "properties": {
+          "classification": {
+            "const": "候选路径与拟新增策略分析，非现网 ACL 状态",
+            "default": "候选路径与拟新增策略分析，非现网 ACL 状态",
+            "title": "Classification",
+            "type": "string"
+          },
+          "extracted_facts": {
+            "$ref": "#/components/schemas/ExtractedFacts"
+          },
+          "raw_analysis": {
+            "title": "Raw Analysis",
+            "type": "string"
+          },
+          "raw_config": {
+            "title": "Raw Config",
+            "type": "string"
+          },
+          "verification_summary": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "verified",
+                "unverified",
+                "review_required",
+                "skipped"
+              ]
+            },
+            "title": "Verification Summary",
+            "type": "object"
+          }
+        },
+        "required": [
+          "raw_analysis",
+          "raw_config",
+          "extracted_facts"
+        ],
+        "title": "AclAnalysis",
+        "type": "object"
+      },
+      "AclCandidateAnalysis": {
+        "additionalProperties": false,
+        "properties": {
+          "classification": {
+            "const": "LLM 候选事实影子分析，不作为合规依据",
+            "default": "LLM 候选事实影子分析，不作为合规依据",
+            "title": "Classification",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AclCandidateComparison"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "mode": {
+            "const": "shadow",
+            "default": "shadow",
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "title": "AclCandidateAnalysis",
+        "type": "object"
+      },
+      "AclCandidateComparison": {
+        "additionalProperties": false,
+        "properties": {
+          "deterministic": {
+            "$ref": "#/components/schemas/ExtractedFacts"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "llm_candidate": {
+            "$ref": "#/components/schemas/LlmAclExtractionItem"
+          },
+          "rejection_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejection Reason"
+          },
+          "status": {
+            "enum": [
+              "agree",
+              "llm_only",
+              "deterministic_only",
+              "conflict",
+              "empty",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id",
+          "status",
+          "deterministic",
+          "llm_candidate"
+        ],
+        "title": "AclCandidateComparison",
+        "type": "object"
+      },
+      "AddressInput": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Address",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address"
+        ],
+        "title": "AddressInput",
+        "type": "object"
+      },
+      "DecisionFinding": {
+        "additionalProperties": false,
+        "description": "One adjudication finding exposed on the item (V4-P4, additive).\n\nMirrors the reducer's ``Finding`` in frozen insertion order; the internal\npriority is not exposed. ``is_primary`` marks the single finding that\ndetermined ``reason_code`` / ``reason_type``.",
+        "properties": {
+          "affects_decision": {
+            "default": true,
+            "title": "Affects Decision",
+            "type": "boolean"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "is_primary": {
+            "default": false,
+            "title": "Is Primary",
+            "type": "boolean"
+          },
+          "reason_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "policy_violation",
+                  "fact_incomplete",
+                  "fact_conflict",
+                  "acl_no_path",
+                  "dependency_failure",
+                  "risk_uncertain"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Type"
+          },
+          "source": {
+            "enum": [
+              "network",
+              "rule",
+              "acl",
+              "semantic"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "source"
+        ],
+        "title": "DecisionFinding",
+        "type": "object"
+      },
+      "DecisionTrace": {
+        "additionalProperties": false,
+        "properties": {
+          "deterministic_decision": {
+            "enum": [
+              "合规",
+              "待定"
+            ],
+            "title": "Deterministic Decision",
+            "type": "string"
+          },
+          "final_decision": {
+            "enum": [
+              "合规",
+              "待定"
+            ],
+            "title": "Final Decision",
+            "type": "string"
+          },
+          "final_reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Reason Code"
+          },
+          "semantic_effect": {
+            "enum": [
+              "unchanged",
+              "observation_only",
+              "question_only",
+              "downgraded",
+              "semantic_failure"
+            ],
+            "title": "Semantic Effect",
+            "type": "string"
+          },
+          "semantic_finding_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Semantic Finding Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "deterministic_decision",
+          "semantic_effect",
+          "final_decision"
+        ],
+        "title": "DecisionTrace",
+        "type": "object"
+      },
+      "ErrorDetail": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "EvaluationItem": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "EvaluationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "destinations": {
+            "items": {
+              "$ref": "#/components/schemas/AddressInput"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Destinations",
+            "type": "array"
+          },
+          "ports": {
+            "items": {
+              "$ref": "#/components/schemas/PortRange"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Ports",
+            "type": "array"
+          },
+          "protocol": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Protocol",
+            "type": "string"
+          },
+          "request_description": {
+            "default": "",
+            "maxLength": 10000,
+            "title": "Request Description",
+            "type": "string"
+          },
+          "request_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._:-]+$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/AddressInput"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "request_id",
+          "sources",
+          "destinations",
+          "protocol",
+          "ports"
+        ],
+        "title": "EvaluationRequest",
+        "type": "object"
+      },
+      "EvaluationResponse": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "ExtractedFacts": {
+        "additionalProperties": false,
+        "properties": {
+          "address_objects": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Address Objects",
+            "type": "array"
+          },
+          "ambiguous": {
+            "default": false,
+            "title": "Ambiguous",
+            "type": "boolean"
+          },
+          "candidate_acls": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Candidate Acls",
+            "type": "array"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "explicit_no_path": {
+            "default": false,
+            "title": "Explicit No Path",
+            "type": "boolean"
+          },
+          "firewalls": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Firewalls",
+            "type": "array"
+          },
+          "observed_ports": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Observed Ports",
+            "type": "array"
+          }
+        },
+        "title": "ExtractedFacts",
+        "type": "object"
+      },
+      "GuardResult": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "related_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Related Id"
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "status",
+          "detail"
+        ],
+        "title": "GuardResult",
+        "type": "object"
+      },
+      "LlmAclCandidateFact": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "evidence": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Evidence",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "acl_analysis",
+              "acl_config"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "firewall",
+              "candidate_acl",
+              "address_object",
+              "observed_port"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "type",
+          "value",
+          "source",
+          "evidence",
+          "confidence"
+        ],
+        "title": "LlmAclCandidateFact",
+        "type": "object"
+      },
+      "LlmAclExtractionItem": {
+        "additionalProperties": false,
+        "properties": {
+          "address_objects": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Address Objects",
+            "type": "array"
+          },
+          "candidate_acls": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Candidate Acls",
+            "type": "array"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/LlmAclCandidateFact"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "firewalls": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Firewalls",
+            "type": "array"
+          },
+          "item_id": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Item Id",
+            "type": "string"
+          },
+          "observed_ports": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Observed Ports",
+            "type": "array"
+          }
+        },
+        "required": [
+          "item_id"
+        ],
+        "title": "LlmAclExtractionItem",
+        "type": "object"
+      },
+      "LlmNetworkFactReference": {
+        "additionalProperties": false,
+        "properties": {
+          "fact_id": {
+            "title": "Fact Id",
+            "type": "string"
+          },
+          "field": {
+            "enum": [
+              "area_id",
+              "area",
+              "region_name",
+              "platform_name",
+              "network",
+              "subnet",
+              "usage_code",
+              "description"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "source",
+              "destination"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "item_id",
+          "role",
+          "fact_id",
+          "field",
+          "value"
+        ],
+        "title": "LlmNetworkFactReference",
+        "type": "object"
+      },
+      "LlmRequestFinding": {
+        "additionalProperties": false,
+        "properties": {
+          "affected_item_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Affected Item Ids",
+            "type": "array"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "description": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/RequestFindingEvidence"
+            },
+            "minItems": 1,
+            "title": "Evidence",
+            "type": "array"
+          },
+          "finding_id": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Finding Id",
+            "type": "string"
+          },
+          "finding_type": {
+            "enum": [
+              "mixed_business_context",
+              "inconsistent_purpose",
+              "unsupported_combination",
+              "temporary_scope_mismatch",
+              "missing_approval_context"
+            ],
+            "title": "Finding Type",
+            "type": "string"
+          },
+          "question": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "question_for_requester": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Question For Requester",
+            "type": "string"
+          },
+          "status": {
+            "const": "candidate",
+            "title": "Status",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "mixed_business_context",
+              "inconsistent_purpose",
+              "unsupported_combination",
+              "temporary_scope_mismatch",
+              "missing_approval_context"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "finding_id",
+          "type",
+          "finding_type",
+          "affected_item_ids",
+          "description",
+          "evidence",
+          "confidence",
+          "status",
+          "question",
+          "question_for_requester"
+        ],
+        "title": "LlmRequestFinding",
+        "type": "object"
+      },
+      "MatchedRule": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category"
+        ],
+        "title": "MatchedRule",
+        "type": "object"
+      },
+      "MissingInformation": {
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "enum": [
+              "access_purpose",
+              "temporary_access",
+              "maintenance_method",
+              "approval_reference",
+              "business_owner",
+              "requested_duration"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "impact": {
+            "const": "question_only",
+            "default": "question_only",
+            "title": "Impact",
+            "type": "string"
+          },
+          "item_id": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Item Id",
+            "type": "string"
+          },
+          "missing_id": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Missing Id",
+            "type": "string"
+          },
+          "question": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "missing_id",
+          "item_id",
+          "field",
+          "question"
+        ],
+        "title": "MissingInformation",
+        "type": "object"
+      },
+      "ModelInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version"
+        ],
+        "title": "ModelInfo",
+        "type": "object"
+      },
+      "NetworkAnalysis": {
+        "additionalProperties": false,
+        "properties": {
+          "classification": {
+            "const": "权威网段规划事实",
+            "default": "权威网段规划事实",
+            "title": "Classification",
+            "type": "string"
+          },
+          "destination_regions": {
+            "items": {
+              "$ref": "#/components/schemas/NetworkRegion"
+            },
+            "title": "Destination Regions",
+            "type": "array"
+          },
+          "lookups": {
+            "items": {
+              "$ref": "#/components/schemas/NetworkPlanLookup"
+            },
+            "title": "Lookups",
+            "type": "array"
+          },
+          "source_regions": {
+            "items": {
+              "$ref": "#/components/schemas/NetworkRegion"
+            },
+            "title": "Source Regions",
+            "type": "array"
+          }
+        },
+        "title": "NetworkAnalysis",
+        "type": "object"
+      },
+      "NetworkPlanFact": {
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "area_id": {
+            "title": "Area Id",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "fact_id": {
+            "title": "Fact Id",
+            "type": "string"
+          },
+          "gateway": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gateway"
+          },
+          "network": {
+            "title": "Network",
+            "type": "string"
+          },
+          "platform_name": {
+            "title": "Platform Name",
+            "type": "string"
+          },
+          "query_subnet": {
+            "title": "Query Subnet",
+            "type": "string"
+          },
+          "region_name": {
+            "title": "Region Name",
+            "type": "string"
+          },
+          "subnet": {
+            "title": "Subnet",
+            "type": "string"
+          },
+          "usage_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usage Code"
+          },
+          "vlan_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vlan Id"
+          }
+        },
+        "required": [
+          "fact_id",
+          "query_subnet",
+          "area",
+          "area_id",
+          "region_name",
+          "platform_name",
+          "network",
+          "gateway",
+          "subnet",
+          "vlan_id",
+          "usage_code",
+          "description"
+        ],
+        "title": "NetworkPlanFact",
+        "type": "object"
+      },
+      "NetworkPlanLookup": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NetworkPlanFact"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "fact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fact Id"
+          },
+          "lookup_id": {
+            "title": "Lookup Id",
+            "type": "string"
+          },
+          "query_subnet": {
+            "title": "Query Subnet",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "resolved",
+              "not_found",
+              "dependency_failure",
+              "invalid_response",
+              "conflict"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lookup_id",
+          "query_subnet",
+          "status"
+        ],
+        "title": "NetworkPlanLookup",
+        "type": "object"
+      },
+      "NetworkRegion": {
+        "additionalProperties": false,
+        "properties": {
+          "access_network": {
+            "title": "Access Network",
+            "type": "string"
+          },
+          "area_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area Id"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "network_fact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Network Fact Ids",
+            "type": "array"
+          },
+          "original_address": {
+            "title": "Original Address",
+            "type": "string"
+          },
+          "original_index": {
+            "title": "Original Index",
+            "type": "integer"
+          },
+          "platform_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform Name"
+          },
+          "region_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region Name"
+          },
+          "role": {
+            "enum": [
+              "source",
+              "destination"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "complete",
+              "not_found",
+              "dependency_failure",
+              "invalid_response",
+              "conflict",
+              "not_applicable"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "usage_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usage Code"
+          }
+        },
+        "required": [
+          "role",
+          "original_index",
+          "original_address",
+          "access_network",
+          "status"
+        ],
+        "title": "NetworkRegion",
+        "type": "object"
+      },
+      "NetworkSemanticClaim": {
+        "additionalProperties": false,
+        "properties": {
+          "claim_id": {
+            "title": "Claim Id",
+            "type": "string"
+          },
+          "claim_type": {
+            "enum": [
+              "network_fact_reference",
+              "request_fact_conflict",
+              "business_purpose",
+              "system_role",
+              "temporary_access"
+            ],
+            "title": "Claim Type",
+            "type": "string"
+          },
+          "evidence": {
+            "title": "Evidence",
+            "type": "string"
+          },
+          "fact_references": {
+            "items": {
+              "$ref": "#/components/schemas/LlmNetworkFactReference"
+            },
+            "minItems": 1,
+            "title": "Fact References",
+            "type": "array"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "request_description",
+              "source_description",
+              "destination_description",
+              "acl_analysis",
+              "acl_config",
+              "network_plan_fact"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "verified",
+              "candidate",
+              "conflict",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "claim_id",
+          "claim_type",
+          "scope",
+          "fact_references",
+          "source",
+          "evidence",
+          "status"
+        ],
+        "title": "NetworkSemanticClaim",
+        "type": "object"
+      },
+      "PolicyGap": {
+        "additionalProperties": false,
+        "properties": {
+          "affected_fields": {
+            "items": {
+              "enum": [
+                "request_context",
+                "access_purpose",
+                "temporary_access",
+                "system_role",
+                "maintenance_method",
+                "approval_reference",
+                "business_owner",
+                "requested_duration",
+                "source_zone",
+                "destination_zone",
+                "source_environment",
+                "destination_environment",
+                "source_object_type",
+                "destination_object_type"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Affected Fields",
+            "type": "array"
+          },
+          "applied_effect": {
+            "default": "observe_only",
+            "enum": [
+              "observe_only",
+              "question_only",
+              "review_required"
+            ],
+            "title": "Applied Effect",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/SemanticEvidence"
+            },
+            "minItems": 1,
+            "title": "Evidence",
+            "type": "array"
+          },
+          "gap_id": {
+            "title": "Gap Id",
+            "type": "string"
+          },
+          "gap_type": {
+            "enum": [
+              "temporary_permanent_conflict",
+              "purpose_target_mismatch",
+              "mixed_business_context",
+              "approval_scope_mismatch",
+              "unclassified_privileged_access"
+            ],
+            "title": "Gap Type",
+            "type": "string"
+          },
+          "question_for_requester": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Question For Requester",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "verified",
+              "candidate",
+              "conflict",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "suggested_effect": {
+            "enum": [
+              "observe_only",
+              "question_only",
+              "review_required"
+            ],
+            "title": "Suggested Effect",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gap_id",
+          "scope",
+          "gap_type",
+          "description",
+          "evidence",
+          "affected_fields",
+          "question_for_requester",
+          "suggested_effect",
+          "status"
+        ],
+        "title": "PolicyGap",
+        "type": "object"
+      },
+      "PortRange": {
+        "additionalProperties": false,
+        "properties": {
+          "end": {
+            "maximum": 65535.0,
+            "minimum": 0.0,
+            "title": "End",
+            "type": "integer"
+          },
+          "start": {
+            "maximum": 65535.0,
+            "minimum": 0.0,
+            "title": "Start",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "PortRange",
+        "type": "object"
+      },
+      "RequestFindingEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "item_id": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Item Id",
+            "type": "string"
+          },
+          "quote": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Quote",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "request_description",
+              "source_description",
+              "destination_description",
+              "acl_analysis",
+              "acl_config",
+              "network_plan_fact"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id",
+          "source",
+          "quote"
+        ],
+        "title": "RequestFindingEvidence",
+        "type": "object"
+      },
+      "RequestFindingsAnalysis": {
+        "additionalProperties": false,
+        "properties": {
+          "analyzed_item_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Analyzed Item Ids",
+            "type": "array"
+          },
+          "classification": {
+            "const": "LLM 申请级发现影子分析，不作为业务裁决依据",
+            "default": "LLM 申请级发现影子分析，不作为业务裁决依据",
+            "title": "Classification",
+            "type": "string"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/LlmRequestFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "mode": {
+            "const": "shadow",
+            "default": "shadow",
+            "title": "Mode",
+            "type": "string"
+          },
+          "rejection_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejection Reason"
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "analyzed_item_ids"
+        ],
+        "title": "RequestFindingsAnalysis",
+        "type": "object"
+      },
+      "SemanticAnalysis": {
+        "additionalProperties": false,
+        "properties": {
+          "analyzed_item_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Analyzed Item Ids",
+            "type": "array"
+          },
+          "candidate_rule_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Candidate Rule Ids",
+            "type": "array"
+          },
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/SemanticClaim"
+            },
+            "title": "Claims",
+            "type": "array"
+          },
+          "contradictions": {
+            "items": {
+              "$ref": "#/components/schemas/SemanticContradiction"
+            },
+            "title": "Contradictions",
+            "type": "array"
+          },
+          "guard_results": {
+            "items": {
+              "$ref": "#/components/schemas/GuardResult"
+            },
+            "title": "Guard Results",
+            "type": "array"
+          },
+          "missing_information": {
+            "items": {
+              "$ref": "#/components/schemas/MissingInformation"
+            },
+            "title": "Missing Information",
+            "type": "array"
+          },
+          "network_claims": {
+            "items": {
+              "$ref": "#/components/schemas/NetworkSemanticClaim"
+            },
+            "title": "Network Claims",
+            "type": "array"
+          },
+          "policy_gaps": {
+            "items": {
+              "$ref": "#/components/schemas/PolicyGap"
+            },
+            "title": "Policy Gaps",
+            "type": "array"
+          },
+          "questions_for_requester": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Questions For Requester",
+            "type": "array"
+          },
+          "recommendations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recommendations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "analyzed_item_ids"
+        ],
+        "title": "SemanticAnalysis",
+        "type": "object"
+      },
+      "SemanticClaim": {
+        "additionalProperties": false,
+        "properties": {
+          "claim_id": {
+            "title": "Claim Id",
+            "type": "string"
+          },
+          "claim_type": {
+            "enum": [
+              "request_context",
+              "access_purpose",
+              "temporary_access",
+              "system_role",
+              "maintenance_method",
+              "approval_reference",
+              "business_owner",
+              "requested_duration",
+              "source_zone",
+              "destination_zone",
+              "source_environment",
+              "destination_environment",
+              "source_object_type",
+              "destination_object_type"
+            ],
+            "title": "Claim Type",
+            "type": "string"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "evidence": {
+            "title": "Evidence",
+            "type": "string"
+          },
+          "field": {
+            "enum": [
+              "request_context",
+              "access_purpose",
+              "temporary_access",
+              "system_role",
+              "maintenance_method",
+              "approval_reference",
+              "business_owner",
+              "requested_duration",
+              "source_zone",
+              "destination_zone",
+              "source_environment",
+              "destination_environment",
+              "source_object_type",
+              "destination_object_type"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "request_description",
+              "source_description",
+              "destination_description",
+              "acl_analysis",
+              "acl_config",
+              "network_plan_fact"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "verified",
+              "candidate",
+              "conflict",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "claim_id",
+          "scope",
+          "field",
+          "claim_type",
+          "value",
+          "source",
+          "evidence",
+          "confidence",
+          "status"
+        ],
+        "title": "SemanticClaim",
+        "type": "object"
+      },
+      "SemanticContradiction": {
+        "additionalProperties": false,
+        "properties": {
+          "applied_effect": {
+            "default": "observe_only",
+            "enum": [
+              "observe_only",
+              "question_only",
+              "review_required"
+            ],
+            "title": "Applied Effect",
+            "type": "string"
+          },
+          "contradiction_id": {
+            "title": "Contradiction Id",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/SemanticEvidence"
+            },
+            "minItems": 2,
+            "title": "Evidence",
+            "type": "array"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "verified",
+              "candidate",
+              "conflict",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "contradiction_id",
+          "scope",
+          "description",
+          "evidence",
+          "status"
+        ],
+        "title": "SemanticContradiction",
+        "type": "object"
+      },
+      "SemanticEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "item_id": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Item Id",
+            "type": "string"
+          },
+          "quote": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Quote",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "request_description",
+              "source_description",
+              "destination_description",
+              "acl_analysis",
+              "acl_config"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id",
+          "source",
+          "quote"
+        ],
+        "title": "SemanticEvidence",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Firewall Access Request Evaluator",
+    "title": "FARE",
+    "version": "0.2.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/healthz": {
+      "get": {
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Healthz Healthz Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Healthz",
+        "tags": [
+          "operations"
+        ]
+      }
+    },
+    "/readyz": {
+      "get": {
+        "operationId": "readyz_readyz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Readyz",
+        "tags": [
+          "operations"
+        ]
+      }
+    },
+    "/v1/evaluations": {
+      "post": {
+        "operationId": "evaluate_v1_evaluations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Evaluate",
+        "tags": [
+          "evaluations"
+        ]
+      }
+    }
+  }
+}
