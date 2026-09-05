@@ -1,0 +1,8 @@
+{
+  "fixture_version": "2026.09.0",
+  "purpose": "realistic ACL 未见明确防火墙记录（required 模式事实不完整）",
+  "default": {
+    "analysis": "候选路径分析完成，未见明确防火墙记录。",
+    "config": ""
+  }
+}

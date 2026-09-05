@@ -1,0 +1,66 @@
+{
+  "fixture_version": "2026.09.0",
+  "purpose": "realistic 主画像：办公区 / 生产数据库区 / DMZ 网关（RFC 5737 文档地址）",
+  "responses": {
+    "192.0.2.0/24": {
+      "http_status": 200,
+      "body": {
+        "code": 200,
+        "msg": "success",
+        "data": {
+          "area": "office",
+          "areaId": "office",
+          "regionName": "office",
+          "platformName": "office-clients",
+          "network": "192.0.2.0/24",
+          "gateway": null,
+          "subnet": "192.0.2.0/24",
+          "vlanId": null,
+          "usageCode": "ENDPOINT",
+          "description": "OFFICE-CLIENTS"
+        },
+        "success": true
+      }
+    },
+    "198.51.100.0/24": {
+      "http_status": 200,
+      "body": {
+        "code": 200,
+        "msg": "success",
+        "data": {
+          "area": "production",
+          "areaId": "production",
+          "regionName": "production",
+          "platformName": "production-db",
+          "network": "198.51.100.0/24",
+          "gateway": null,
+          "subnet": "198.51.100.0/24",
+          "vlanId": null,
+          "usageCode": "PROD_DATABASE",
+          "description": "PROD-DB"
+        },
+        "success": true
+      }
+    },
+    "203.0.113.0/24": {
+      "http_status": 200,
+      "body": {
+        "code": 200,
+        "msg": "success",
+        "data": {
+          "area": "dmz",
+          "areaId": "dmz",
+          "regionName": "dmz",
+          "platformName": "public-gateway",
+          "network": "203.0.113.0/24",
+          "gateway": null,
+          "subnet": "203.0.113.0/24",
+          "vlanId": null,
+          "usageCode": "GATEWAY",
+          "description": "PUBLIC-GATEWAY"
+        },
+        "success": true
+      }
+    }
+  }
+}

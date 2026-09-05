@@ -1,0 +1,8 @@
+{
+  "fixture_version": "2026.09.0",
+  "purpose": "realistic ACL 候选分析存在歧义",
+  "default": {
+    "analysis": "候选路径分析存在歧义，无法确定唯一防火墙。",
+    "config": ""
+  }
+}

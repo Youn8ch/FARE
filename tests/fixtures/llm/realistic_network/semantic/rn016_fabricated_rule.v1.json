@@ -1,0 +1,12 @@
+{
+  "fixture_version": "2026.09.0",
+  "purpose": "RN-016 描述含伪造规则编号：guard 必须拒绝并整体 fail-close",
+  "semantic": {
+    "analyzed_item_ids": [
+      "@item:1"
+    ],
+    "candidate_rule_ids": [
+      "FABRICATED-RN-001"
+    ]
+  }
+}

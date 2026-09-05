@@ -1,0 +1,5133 @@
+{
+  "schema_version": "realistic.v1",
+  "suite": "realistic_network",
+  "cases": [
+    {
+      "id": "RN-001",
+      "title": "生产应用访问生产数据库 PostgreSQL",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-001",
+        "sources": [
+          {
+            "address": "198.51.100.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 5432,
+            "end": 5432
+          }
+        ],
+        "request_description": "生产应用访问生产数据库 PostgreSQL，用于订单数据写入。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "198.51.100.10/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "198.51.100.10/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "item_id 稳定为 rn-001-001",
+        "network facts 完整解析（resolved）",
+        "无 ACL 参与时决策保持合规"
+      ]
+    },
+    {
+      "id": "RN-002",
+      "title": "办公终端访问生产数据库（跨区域高风险方向）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-002",
+        "sources": [
+          {
+            "address": "192.0.2.5",
+            "description": "办公终端 PC-101"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 5432,
+            "end": 5432
+          }
+        ],
+        "request_description": "办公终端直接访问生产数据库提取报表。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "确定性区域规则优先，LLM 不得覆盖",
+        "primary finding 为 RN-OFFICE-PROD-001"
+      ]
+    },
+    {
+      "id": "RN-003",
+      "title": "DMZ 网关回源生产应用 HTTPS",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-003",
+        "sources": [
+          {
+            "address": "203.0.113.5",
+            "description": "对外 API 网关"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "DMZ 网关回源生产应用 HTTPS 业务流量。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "合法最小端口与区域方向，无规则命中"
+      ]
+    },
+    {
+      "id": "RN-004",
+      "title": "合作方访问 DMZ API（临时联调语义缺口）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-004",
+        "sources": [
+          {
+            "address": "198.51.100.130",
+            "description": "合作方平台 PARTNER-A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "203.0.113.5",
+            "description": "对外 API 网关"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "合作方平台 PARTNER-A 申请临时联调访问对外 API 网关，周期 2 周。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/partner_dmz.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": "realistic_network/semantic/rn004_temporary_gap.v1.json",
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "198.51.100.130/32",
+              "destination": "203.0.113.5/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "risk_uncertain",
+            "reason_code": "SEMANTIC_POLICY_GAP",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "SEMANTIC_POLICY_GAP"
+            ],
+            "primary_finding_code": "SEMANTIC_POLICY_GAP"
+          }
+        ],
+        "semantic_effect": "downgraded",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "198.51.100.130/32",
+              "destination": "203.0.113.5/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "risk_uncertain",
+            "reason_code": "SEMANTIC_POLICY_GAP",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "SEMANTIC_POLICY_GAP"
+            ],
+            "primary_finding_code": "SEMANTIC_POLICY_GAP"
+          }
+        ],
+        "semantic_effect": "downgraded",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "semantic 规则缺口通过证据 guard 与 effect policy 降级",
+        "LLM 只能降级合规，不得提升待定"
+      ]
+    },
+    {
+      "id": "RN-005",
+      "title": "运维堡垒机 SSH 到生产数据库（特权访问）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-005",
+        "sources": [
+          {
+            "address": "192.0.2.66",
+            "description": "运维堡垒机"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 22,
+            "end": 22
+          }
+        ],
+        "request_description": "运维堡垒机按变更窗口 CHG-EXAMPLE-001 SSH 登录生产数据库服务器执行巡检。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/ops.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": "realistic_network/semantic/rn005_duration_question.v1.json",
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.66/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 22,
+                "end": 22
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OPS-PROD-001",
+            "matched_rule_ids": [
+              "RN-OPS-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OPS-PROD-001"
+            ],
+            "primary_finding_code": "RN-OPS-PROD-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.66/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 22,
+                "end": 22
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OPS-PROD-001",
+            "matched_rule_ids": [
+              "RN-OPS-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OPS-PROD-001"
+            ],
+            "primary_finding_code": "RN-OPS-PROD-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "确定性特权访问规则待定，semantic 提问只并入 finding ids 不改变结论"
+      ]
+    },
+    {
+      "id": "RN-006",
+      "title": "生产应用访问共享 DNS（udp/53）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-006",
+        "sources": [
+          {
+            "address": "198.51.100.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "203.0.113.66",
+            "description": "共享 DNS 服务"
+          }
+        ],
+        "protocol": "udp",
+        "ports": [
+          {
+            "start": 53,
+            "end": 53
+          }
+        ],
+        "request_description": "生产应用解析共享 DNS 区域记录。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/apptier_shared.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "198.51.100.10/32",
+              "destination": "203.0.113.66/32",
+              "protocol": "udp",
+              "port": {
+                "start": 53,
+                "end": 53
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "198.51.100.10/32",
+              "destination": "203.0.113.66/32",
+              "protocol": "udp",
+              "port": {
+                "start": 53,
+                "end": 53
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "udp 协议与端口组合正确解析"
+      ]
+    },
+    {
+      "id": "RN-007",
+      "title": "生产应用多端口查询共享 DNS（协议语义不混合）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-007",
+        "sources": [
+          {
+            "address": "198.51.100.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "203.0.113.66",
+            "description": "共享 DNS 服务"
+          }
+        ],
+        "protocol": "udp",
+        "ports": [
+          {
+            "start": 53,
+            "end": 53
+          },
+          {
+            "start": 953,
+            "end": 953
+          }
+        ],
+        "request_description": "生产应用通过 UDP 53 与 UDP 953 查询共享 DNS 服务。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/apptier_shared.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "198.51.100.10/32",
+              "destination": "203.0.113.66/32",
+              "protocol": "udp",
+              "port": {
+                "start": 53,
+                "end": 53
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          },
+          {
+            "index": 2,
+            "access": {
+              "source": "198.51.100.10/32",
+              "destination": "203.0.113.66/32",
+              "protocol": "udp",
+              "port": {
+                "start": 953,
+                "end": 953
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "198.51.100.10/32",
+              "destination": "203.0.113.66/32",
+              "protocol": "udp",
+              "port": {
+                "start": 53,
+                "end": 53
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          },
+          {
+            "index": 2,
+            "access": {
+              "source": "198.51.100.10/32",
+              "destination": "203.0.113.66/32",
+              "protocol": "udp",
+              "port": {
+                "start": 953,
+                "end": 953
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "两个 item 协议均为 udp，不与 tcp 规则混合"
+      ]
+    },
+    {
+      "id": "RN-008",
+      "title": "监控平台访问多台生产节点（笛卡尔积与调用计数）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-008",
+        "sources": [
+          {
+            "address": "192.0.2.200",
+            "description": "监控平台节点-01"
+          },
+          {
+            "address": "192.0.2.201",
+            "description": "监控平台节点-02"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.10",
+            "description": "生产应用 A"
+          },
+          {
+            "address": "198.51.100.61",
+            "description": "生产数据库 DB-02"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 10000,
+            "end": 10010
+          },
+          {
+            "start": 20000,
+            "end": 20010
+          }
+        ],
+        "request_description": "监控平台采集生产区两台节点的双端口指标。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.200/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 10000,
+                "end": 10010
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 2,
+            "access": {
+              "source": "192.0.2.200/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 20000,
+                "end": 20010
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 3,
+            "access": {
+              "source": "192.0.2.200/32",
+              "destination": "198.51.100.61/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 10000,
+                "end": 10010
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 4,
+            "access": {
+              "source": "192.0.2.200/32",
+              "destination": "198.51.100.61/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 20000,
+                "end": 20010
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 5,
+            "access": {
+              "source": "192.0.2.201/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 10000,
+                "end": 10010
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 6,
+            "access": {
+              "source": "192.0.2.201/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 20000,
+                "end": 20010
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 7,
+            "access": {
+              "source": "192.0.2.201/32",
+              "destination": "198.51.100.61/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 10000,
+                "end": 10010
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 8,
+            "access": {
+              "source": "192.0.2.201/32",
+              "destination": "198.51.100.61/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 20000,
+                "end": 20010
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.200/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 10000,
+                "end": 10010
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 2,
+            "access": {
+              "source": "192.0.2.200/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 20000,
+                "end": 20010
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 3,
+            "access": {
+              "source": "192.0.2.200/32",
+              "destination": "198.51.100.61/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 10000,
+                "end": 10010
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 4,
+            "access": {
+              "source": "192.0.2.200/32",
+              "destination": "198.51.100.61/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 20000,
+                "end": 20010
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 5,
+            "access": {
+              "source": "192.0.2.201/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 10000,
+                "end": 10010
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 6,
+            "access": {
+              "source": "192.0.2.201/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 20000,
+                "end": 20010
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 7,
+            "access": {
+              "source": "192.0.2.201/32",
+              "destination": "198.51.100.61/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 10000,
+                "end": 10010
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 8,
+            "access": {
+              "source": "192.0.2.201/32",
+              "destination": "198.51.100.61/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 20000,
+                "end": 20010
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "8 个 item 笛卡尔积顺序稳定（源×目的×端口）",
+        "semantic/explanation 均为整申请一次调用"
+      ]
+    },
+    {
+      "id": "RN-009",
+      "title": "多应用访问单数据库（item id 稳定）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-009",
+        "sources": [
+          {
+            "address": "192.0.2.11",
+            "description": "应用服务 A"
+          },
+          {
+            "address": "192.0.2.12",
+            "description": "应用服务 B"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 5432,
+            "end": 5432
+          }
+        ],
+        "request_description": "两个应用服务访问同一生产数据库实例。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.11/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 2,
+            "access": {
+              "source": "192.0.2.12/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.11/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 2,
+            "access": {
+              "source": "192.0.2.12/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "每 item 恰好一次 rule 匹配与一次 reduce"
+      ]
+    },
+    {
+      "id": "RN-010",
+      "title": "any 源访问生产数据库（最小权限确定性待定）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-010",
+        "sources": [
+          {
+            "address": "any",
+            "description": "未指定来源"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 5432,
+            "end": 5432
+          }
+        ],
+        "request_description": "临时脚本使用 any 源地址访问生产数据库（预期被拒绝）。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "any",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-ANY-001",
+            "matched_rule_ids": [
+              "RN-ANY-001"
+            ],
+            "finding_codes": [
+              "RN-ANY-001",
+              "ADDRESS_ANY"
+            ],
+            "primary_finding_code": "RN-ANY-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "any",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-ANY-001",
+            "matched_rule_ids": [
+              "RN-ANY-001"
+            ],
+            "finding_codes": [
+              "RN-ANY-001",
+              "ADDRESS_ANY"
+            ],
+            "primary_finding_code": "RN-ANY-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "any 地址由规则与目录事实共同待定，primary 为规则 finding"
+      ]
+    },
+    {
+      "id": "RN-011",
+      "title": "Telnet 访问生产系统（正式端口规则优先）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-011",
+        "sources": [
+          {
+            "address": "203.0.113.5",
+            "description": "对外 API 网关"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 23,
+            "end": 23
+          }
+        ],
+        "request_description": "临时使用 Telnet 调试生产数据库服务器（预期命中正式端口规则）。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 23,
+                "end": 23
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-TELNET-001",
+            "matched_rule_ids": [
+              "RN-TELNET-001"
+            ],
+            "finding_codes": [
+              "RN-TELNET-001"
+            ],
+            "primary_finding_code": "RN-TELNET-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 23,
+                "end": 23
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-TELNET-001",
+            "matched_rule_ids": [
+              "RN-TELNET-001"
+            ],
+            "finding_codes": [
+              "RN-TELNET-001"
+            ],
+            "primary_finding_code": "RN-TELNET-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "special_port 正式规则优先产生 primary finding"
+      ]
+    },
+    {
+      "id": "RN-012",
+      "title": "网段规划权威事实失败（NETWORK_PLAN_NOT_FOUND）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-012",
+        "sources": [
+          {
+            "address": "192.0.2.5",
+            "description": "办公终端 PC-101"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "访问一个网段规划无法正常应答的地址。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/notfound.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "fact_incomplete",
+            "reason_code": "NETWORK_PLAN_NOT_FOUND",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "NETWORK_PLAN_NOT_FOUND"
+            ],
+            "primary_finding_code": "NETWORK_PLAN_NOT_FOUND"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "fact_incomplete",
+            "reason_code": "NETWORK_PLAN_NOT_FOUND",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "NETWORK_PLAN_NOT_FOUND"
+            ],
+            "primary_finding_code": "NETWORK_PLAN_NOT_FOUND"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）",
+        "ACL 不再被调用：acl_verification_status 表面消失；network finding 行为不变（非决策漂移）"
+      ],
+      "invariants": [
+        "network finding 独立成立，ACL 不参与",
+        "ACL 阶段因网络事实失败被跳过"
+      ]
+    },
+    {
+      "id": "RN-013",
+      "title": "网段规划权威事实失败（NETWORK_PLAN_DEPENDENCY_FAILURE）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-013",
+        "sources": [
+          {
+            "address": "192.0.2.5",
+            "description": "办公终端 PC-101"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "访问一个网段规划无法正常应答的地址。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/failure408.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "dependency_failure",
+            "reason_code": "NETWORK_PLAN_DEPENDENCY_FAILURE",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "NETWORK_PLAN_DEPENDENCY_FAILURE"
+            ],
+            "primary_finding_code": "NETWORK_PLAN_DEPENDENCY_FAILURE"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "dependency_failure",
+            "reason_code": "NETWORK_PLAN_DEPENDENCY_FAILURE",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "NETWORK_PLAN_DEPENDENCY_FAILURE"
+            ],
+            "primary_finding_code": "NETWORK_PLAN_DEPENDENCY_FAILURE"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）",
+        "ACL 不再被调用：acl_verification_status 表面消失；network finding 行为不变（非决策漂移）"
+      ],
+      "invariants": [
+        "network finding 独立成立，ACL 不参与",
+        "ACL 阶段因网络事实失败被跳过"
+      ]
+    },
+    {
+      "id": "RN-025",
+      "title": "网段规划权威事实失败（NETWORK_PLAN_AUTH_FAILURE）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-025",
+        "sources": [
+          {
+            "address": "192.0.2.5",
+            "description": "办公终端 PC-101"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "访问一个网段规划无法正常应答的地址。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/failure401.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "dependency_failure",
+            "reason_code": "NETWORK_PLAN_AUTH_FAILURE",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "NETWORK_PLAN_AUTH_FAILURE"
+            ],
+            "primary_finding_code": "NETWORK_PLAN_AUTH_FAILURE"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "dependency_failure",
+            "reason_code": "NETWORK_PLAN_AUTH_FAILURE",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "NETWORK_PLAN_AUTH_FAILURE"
+            ],
+            "primary_finding_code": "NETWORK_PLAN_AUTH_FAILURE"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）",
+        "ACL 不再被调用：acl_verification_status 表面消失；network finding 行为不变（非决策漂移）"
+      ],
+      "invariants": [
+        "network finding 独立成立，ACL 不参与",
+        "ACL 阶段因网络事实失败被跳过"
+      ]
+    },
+    {
+      "id": "RN-026",
+      "title": "网段规划权威事实失败（NETWORK_PLAN_INVALID_RESPONSE）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-026",
+        "sources": [
+          {
+            "address": "192.0.2.5",
+            "description": "办公终端 PC-101"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "访问一个网段规划无法正常应答的地址。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/failureinvalid.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "fact_incomplete",
+            "reason_code": "NETWORK_PLAN_INVALID_RESPONSE",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "NETWORK_PLAN_INVALID_RESPONSE"
+            ],
+            "primary_finding_code": "NETWORK_PLAN_INVALID_RESPONSE"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "fact_incomplete",
+            "reason_code": "NETWORK_PLAN_INVALID_RESPONSE",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "NETWORK_PLAN_INVALID_RESPONSE"
+            ],
+            "primary_finding_code": "NETWORK_PLAN_INVALID_RESPONSE"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）",
+        "ACL 不再被调用：acl_verification_status 表面消失；network finding 行为不变（非决策漂移）"
+      ],
+      "invariants": [
+        "network finding 独立成立，ACL 不参与",
+        "ACL 阶段因网络事实失败被跳过"
+      ]
+    },
+    {
+      "id": "RN-014",
+      "title": "网段规划权威事实失败（NETWORK_PLAN_SUBNET_MISMATCH）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-014",
+        "sources": [
+          {
+            "address": "192.0.2.5",
+            "description": "办公终端 PC-101"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "访问一个网段规划无法正常应答的地址。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/conflict.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "fact_conflict",
+            "reason_code": "NETWORK_PLAN_SUBNET_MISMATCH",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "NETWORK_PLAN_SUBNET_MISMATCH"
+            ],
+            "primary_finding_code": "NETWORK_PLAN_SUBNET_MISMATCH"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "fact_conflict",
+            "reason_code": "NETWORK_PLAN_SUBNET_MISMATCH",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "NETWORK_PLAN_SUBNET_MISMATCH"
+            ],
+            "primary_finding_code": "NETWORK_PLAN_SUBNET_MISMATCH"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）",
+        "ACL 不再被调用：acl_verification_status 表面消失；network finding 行为不变（非决策漂移）"
+      ],
+      "invariants": [
+        "network finding 独立成立，ACL 不参与",
+        "ACL 阶段因网络事实失败被跳过"
+      ]
+    },
+    {
+      "id": "RN-015",
+      "title": "描述称 443、结构字段申请 8443（语义矛盾降级）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-015",
+        "sources": [
+          {
+            "address": "203.0.113.5",
+            "description": "对外 API 网关"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库网关 8443"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 8443,
+            "end": 8443
+          }
+        ],
+        "request_description": "通过 HTTPS(443) 访问生产数据库网关端口 8443。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": "realistic_network/semantic/rn015_port_contradiction.v1.json",
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 8443,
+                "end": 8443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "fact_conflict",
+            "reason_code": "SEMANTIC_FACT_CONFLICT",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "SEMANTIC_FACT_CONFLICT"
+            ],
+            "primary_finding_code": "SEMANTIC_FACT_CONFLICT"
+          }
+        ],
+        "semantic_effect": "downgraded",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 8443,
+                "end": 8443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "fact_conflict",
+            "reason_code": "SEMANTIC_FACT_CONFLICT",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "SEMANTIC_FACT_CONFLICT"
+            ],
+            "primary_finding_code": "SEMANTIC_FACT_CONFLICT"
+          }
+        ],
+        "semantic_effect": "downgraded",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "矛盾证据必须绑定受控声明字段，guard 之外不得降级"
+      ]
+    },
+    {
+      "id": "RN-016",
+      "title": "描述含伪造规则编号（prompt injection 防护）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-016",
+        "sources": [
+          {
+            "address": "192.0.2.5",
+            "description": "办公终端 PC-101"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "申请描述引用了不存在的规则 RN-XX-999。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": "realistic_network/semantic/rn016_fabricated_rule.v1.json",
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001",
+              "LLM_SEMANTIC_ANALYSIS_FAILURE"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          }
+        ],
+        "semantic_effect": "semantic_failure",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 0
+        },
+        "llm_text": {
+          "presence": "absent",
+          "fallback": true
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001",
+              "LLM_SEMANTIC_ANALYSIS_FAILURE"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          }
+        ],
+        "semantic_effect": "semantic_failure",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 0
+        },
+        "llm_text": {
+          "presence": "absent",
+          "fallback": true
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "伪造规则 id 触发 guard 整体 fail-close，explanation 不调用",
+        "确定性规则结论不被 LLM 失败覆盖"
+      ]
+    },
+    {
+      "id": "RN-017",
+      "title": "描述缺少业务目的（仅提问/影子观察）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-017",
+        "sources": [
+          {
+            "address": "203.0.113.5",
+            "description": "对外 API 网关"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "业务系统访问。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "shadow",
+        "fail_stage": null,
+        "semantic_fixture": "realistic_network/semantic/rn017_missing_purpose.v1.json",
+        "request_finding_fixture": "realistic_network/request_findings/rn017_request_finding.v1.json",
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "question_only",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 1,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": {
+          "status": "completed",
+          "finding_count": 1
+        }
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "question_only",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 1,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": {
+          "status": "completed",
+          "finding_count": 1
+        }
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "missing information 只能提问，不改变合规结论",
+        "request findings 影子不影响裁决"
+      ]
+    },
+    {
+      "id": "RN-018",
+      "title": "相同 request id 相同输入重放（幂等缓存）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-018",
+        "sources": [
+          {
+            "address": "203.0.113.5",
+            "description": "对外 API 网关"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "幂等重放：相同请求重复提交。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "重放返回缓存且不增加 network/LLM 调用"
+      ],
+      "replay": {
+        "mode": "same"
+      }
+    },
+    {
+      "id": "RN-019",
+      "title": "相同 request id 不同输入（幂等冲突 409）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-019",
+        "sources": [
+          {
+            "address": "203.0.113.5",
+            "description": "对外 API 网关"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "幂等冲突：第二次提交修改描述。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "冲突返回 409 idempotency_conflict 且不增加 provider 调用"
+      ],
+      "replay": {
+        "mode": "conflict"
+      }
+    },
+    {
+      "id": "RN-020",
+      "title": "接近 max_items 上限（恰好 6 item 成功）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-020",
+        "sources": [
+          {
+            "address": "192.0.2.11",
+            "description": "应用服务 A"
+          },
+          {
+            "address": "192.0.2.12",
+            "description": "应用服务 B"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 5432,
+            "end": 5432
+          },
+          {
+            "start": 5433,
+            "end": 5433
+          },
+          {
+            "start": 5434,
+            "end": 5434
+          }
+        ],
+        "request_description": "贴近评估上限的多组合申请。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.11/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 2,
+            "access": {
+              "source": "192.0.2.11/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5433,
+                "end": 5433
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 3,
+            "access": {
+              "source": "192.0.2.11/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5434,
+                "end": 5434
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 4,
+            "access": {
+              "source": "192.0.2.12/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 5,
+            "access": {
+              "source": "192.0.2.12/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5433,
+                "end": 5433
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 6,
+            "access": {
+              "source": "192.0.2.12/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5434,
+                "end": 5434
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.11/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 2,
+            "access": {
+              "source": "192.0.2.11/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5433,
+                "end": 5433
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 3,
+            "access": {
+              "source": "192.0.2.11/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5434,
+                "end": 5434
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 4,
+            "access": {
+              "source": "192.0.2.12/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 5,
+            "access": {
+              "source": "192.0.2.12/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5433,
+                "end": 5433
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          },
+          {
+            "index": 6,
+            "access": {
+              "source": "192.0.2.12/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5434,
+                "end": 5434
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "上限内成功且 LLM 仍为整申请两次调用"
+      ],
+      "settings_overrides": {
+        "max_evaluation_items": 6
+      }
+    },
+    {
+      "id": "RN-027",
+      "title": "超过 max_items 上限（422 且不触发 LLM）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-027",
+        "sources": [
+          {
+            "address": "192.0.2.11",
+            "description": "应用服务 A"
+          },
+          {
+            "address": "192.0.2.12",
+            "description": "应用服务 B"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 5432,
+            "end": 5432
+          },
+          {
+            "start": 5433,
+            "end": 5433
+          },
+          {
+            "start": 5434,
+            "end": 5434
+          }
+        ],
+        "request_description": "贴近评估上限的多组合申请。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 422,
+        "decision": null,
+        "error_code": "EVALUATION_ITEM_LIMIT_EXCEEDED",
+        "items": [],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 0,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 0
+        },
+        "llm_text": null,
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 422,
+        "decision": null,
+        "error_code": "EVALUATION_ITEM_LIMIT_EXCEEDED",
+        "items": [],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 0,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 0
+        },
+        "llm_text": null,
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "超限时 422，semantic/explanation 均不调用"
+      ],
+      "settings_overrides": {
+        "max_evaluation_items": 5
+      }
+    },
+    {
+      "id": "RN-028",
+      "title": "超过 query subnet 上限（422 且不触发 LLM）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-028",
+        "sources": [
+          {
+            "address": "192.0.2.5",
+            "description": "办公终端 PC-101"
+          },
+          {
+            "address": "203.0.113.5",
+            "description": "对外 API 网关"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "一次申请跨三个 /24 查询网段。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 422,
+        "decision": null,
+        "error_code": "NETWORK_PLAN_QUERY_LIMIT_EXCEEDED",
+        "items": [],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 0,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 0
+        },
+        "llm_text": null,
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 422,
+        "decision": null,
+        "error_code": "NETWORK_PLAN_QUERY_LIMIT_EXCEEDED",
+        "items": [],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 0,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 0
+        },
+        "llm_text": null,
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "查询网段超限 422，provider 调用为零"
+      ],
+      "settings_overrides": {
+        "network_plan_max_subnets": 2
+      }
+    },
+    {
+      "id": "RN-021",
+      "title": "中英文与特殊字符混合描述（schema 与审计稳定）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-021",
+        "sources": [
+          {
+            "address": "203.0.113.5",
+            "description": "DMZ 网关 (gateway-01)"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.10",
+            "description": "生产应用 Prod-App #1"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "混合描述 mixed 描述 ✅ token=TEST-PLACEHOLDER-NOT-REAL password=FAKE-EXAMPLE-VALUE"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": "realistic_network/semantic/rn021_unicode_claim.v1.json",
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "Unicode 描述下响应 schema 与 item id 稳定",
+        "测试占位符 token/password 不得进入结构化输出"
+      ]
+    },
+    {
+      "id": "RN-022",
+      "title": "两条规则同时命中（优先级与稳定顺序）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-022",
+        "sources": [
+          {
+            "address": "192.0.2.5",
+            "description": "办公终端 PC-101"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 23,
+            "end": 23
+          }
+        ],
+        "request_description": "办公终端使用 Telnet 访问生产数据库（双规则命中）。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 23,
+                "end": 23
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-TELNET-001",
+            "matched_rule_ids": [
+              "RN-TELNET-001",
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-TELNET-001",
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-TELNET-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 23,
+                "end": 23
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-TELNET-001",
+            "matched_rule_ids": [
+              "RN-TELNET-001",
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-TELNET-001",
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-TELNET-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "primary 稳定为规则包序中先命中者，secondary 不覆盖"
+      ]
+    },
+    {
+      "id": "RN-023",
+      "title": "semantic provider 失败（全 item fail-close）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-023",
+        "sources": [
+          {
+            "address": "203.0.113.5",
+            "description": "对外 API 网关"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "语义分析依赖故障场景。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": "semantic",
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "dependency_failure",
+            "reason_code": "LLM_SEMANTIC_ANALYSIS_FAILURE",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "LLM_SEMANTIC_ANALYSIS_FAILURE"
+            ],
+            "primary_finding_code": "LLM_SEMANTIC_ANALYSIS_FAILURE"
+          }
+        ],
+        "semantic_effect": "semantic_failure",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 0
+        },
+        "llm_text": {
+          "presence": "absent",
+          "fallback": true
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.10/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "dependency_failure",
+            "reason_code": "LLM_SEMANTIC_ANALYSIS_FAILURE",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "LLM_SEMANTIC_ANALYSIS_FAILURE"
+            ],
+            "primary_finding_code": "LLM_SEMANTIC_ANALYSIS_FAILURE"
+          }
+        ],
+        "semantic_effect": "semantic_failure",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 0
+        },
+        "llm_text": {
+          "presence": "absent",
+          "fallback": true
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "semantic 失败时全 item fail-close 且 explanation 不调用"
+      ]
+    },
+    {
+      "id": "RN-024",
+      "title": "explanation 输出越权（guard 拒绝 + 模板回退）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-024",
+        "sources": [
+          {
+            "address": "192.0.2.5",
+            "description": "办公终端 PC-101"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 5432,
+            "end": 5432
+          }
+        ],
+        "request_description": "解释越权场景申请。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": "realistic_network/explanation/rn024_overreach.v1.json",
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "absent",
+          "fallback": true
+        },
+        "request_findings": null
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "absent",
+          "fallback": true
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）"
+      ],
+      "invariants": [
+        "explanation guard 拒绝越权引用并回退模板，锁定结论不变"
+      ]
+    },
+    {
+      "id": "RN-029",
+      "title": "ACL advisory 依赖失败（决策不受 ACL 影响）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-029",
+        "sources": [
+          {
+            "address": "203.0.113.5",
+            "description": "对外 API 网关"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 5432,
+            "end": 5432
+          }
+        ],
+        "request_description": "ACL 退场迁移取证申请（DMZ 到生产数据库）。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": "realistic/dependency_error.v1.json",
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null,
+        "acl": {
+          "acl_analysis_present": true,
+          "verification_status": [
+            "unverified"
+          ],
+          "acl_candidate_calls": 0,
+          "acl_candidate_analysis_present": false,
+          "acl_candidate_item_status": []
+        }
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）",
+        "ACL 依赖异常不再写入 exceptions/verification_status；决策保持合规（无决策漂移）"
+      ],
+      "invariants": [
+        "advisory 模式下 ACL 依赖失败不产生 finding"
+      ]
+    },
+    {
+      "id": "RN-030",
+      "title": "ACL required 依赖失败（待定 -> 合规）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-030",
+        "sources": [
+          {
+            "address": "203.0.113.5",
+            "description": "对外 API 网关"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 5432,
+            "end": 5432
+          }
+        ],
+        "request_description": "ACL 退场迁移取证申请（DMZ 到生产数据库）。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": "realistic/dependency_error.v1.json",
+        "acl_decision_mode": "required",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "dependency_failure",
+            "reason_code": "ACL_DEPENDENCY_FAILURE",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "ACL_DEPENDENCY_FAILURE",
+              "ACL_FIREWALL_UNRESOLVED"
+            ],
+            "primary_finding_code": "ACL_DEPENDENCY_FAILURE"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null,
+        "acl": {
+          "acl_analysis_present": true,
+          "verification_status": [
+            "unverified"
+          ],
+          "acl_candidate_calls": 0,
+          "acl_candidate_analysis_present": false,
+          "acl_candidate_item_status": []
+        }
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）",
+        "已批准决策漂移：ACL_DEPENDENCY_FAILURE 删除后，无其他 finding 的申请由待定变为合规"
+      ],
+      "invariants": [
+        "legacy primary 为 ACL_DEPENDENCY_FAILURE",
+        "target 决策仅由 network/rule/semantic 决定"
+      ]
+    },
+    {
+      "id": "RN-031",
+      "title": "ACL 明确无路径（ACL-PATH-001 退场）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-031",
+        "sources": [
+          {
+            "address": "203.0.113.5",
+            "description": "对外 API 网关"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 5432,
+            "end": 5432
+          }
+        ],
+        "request_description": "ACL 退场迁移取证申请（DMZ 到生产数据库）。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": "realistic/explicit_no_path.v1.json",
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "acl_no_path",
+            "reason_code": "ACL-PATH-001",
+            "matched_rule_ids": [
+              "ACL-PATH-001"
+            ],
+            "finding_codes": [
+              "ACL-PATH-001"
+            ],
+            "primary_finding_code": "ACL-PATH-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null,
+        "acl": {
+          "acl_analysis_present": true,
+          "verification_status": [
+            "review_required"
+          ],
+          "acl_candidate_calls": 0,
+          "acl_candidate_analysis_present": false,
+          "acl_candidate_item_status": []
+        }
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）",
+        "已批准决策漂移：ACL-PATH-001 与 acl_no_path 删除后该申请变为合规；不得由 semantic 仿造同一结论"
+      ],
+      "invariants": [
+        "legacy matched_rules 注入 ACL-PATH-001",
+        "target matched_rules 不含 ACL 规则"
+      ]
+    },
+    {
+      "id": "RN-032",
+      "title": "ACL 候选分析歧义（ACL_FACT_AMBIGUOUS 退场）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-032",
+        "sources": [
+          {
+            "address": "203.0.113.5",
+            "description": "对外 API 网关"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 5432,
+            "end": 5432
+          }
+        ],
+        "request_description": "ACL 退场迁移取证申请（DMZ 到生产数据库）。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": "realistic/ambiguous.v1.json",
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "fact_conflict",
+            "reason_code": "ACL_FACT_AMBIGUOUS",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "ACL_FACT_AMBIGUOUS"
+            ],
+            "primary_finding_code": "ACL_FACT_AMBIGUOUS"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null,
+        "acl": {
+          "acl_analysis_present": true,
+          "verification_status": [
+            "review_required"
+          ],
+          "acl_candidate_calls": 0,
+          "acl_candidate_analysis_present": false,
+          "acl_candidate_item_status": []
+        }
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）",
+        "已批准决策漂移：ACL 歧义 finding 删除后该申请变为合规"
+      ],
+      "invariants": [
+        "legacy primary 为 ACL_FACT_AMBIGUOUS"
+      ]
+    },
+    {
+      "id": "RN-033",
+      "title": "ACL 观察端口与申请端口不一致（ACL_PORT_MISMATCH 退场）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-033",
+        "sources": [
+          {
+            "address": "203.0.113.5",
+            "description": "对外 API 网关"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "ACL 退场迁移取证申请（DMZ 到生产数据库）。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": "realistic/port_mismatch.v1.json",
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "fact_conflict",
+            "reason_code": "ACL_PORT_MISMATCH",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "ACL_PORT_MISMATCH"
+            ],
+            "primary_finding_code": "ACL_PORT_MISMATCH"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null,
+        "acl": {
+          "acl_analysis_present": true,
+          "verification_status": [
+            "review_required"
+          ],
+          "acl_candidate_calls": 0,
+          "acl_candidate_analysis_present": false,
+          "acl_candidate_item_status": []
+        }
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）",
+        "已批准决策漂移：ACL_PORT_MISMATCH 删除后该申请变为合规；描述文本与结构化输入的矛盾由独立 semantic guard 处理（RN-015）"
+      ],
+      "invariants": [
+        "legacy primary 为 ACL_PORT_MISMATCH"
+      ]
+    },
+    {
+      "id": "RN-034",
+      "title": "ACL 未确认候选防火墙（ACL_FIREWALL_UNRESOLVED 退场）",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-034",
+        "sources": [
+          {
+            "address": "203.0.113.5",
+            "description": "对外 API 网关"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 5432,
+            "end": 5432
+          }
+        ],
+        "request_description": "ACL 退场迁移取证申请（DMZ 到生产数据库）。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": "realistic/no_firewall.v1.json",
+        "acl_decision_mode": "required",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": null,
+        "acl_candidate_mode": "off"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "待定",
+            "reason_type": "fact_incomplete",
+            "reason_code": "ACL_FIREWALL_UNRESOLVED",
+            "matched_rule_ids": [],
+            "finding_codes": [
+              "ACL_FIREWALL_UNRESOLVED"
+            ],
+            "primary_finding_code": "ACL_FIREWALL_UNRESOLVED"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null,
+        "acl": {
+          "acl_analysis_present": true,
+          "verification_status": [
+            "unverified"
+          ],
+          "acl_candidate_calls": 0,
+          "acl_candidate_analysis_present": false,
+          "acl_candidate_item_status": []
+        }
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "203.0.113.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 5432,
+                "end": 5432
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": [],
+            "finding_codes": [],
+            "primary_finding_code": null
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）",
+        "已批准决策漂移：ACL_FIREWALL_UNRESOLVED 删除后该申请变为合规；不再产生 verification status"
+      ],
+      "invariants": [
+        "legacy primary 为 ACL_FIREWALL_UNRESOLVED"
+      ]
+    },
+    {
+      "id": "RN-035",
+      "title": "ACL candidate shadow 整体退场",
+      "category": "realistic_network",
+      "request": {
+        "request_id": "rn-035",
+        "sources": [
+          {
+            "address": "192.0.2.5",
+            "description": "办公终端 PC-101"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "198.51.100.60",
+            "description": "生产数据库 DB-01"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "ACL candidate shadow 取证申请。"
+      },
+      "dependency_profile": {
+        "network_plan_fixture": "realistic/main.v1.json",
+        "acl_fixture": null,
+        "acl_decision_mode": "advisory",
+        "acl_deterministic_pending_mode": "analyze"
+      },
+      "llm_profile": {
+        "request_findings_mode": "off",
+        "fail_stage": null,
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": null,
+        "acl_candidate_fixture": "realistic_network/acl_candidates/rn035_shadow.v1.json",
+        "acl_candidate_mode": "shadow"
+      },
+      "legacy_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 1,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null,
+        "acl": {
+          "acl_analysis_present": true,
+          "verification_status": [
+            "verified"
+          ],
+          "acl_candidate_calls": 1,
+          "acl_candidate_analysis_present": true,
+          "acl_candidate_item_status": [
+            "agree"
+          ]
+        }
+      },
+      "target_expected": {
+        "http_status": 200,
+        "decision": "待定",
+        "error_code": null,
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "192.0.2.5/32",
+              "destination": "198.51.100.60/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "待定",
+            "reason_type": "policy_violation",
+            "reason_code": "RN-OFFICE-PROD-001",
+            "matched_rule_ids": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "finding_codes": [
+              "RN-OFFICE-PROD-001"
+            ],
+            "primary_finding_code": "RN-OFFICE-PROD-001"
+          }
+        ],
+        "semantic_effect": "unchanged",
+        "llm_calls": {
+          "semantic": 1,
+          "acl_candidates": 0,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        },
+        "request_findings": null
+      },
+      "approved_differences": [
+        "响应不再包含 acl_analysis / acl_candidate_analysis / item 级 acl_verification_status（已批准的 breaking API 变更）",
+        "已批准变更：ACL candidate shadow LLM 能力与 acl_candidate_analysis 字段整体删除，legacy 下 acl_candidates 调用 1 次而 target 为 0"
+      ],
+      "invariants": [
+        "决策在两个契约下均为确定性规则待定，shadow 从不影响裁决"
+      ]
+    }
+  ]
+}

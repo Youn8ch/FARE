@@ -1,0 +1,8 @@
+{
+  "fixture_version": "2026.09.0",
+  "purpose": "realistic ACL 观察端口与申请端口不一致（观察 8080，申请 443）",
+  "default": {
+    "analysis": "候选路径经过防火墙 FW-RN-01：端口 8080。",
+    "config": ""
+  }
+}

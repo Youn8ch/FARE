@@ -1,0 +1,31 @@
+{
+  "fixture_version": "2026.09.0",
+  "purpose": "RN-017 申请级发现影子分析：缺少审批上下文（仅观察，不改变结论）",
+  "request_findings": {
+    "analyzed_item_ids": [
+      "@item:1"
+    ],
+    "findings": [
+      {
+        "finding_id": "rn017-finding-1",
+        "finding_type": "missing_approval_context",
+        "type": "missing_approval_context",
+        "affected_item_ids": [
+          "@item:1"
+        ],
+        "description": "申请缺少审批上下文。",
+        "evidence": [
+          {
+            "item_id": "@item:1",
+            "source": "request_description",
+            "quote": "业务系统访问"
+          }
+        ],
+        "confidence": 0.8,
+        "status": "candidate",
+        "question": "请提供本次访问的审批单号。",
+        "question_for_requester": "请提供本次访问的审批单号。"
+      }
+    ]
+  }
+}

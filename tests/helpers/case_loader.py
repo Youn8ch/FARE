@@ -7,13 +7,14 @@ from pathlib import Path
 from typing import Any
 
 from app.services.catalog import NetworkCatalog
-from tests.case_schema import CaseSuite, EvaluationCase
+from tests.case_schema import CaseSuite, EvaluationCase, RealisticSuite
 
 TEST_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = TEST_ROOT.parent
 FIXTURE_ROOT = TEST_ROOT / "fixtures"
 LLM_FIXTURE_ROOT = FIXTURE_ROOT / "llm"
 POLICY_ROOTS = (REPO_ROOT / "policies", FIXTURE_ROOT / "policies")
+REALISTIC_POLICY_DIR = FIXTURE_ROOT / "policies" / "realistic_network"
 SYMBOL_PATTERN = re.compile(r"@item:([1-9][0-9]*)\Z")
 SYMBOL_FIELDS = {"scope", "item_id"}
 SYMBOL_LIST_FIELDS = {"analyzed_item_ids", "affected_item_ids"}
@@ -180,3 +181,36 @@ def _read_json(path: Path) -> dict[str, Any]:
 def _validate_fixture_metadata(value: dict[str, Any], path: Path) -> None:
     if not value.get("fixture_version") or not value.get("purpose"):
         raise ValueError(f"v2 fixture is missing version or purpose: {path}")
+
+
+def load_realistic_suite(path: Path) -> RealisticSuite:
+    document = json.loads(path.read_text(encoding="utf-8"))
+    return RealisticSuite.model_validate(document)
+
+
+def realistic_item_ids(request_id: str, sources: int, destinations: int, ports: int) -> list[str]:
+    """Production item ids for single-/24 addresses: sources x destinations x ports."""
+
+    count = sources * destinations * ports
+    return [f"{request_id}-{index:03d}" for index in range(1, count + 1)]
+
+
+def prepare_realistic_llm_fixtures(
+    profile, item_ids: list[str]
+) -> dict[str, dict[str, Any]]:
+    """Resolve one case's LLM fixtures; profile is RealisticLlmProfile."""
+
+    resolved: dict[str, dict[str, Any]] = {}
+    for stage, relative in (
+        ("semantic", profile.semantic_fixture),
+        ("acl_candidates", profile.acl_candidate_fixture),
+        ("request_findings", profile.request_finding_fixture),
+        ("explanation", profile.explanation_fixture),
+    ):
+        if relative is None:
+            continue
+        fixture_path = _safe_path(LLM_FIXTURE_ROOT, relative)
+        document = _read_json(fixture_path)
+        _validate_fixture_metadata(document, fixture_path)
+        resolved[stage] = resolve_item_symbols(document, item_ids)
+    return resolved

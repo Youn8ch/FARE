@@ -68,3 +68,55 @@ Categories:
 - [x] User files identified and untouched (only untracked file = plan doc itself)
 - [x] Baseline tests reproduced (577 passed / ruff clean / eval 5 passed)
 - [x] OpenAPI, ACL impact list archived
+
+---
+
+## PHASE-01: Realistic network request inputs designed and frozen first
+
+**Commit:** `test: add realistic network request scenarios`（见 git log）
+
+### What was added (test assets only; zero production behavior change)
+
+- `tests/cases/evaluations/realistic_network_requests.v1.json` — **35 frozen cases**
+  (RN-001..RN-024 core matrix + RN-025/026/027/028 failure/limit extensions +
+  RN-029..RN-035 ACL migration evidence cases), each with `legacy_expected`,
+  `target_expected`, `approved_differences[]`, `invariants[]`.
+- `tests/case_schema.py` — realistic.v1 model family appended (v2 models untouched).
+- `tests/helpers/case_loader.py` — `load_realistic_suite` / `prepare_realistic_llm_fixtures`
+  / `realistic_item_ids` (reuses v2 helpers; no second evaluation runner — the
+  suite drives the production runtime through the HTTP API).
+- `tests/test_realistic_network_requests.py` — runner with `ACTIVE_CONTRACT`
+  constant (`legacy` now; flips to `acl_free` in PHASE-03).
+- `tests/fixtures/network_plan/realistic/*.v1.json` — 9 mock profiles (7 zones +
+  5 failure shapes). **Documented deviation from the plan's /26 topology:** the
+  frozen transport queries at /24 granularity, so zone→/24 binding lives per
+  profile; rationale recorded in `docs/testing/REALISTIC_NETWORK_REQUEST_MATRIX.md` §2.
+- `tests/fixtures/policies/realistic_network/` — manifest 2026.09.0 + rules
+  (incl. loader-mandated ACL-PATH-001 placeholder, removed in PHASE-03) + catalog.
+- `tests/fixtures/acl/realistic/*.v1.json` — 6 ACL mock fixtures (legacy evidence only).
+- `tests/fixtures/llm/realistic_network/{semantic,request_findings,explanation,acl_candidates}/` — 10 LLM fixtures.
+- `docs/testing/REALISTIC_NETWORK_REQUEST_MATRIX.md` — full matrix + data-safety rules.
+
+### Test results
+
+| Command | Result |
+|---|---|
+| `pytest tests/test_realistic_network_requests.py -q` | **38 passed** (35 case runs + 3 metadata/safety tests) |
+| `pytest tests/test_evaluation_cases.py tests/test_v4_main_chain_acceptance.py -q` | **68 passed** |
+| full `pytest -q` | **615 passed** (577 baseline + 38), same deprecation warning |
+| `ruff check . --no-cache` | **All checks passed** |
+
+### Phase gate
+
+- [x] ≥24 scenarios in dataset (35)
+- [x] Every ACL-related historical scenario has explicit `approved_differences` (RN-029..035; enforced by test)
+- [x] `legacy_expected` evidence ran green against the pre-removal runtime
+- [x] Target assertions use no real ACL / real network; conftest blocks non-loopback sockets
+- [x] All mock catalog addresses are RFC 5737 documentation addresses (enforced by test)
+- [x] Case loader is the only data-driven entry; no duplicated evaluation logic
+
+### Notes / deviations
+
+- /26 zone topology → per-profile zone binding (frozen /24 query contract); documented.
+- RN-030 legacy evidence captured the real frozen behavior: required-mode ACL
+  dependency failure emits TWO findings (dependency + unresolved firewall).

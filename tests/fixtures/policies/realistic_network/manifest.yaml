@@ -1,0 +1,9 @@
+version: "2026.09.0"
+released_at: "2026-09-05"
+sources:
+  - id: RN-POLICY-2026
+    name: 模拟真实网络需求回归策略包（仅含虚构测试区域与文档保留地址）
+approvals:
+  - role: network-security-owner
+    approver: example-owner
+    approved_at: "2026-09-05"

@@ -1,0 +1,18 @@
+{
+  "fixture_version": "2026.09.0",
+  "purpose": "RN-017 描述缺少业务目的：missing information 仅提问，不改变合规结论",
+  "semantic": {
+    "analyzed_item_ids": [
+      "@item:1"
+    ],
+    "missing_information": [
+      {
+        "missing_id": "rn017-missing-1",
+        "item_id": "@item:1",
+        "field": "access_purpose",
+        "question": "请补充本次访问的业务目的。",
+        "impact": "question_only"
+      }
+    ]
+  }
+}
