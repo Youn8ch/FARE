@@ -175,6 +175,10 @@ llm:
 FARE 需要一次性接收并严格校验完整 JSON，因此 `stream` 固定为 `false`；配置为 `true`
 会在启动时被拒绝。
 
+认证头以配置为准：配置了 `api_key` 时每个请求发送
+`Authorization: Bearer <api_key>`；`api_key` 为空（no-auth 部署）时请求完全不携带
+`Authorization` 头。FARE 不会读取 `OPENAI_API_KEY` 或任何环境凭据/代理设置。
+
 ## 7. 配置校验
 
 配置加载器采用严格 Schema：

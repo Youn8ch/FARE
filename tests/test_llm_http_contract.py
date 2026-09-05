@@ -226,22 +226,72 @@ def test_http_transport_timeout_is_not_correction_retried() -> None:
     assert len(requests) == 1
 
 
+_NO_AUTH_ENV_SENTINEL = "ENV-SENTINEL-MUST-NOT-BE-USED"
+
+
+def _explanation_response_body() -> dict[str, Any]:
+    return {
+        "items": [
+            {
+                "item_id": "http-contract-001",
+                "explanation": "allowed by policy",
+                "recommendation": "no change",
+                "referenced_rule_ids": [],
+            }
+        ]
+    }
+
+
+def _request_findings_inputs() -> list[dict[str, Any]]:
+    return [
+        {
+            "item_id": "http-contract-001",
+            "request_description": "open a maintenance path",
+            "source_description": "ops bastion",
+            "destination_description": "db segment",
+            "access": {
+                "source": "bastion",
+                "destination": "db",
+                "protocol": "tcp",
+                "port": {"start": 3306, "end": 3306},
+            },
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    ("use_case", "response_body"),
+    [
+        ("semantic", {"analyzed_item_ids": ["http-contract-001"]}),
+        ("explanation", _explanation_response_body()),
+        ("request_findings", {"analyzed_item_ids": ["http-contract-001"]}),
+    ],
+)
 @pytest.mark.parametrize("api_key", [None, "SENTINEL_PROVIDER_KEY"])
 def test_http_request_auth_and_deterministic_parameters(
-    api_key: str | None, monkeypatch
+    use_case: str, response_body: dict[str, Any], api_key: str | None, monkeypatch
 ) -> None:
     # no-auth must never read environment credentials: poison the env var so
     # any implicit read would surface here.
-    monkeypatch.setenv("OPENAI_API_KEY", "ENV-SENTINEL-MUST-NOT-BE-USED")
+    monkeypatch.setenv("OPENAI_API_KEY", _NO_AUTH_ENV_SENTINEL)
     requests: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        return _completion(json.dumps({"analyzed_item_ids": ["http-contract-001"]}))
+        return _completion(json.dumps(response_body))
 
     client = _http_client(httpx.MockTransport(handler))
     client.api_key = api_key
-    asyncio.run(client.analyze(_semantic_payload()))
+    if use_case == "semantic":
+        asyncio.run(client.analyze(_semantic_payload()))
+    elif use_case == "explanation":
+        asyncio.run(client.explain({"request_id": "http-contract", "items": []}))
+    else:
+        asyncio.run(
+            client.analyze_request_findings(
+                _request_findings_inputs(), request_id="http-contract"
+            )
+        )
 
     request = requests[0]
     body = json.loads(request.content)
@@ -252,13 +302,12 @@ def test_http_request_auth_and_deterministic_parameters(
     if api_key:
         assert request.headers["Authorization"] == f"Bearer {api_key}"
     else:
-        # Approved SDK difference: the SDK client is constructed with an
-        # explicit placeholder credential (never the environment) so no-auth
-        # profiles send a constant placeholder instead of no header.
-        assert request.headers["Authorization"] == "Bearer no-auth"
-        assert "ENV-SENTINEL-MUST-NOT-BE-USED" not in request.headers.get(
-            "Authorization", ""
-        )
+        # Frozen contract restored: a no-auth profile sends no Authorization
+        # header at all (the SDK's public omit mechanism), and the internal
+        # SDK placeholder never reaches request, headers, body, or trace.
+        assert "Authorization" not in request.headers
+        assert "no-auth" not in request.content.decode()
+        assert _NO_AUTH_ENV_SENTINEL not in request.content.decode()
 
 
 def test_bigmodel_compatible_generation_parameters_are_forwarded_without_streaming() -> None:

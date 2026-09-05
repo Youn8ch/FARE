@@ -391,8 +391,13 @@ Categories:
 
 ### Approved SDK differences (parity audit result)
 
-1. no-auth 场景发送固定占位 `Authorization: Bearer no-auth`（SDK 拒绝无凭据
-   构造且不接受空串；显式占位保证绝不读取环境 key，poison-env 契约测试证明）。
+1. ~~no-auth 场景发送固定占位 `Authorization: Bearer no-auth`~~（已修复，
+   见 hardening 提交 `fix: preserve true no-auth provider contract`）：`api_key=None`
+   时通过 SDK 公开 `openai.omit` 在 per-call `extra_headers` 中显式省略
+   Authorization，no-auth 请求完全不携带该头；有 key 时发送
+   `Bearer <configured-key>`。占位 key 仅在进程内构造 SDK 使用，永不上线。
+   poison-env 契约测试证明环境凭据绝不读取；semantic / request findings /
+   explanation 三条路径均验证。
 2. system 消息的 JSON schema 指令由 Instructor 以其自有措辞注入
    （契约测试改为断言 schema 字段与指令存在，而非旧后缀原文）。
 3. SDK 自有无害 header（`x-stainless-*`、`accept-encoding` 等）。
@@ -605,9 +610,9 @@ git revert 4ec2bda   # PHASE-00（仅执行报告与留档）
    （错误信息指向未知键）。
 3. **审计 epoch**：跨 epoch 重放返回 409 `AUDIT_SCHEMA_MISMATCH`；需运维在
    升级时归档旧审计目录（新 runtime 已物理隔离旧库文件，不强制，但推荐）。
-4. **no-auth 占位头**：无凭据 profile 会发送 `Authorization: Bearer no-auth`
-   （SDK 拒绝无凭据构造且不接受空串）；对忽略认证头的 provider 无影响，已作为
-   批准的 SDK 差异记录并有 poison-env 契约测试保护（绝不读取环境凭据）。
+4. ~~**no-auth 占位头**~~（已修复，见 Approved SDK differences 第 1 条与
+   hardening 提交）：no-auth 请求不再携带任何 Authorization 头，严格 parity
+   已恢复并由 3×2 参数化契约测试冻结。
 5. **fastapi 0.141 OpenAPI 合成怪癖**：带 wrap serializer 的模型在
    /openapi.json 中生成退化空 properties（0.2.0 基线即如此，与本次变更无关）；
    字段级契约以 pydantic 模型 schema 与响应体契约测试为准。

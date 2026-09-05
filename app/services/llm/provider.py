@@ -8,10 +8,12 @@ The channel owns the ``AsyncOpenAI`` construction and the lifecycle-owned
   retry on connection errors, 408/409/429/5xx;
 - the HTTP client is built with ``trust_env=False`` so environment proxies
   and environment keys can never alter the settings-only contract;
-- ``api_key`` is supplied per call through ``extra_headers`` so no-auth
-  deployments never read environment credentials (the SDK client itself is
-  constructed with an explicit placeholder key, recorded as an approved,
-  harmless SDK header difference for no-auth profiles);
+- ``api_key`` is supplied per call through ``extra_headers``: a configured
+  key is sent as ``Authorization: Bearer <key>``, and no-auth deployments
+  explicitly omit the header with the SDK's public ``omit`` contract, so no
+  ``Authorization`` header ever leaves the process without a configured key
+  (the SDK client itself is constructed with an internal placeholder key
+  that never reaches the wire);
 - Instructor runs in the JSON-compatible mode (``Mode.JSON``) verified by the
   provider contract spike: schema-constrained JSON generation without
   assuming tools/JSON-Schema support from OpenAI-compatible providers.
@@ -24,7 +26,7 @@ from typing import Any
 
 import httpx
 import instructor
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, Omit, omit
 
 # FARE owns observability: instructor's internal retry logger emits raw
 # provider error bodies (which may echo secrets such as reflected keys).
@@ -32,10 +34,13 @@ from openai import AsyncOpenAI
 logging.getLogger("instructor").setLevel(logging.CRITICAL)
 
 # The OpenAI SDK refuses to construct without a credential and would fall
-# back to reading OPENAI_API_KEY from the environment; this explicit
-# placeholder keeps no-auth profiles environment-free. FARE overrides the
-# Authorization header per call when a real key is configured.
+# back to reading OPENAI_API_KEY from the environment; this internal
+# placeholder keeps no-auth profiles environment-free. It never reaches the
+# wire: every call overrides Authorization through ``auth_headers()``, which
+# omits the header entirely when no key is configured.
 NO_AUTH_PLACEHOLDER_KEY = "no-auth"
+
+AuthHeader = str | Omit
 
 
 class ProviderChannel:
@@ -70,12 +75,17 @@ class ProviderChannel:
     def available(self) -> bool:
         return self._http_client is not None
 
-    def auth_headers(self, api_key: str | None) -> dict[str, str]:
-        """Per-call credential override; the credential is read at call time."""
+    def auth_headers(self, api_key: str | None) -> dict[str, AuthHeader]:
+        """Per-call credential override; the credential is read at call time.
+
+        ``openai.omit`` (public SDK contract) removes the ``Authorization``
+        header entirely for no-auth profiles instead of letting the internal
+        placeholder key leak onto the wire.
+        """
 
         if api_key:
             return {"Authorization": f"Bearer {api_key}"}
-        return {}
+        return {"Authorization": omit}
 
     async def aclose(self) -> None:
         if self._http_client is not None and not self._http_client.is_closed:

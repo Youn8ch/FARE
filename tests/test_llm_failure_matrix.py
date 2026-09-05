@@ -140,12 +140,14 @@ def _evaluate_http(
     import instructor
     from openai import AsyncOpenAI
 
+    from app.services.llm.provider import NO_AUTH_PLACEHOLDER_KEY
+
     http_client = httpx.AsyncClient(
         transport=httpx.MockTransport(handler), trust_env=False
     )
     sdk = AsyncOpenAI(
         base_url="https://model.invalid/v1",
-        api_key="no-auth",
+        api_key=NO_AUTH_PLACEHOLDER_KEY,
         http_client=http_client,
         max_retries=0,
     )
