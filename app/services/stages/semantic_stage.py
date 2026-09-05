@@ -20,7 +20,7 @@ from app.services.finding_factory import (
     segment_status,
     semantic_stage_findings,
 )
-from app.services.llm_client import LlmClientProtocol, LlmDependencyError
+from app.services.llm import LlmClientProtocol, LlmDependencyError
 from app.services.output_guard import (
     SemanticGuardError,
     failed_semantic_analysis,

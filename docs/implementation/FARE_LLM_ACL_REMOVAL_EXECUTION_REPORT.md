@@ -314,3 +314,43 @@ Categories:
 - 旧配置含 `acl:` 键时启动失败——删除该节即可（错误信息指出未知键）。
 - 历史审计目录整体只读归档；新 runtime 使用 `fare-audit-v2.sqlite3`，
   不会读取或改写旧库；同 request_id 可直接重放，不受旧主键影响。
+
+---
+
+## PHASE-05: FARE LLM boundary split (behavior-identical)
+
+**Commit:** `refactor: split fare llm contracts and adapters`（见 git log）
+
+### New package `app/services/llm/`
+
+| 模块 | 职责 | 所有权 |
+|---|---|---|
+| `ports.py` | Semantic / RequestFindings / Explanation 协议 | FARE |
+| `contracts.py` | LLM DTO 导出面 + `LlmStrictModel`（extra=forbid, strict=True 配方） | FARE |
+| `prompts.py` | prompt 文本与 PROMPT_VERSIONS（逐字节等价迁移） | FARE |
+| `errors.py` | typed taxonomy：FareLlmError → ProviderFailure / TimeoutFailure / StructuredOutputFailure / DomainValidationFailure / SemanticPolicyFailure；业务面 `LlmDependencyError` 语义冻结 | FARE |
+| `provider.py` | httpx 通道生命周期（trust_env=False、无自动重试、api_key 逐调用读取） | Provider boundary |
+| `structured_runtime.py` | 有界结构校验/correction loop，单一总 deadline 覆盖全部 attempt | FARE |
+| `adapter.py` | 三个用例端口实现 + 错误翻译 + guard 调用点 | FARE |
+| `telemetry.py` | ContextVar 完成轨迹（per-adapter，无全局可变 hook） | FARE |
+| `mock_adapter.py` | 离线确定性适配器（不经任何第三方 runtime） | Test adapter |
+
+- `app/services/llm_client.py` 变为纯 re-export 兼容 facade；stage/evaluator/
+  main 改为直接 `from app.services.llm import ...`。
+- 错误消息不携带原始 provider 响应或 prompt 全文（gate 测试断言长度与字段）。
+- `SemanticPolicyFailure` 仅用于启动/编程错误（文档化于 errors.py）。
+
+### Invariants verified (zero behavior change)
+
+- HTTP request body 逐字段一致（`test_llm_http_contract.py` 21 passed，含
+  auth/参数/429/500/timeout/correction/total-deadline 契约）。
+- prompt version、调用顺序、调用次数一致；realistic suite 零差异。
+- mock adapter 不经第三方 runtime；guard 仍在 FARE stage/adapter 调用点。
+- 无循环依赖；stage 只依赖 ports。
+
+### Test results
+
+| Command | Result |
+|---|---|
+| full `pytest -q` | **553 passed** (+2 PHASE-05 gate tests) |
+| `ruff check . --no-cache` | **All checks passed** |

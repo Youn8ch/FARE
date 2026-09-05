@@ -201,3 +201,63 @@ def test_semantic_payload_prompt_versions_and_metrics_carry_no_removed_stage(
         "request_findings",
         "explanation",
     }
+
+
+def test_llm_boundary_is_split_into_fare_owned_modules() -> None:
+    """PHASE-05 gate: the LLM boundary lives in app/services/llm/ with FARE
+    ownership of ports/prompts/errors/telemetry; stages import only the
+    ports, and the old client module is a pure re-export facade."""
+
+    llm_dir = APP_ROOT / "services" / "llm"
+    for module in (
+        "__init__.py",
+        "ports.py",
+        "contracts.py",
+        "prompts.py",
+        "errors.py",
+        "provider.py",
+        "structured_runtime.py",
+        "adapter.py",
+        "telemetry.py",
+        "mock_adapter.py",
+    ):
+        assert (llm_dir / module).is_file(), module
+
+    for stage in ("semantic_stage.py", "post_decision_stage.py"):
+        source = (APP_ROOT / "services" / "stages" / stage).read_text(encoding="utf-8")
+        assert "from app.services.llm import" in source
+        assert "from app.services.llm_client" not in source
+
+    facade = (APP_ROOT / "services" / "llm_client.py").read_text(encoding="utf-8")
+    assert "class LlmClient" not in facade
+
+    taxonomy = (llm_dir / "errors.py").read_text(encoding="utf-8")
+    for cls in (
+        "class FareLlmError",
+        "class ProviderFailure",
+        "class TimeoutFailure",
+        "class StructuredOutputFailure",
+        "class DomainValidationFailure",
+        "class SemanticPolicyFailure",
+    ):
+        assert cls in taxonomy, cls
+
+
+def test_llm_error_messages_do_not_embed_provider_payloads(settings) -> None:
+    """PHASE-05 gate: typed failures carry bounded summaries, never raw
+    provider responses or prompts."""
+
+    from app.services.llm import StructuredOutputFailure, TimeoutFailure
+
+    failure = StructuredOutputFailure(
+        "LLM response failed schema validation after allowed correction",
+        attempts=3,
+        validation_summary="root: Field required; rejected input={...}",
+    )
+    assert len(str(failure)) < 200
+    assert failure.attempts == 3
+    timeout = TimeoutFailure(
+        "LLM dependency request failed", deadline_seconds=10.0, attempts=2
+    )
+    assert timeout.deadline_seconds == 10.0
+    assert timeout.attempts == 2

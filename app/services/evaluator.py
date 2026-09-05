@@ -22,7 +22,7 @@ from app.schemas import (
 )
 from app.services.decision_reducer import DecisionReducer
 from app.services.evaluation_types import EvaluationItemContext
-from app.services.llm_client import LlmClientProtocol
+from app.services.llm import LlmClientProtocol
 from app.services.network_plan_resolver import (
     EvaluationItemLimitError,
     NetworkPlanResolution,

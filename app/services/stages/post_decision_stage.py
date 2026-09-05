@@ -21,7 +21,7 @@ from app.services.explanation_guard import (
     ExplanationGuardError,
     guard_explanation_output,
 )
-from app.services.llm_client import (
+from app.services.llm import (
     LlmClientProtocol,
     LlmDependencyError,
     LlmRequestFindingsClientProtocol,

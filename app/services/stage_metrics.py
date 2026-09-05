@@ -10,7 +10,7 @@ from time import perf_counter
 from typing import Any
 
 from app.schemas import EvaluationItem
-from app.services.llm_client import LlmClientProtocol
+from app.services.llm import LlmClientProtocol
 
 
 def llm_metadata(client: LlmClientProtocol, policy_version: str) -> dict[str, Any]:

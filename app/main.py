@@ -18,7 +18,7 @@ from app.services.audit import (
 )
 from app.services.catalog import NetworkCatalog
 from app.services.evaluator import Evaluator
-from app.services.llm_client import LlmClient
+from app.services.llm import LlmClient
 from app.services.network_fact_provider import (
     HttpNetworkFactProvider,
     MockNetworkFactProvider,
