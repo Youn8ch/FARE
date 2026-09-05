@@ -277,7 +277,7 @@ def test_resolved_conversion_preserves_provider_metadata(settings: Settings) -> 
 
 def test_case01_api_baseline_unchanged(settings: Settings) -> None:
     with TestClient(create_app(_mock_chain(settings))) as client:
-        response = client.post("/v1/evaluations", json=_payload("ac01-api-case-01"))
+        response = client.post("/v2/evaluations", json=_payload("ac01-api-case-01"))
     assert response.status_code == 200
     body = response.json()
     item = body["items"][0]

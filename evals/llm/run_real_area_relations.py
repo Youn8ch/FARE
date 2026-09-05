@@ -35,7 +35,6 @@ def build_config(pattern: str) -> FareConfig:
         llm_semantic_timeout_seconds=real.settings.llm_semantic_timeout_seconds,
         llm_explanation_timeout_seconds=real.settings.llm_explanation_timeout_seconds,
         llm_max_correction_retries=real.settings.llm_max_correction_retries,
-        llm_acl_candidate_mode="shadow",
         llm_request_findings_mode="shadow",
         llm_temperature=0,
         llm_max_tokens=real.settings.llm_max_tokens,

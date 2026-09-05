@@ -1,27 +1,18 @@
+# 候选路径占位规则已随 0.3.0 能力移除（2026-09）。
 rules:
-  - id: INVALID-UNKNOWN-CONDITION-001
-    name: 包含拼写错误条件的规则
-    description: 验证未知 when 字段导致启动失败
-    category: zone_relation
-    decision: 待定
-    reason_type: policy_violation
-    when:
-      source_area_id: 本部办公区
-      destination_platfrom_name: 核心数据库平台
-    semantic_keywords: [非法条件]
-    evidence_requirements: [source_area_id]
-    reason_template: 不应加载。
-    recommendation: 修正规则字段。
-    remediation_template: 修正规则字段。
-  - id: ACL-PATH-001
-    name: 未找到途径防火墙
-    description: 必需系统规则
-    category: least_privilege
-    decision: 待定
-    reason_type: acl_no_path
-    when: {explicit_no_path: true}
-    semantic_keywords: []
-    evidence_requirements: [acl_explicit_no_path]
-    reason_template: 未找到候选防火墙。
-    recommendation: 人工复核。
-    remediation_template: 人工复核。
+- id: INVALID-UNKNOWN-CONDITION-001
+  name: 包含拼写错误条件的规则
+  description: 验证未知 when 字段导致启动失败
+  category: zone_relation
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    source_area_id: 本部办公区
+    destination_platfrom_name: 核心数据库平台
+  semantic_keywords:
+  - 非法条件
+  evidence_requirements:
+  - source_area_id
+  reason_template: 不应加载。
+  recommendation: 修正规则字段。
+  remediation_template: 修正规则字段。

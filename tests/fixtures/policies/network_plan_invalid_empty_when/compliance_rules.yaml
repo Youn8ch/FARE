@@ -1,25 +1,15 @@
+# 候选路径占位规则已随 0.3.0 能力移除（2026-09）。
 rules:
-  - id: INVALID-EMPTY-WHEN-001
-    name: 条件为空的区域规则
-    description: 验证空 when 不会扩大匹配范围
-    category: zone_relation
-    decision: 待定
-    reason_type: policy_violation
-    when: {}
-    semantic_keywords: [非法条件]
-    evidence_requirements: []
-    reason_template: 不应加载。
-    recommendation: 补充有效条件。
-    remediation_template: 补充有效条件。
-  - id: ACL-PATH-001
-    name: 未找到途径防火墙
-    description: 必需系统规则
-    category: least_privilege
-    decision: 待定
-    reason_type: acl_no_path
-    when: {explicit_no_path: true}
-    semantic_keywords: []
-    evidence_requirements: [acl_explicit_no_path]
-    reason_template: 未找到候选防火墙。
-    recommendation: 人工复核。
-    remediation_template: 人工复核。
+- id: INVALID-EMPTY-WHEN-001
+  name: 条件为空的区域规则
+  description: 验证空 when 不会扩大匹配范围
+  category: zone_relation
+  decision: 待定
+  reason_type: policy_violation
+  when: {}
+  semantic_keywords:
+  - 非法条件
+  evidence_requirements: []
+  reason_template: 不应加载。
+  recommendation: 补充有效条件。
+  remediation_template: 补充有效条件。

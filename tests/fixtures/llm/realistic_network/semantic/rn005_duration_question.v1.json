@@ -1,0 +1,18 @@
+{
+  "fixture_version": "2026.09.0",
+  "purpose": "RN-005 运维特权访问缺少结束时间，missing information 仅进入提问通道",
+  "semantic": {
+    "analyzed_item_ids": [
+      "@item:1"
+    ],
+    "missing_information": [
+      {
+        "missing_id": "rn005-missing-1",
+        "item_id": "@item:1",
+        "field": "requested_duration",
+        "question": "请提供本次巡检访问的结束时间。",
+        "impact": "question_only"
+      }
+    ]
+  }
+}

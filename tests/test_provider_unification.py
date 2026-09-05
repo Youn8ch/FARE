@@ -76,7 +76,6 @@ def _keys(item: dict) -> dict:
         "destination_network_fact_status": item["destination_network_fact_status"],
         "source_network_fact_ids": item["source_network_fact_ids"],
         "destination_network_fact_ids": item["destination_network_fact_ids"],
-        "acl_verification_status": item["acl_verification_status"],
         "semantic_effect": item["decision_trace"]["semantic_effect"],
         "final_decision": item["decision_trace"]["final_decision"],
     }
@@ -109,7 +108,7 @@ def test_mock_and_offline_produce_identical_items_for_equivalent_facts(
 
 
 def _run(client: TestClient, payload: dict):
-    response = client.post("/v1/evaluations", json=payload)
+    response = client.post("/v2/evaluations", json=payload)
     return response.status_code, response.json()
 
 

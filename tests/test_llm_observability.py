@@ -19,7 +19,6 @@ def test_model_raw_records_versions_stage_statuses_and_metrics(settings) -> None
     runtime = build_runtime(
         replace(
             settings,
-            llm_acl_candidate_mode="shadow",
             llm_request_findings_mode="shadow",
         )
     )
@@ -37,14 +36,12 @@ def test_model_raw_records_versions_stage_statuses_and_metrics(settings) -> None
     assert metadata["policy_version"] == result.response.policy_version
     assert set(metadata["prompt_versions"]) == {
         "semantic",
-        "acl_candidates",
         "request_findings",
         "explanation",
     }
     assert metadata["fixture_version"] is None
     assert set(stages) == {
         "semantic",
-        "acl_candidates",
         "request_findings",
         "explanation",
     }
@@ -86,22 +83,7 @@ def test_stage_failure_is_typed_and_explanation_fallback_is_counted(settings) ->
 def test_secrets_are_redacted_from_response_audit_and_all_replays(
     settings, tmp_path
 ) -> None:
-    acl_fixture = tmp_path / "acl-secret.json"
-    acl_fixture.write_text(
-        json.dumps(
-            {
-                "default": {
-                    "analysis": (
-                        "candidate firewall MOCK-FW-01; "
-                        "Authorization: Bearer SENTINEL_ACL_AUTH"
-                    ),
-                    "config": "access-list CANDIDATE token=SENTINEL_ACL_TOKEN port 443",
-                }
-            }
-        ),
-        encoding="utf-8",
-    )
-    secret_settings = replace(settings, acl_mock_file=acl_fixture)
+    secret_settings = replace(settings, audit_log_dir=tmp_path / "audit")
     value = payload(
         request_id="observability-redaction",
         request_description=(
@@ -117,10 +99,10 @@ def test_secrets_are_redacted_from_response_audit_and_all_replays(
     )
 
     with TestClient(create_app(secret_settings)) as first_client:
-        first = first_client.post("/v1/evaluations", json=value)
-        replay = first_client.post("/v1/evaluations", json=value)
+        first = first_client.post("/v2/evaluations", json=value)
+        replay = first_client.post("/v2/evaluations", json=value)
     with TestClient(create_app(secret_settings)) as restarted_client:
-        restarted = restarted_client.post("/v1/evaluations", json=value)
+        restarted = restarted_client.post("/v2/evaluations", json=value)
 
     assert first.status_code == replay.status_code == restarted.status_code == 200
     assert first.json() == replay.json() == restarted.json()
@@ -132,8 +114,6 @@ def test_secrets_are_redacted_from_response_audit_and_all_replays(
     )
     combined = first.text + audit_text
     for sentinel in (
-        "SENTINEL_ACL_AUTH",
-        "SENTINEL_ACL_TOKEN",
         "SENTINEL_PASSWORD",
         "SENTINEL_API_KEY",
         "SENTINEL_SOURCE_AUTH",
@@ -143,7 +123,6 @@ def test_secrets_are_redacted_from_response_audit_and_all_replays(
     record = json.loads(audit_text.splitlines()[-1])
     for field in (
         "normalized_input",
-        "acl_raw",
         "model_raw",
         "final_response",
         "exceptions",

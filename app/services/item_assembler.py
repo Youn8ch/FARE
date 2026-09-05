@@ -14,7 +14,6 @@ from app.schemas import (
     Access,
     DecisionFinding,
     EvaluationItem,
-    ExtractedFacts,
     MatchedRule,
 )
 from app.services.decision_reducer import Decision
@@ -33,16 +32,13 @@ def build_item(
     *,
     item_id: str,
     combination: AccessCombination,
-    facts: ExtractedFacts,
     decision: Decision,
     matched: list[Rule],
-    no_path_rule: Rule,
 ) -> EvaluationItem:
     """Build the item from the reducer's deterministic snapshot.
 
-    ``matched`` is pre-injected by the deterministic assembly: ACL-PATH-001
-    is present only when it is the deterministic primary (historical
-    behavior preserved, judged via the reducer's priority algorithm).
+    ``matched`` carries the formal rule match result; the reducer owns every
+    decision field rendered here.
     """
 
     access = Access(
@@ -51,7 +47,7 @@ def build_item(
         protocol=combination.protocol,
         port=combination.port,
     )
-    evidence = catalog_evidence(combination) + facts.evidence
+    evidence = catalog_evidence(combination)
     matched_rules = [
         MatchedRule(id=rule.id, name=rule.name, category=rule.category)
         for rule in matched
@@ -67,7 +63,7 @@ def build_item(
             reason=COMPLIANT_REASON[0],
             recommendation=COMPLIANT_REASON[1],
         )
-    reason, recommendation = finding_text(primary, matched, no_path_rule)
+    reason, recommendation = finding_text(primary, matched)
     return EvaluationItem(
         item_id=item_id,
         access=access,
@@ -172,9 +168,7 @@ def catalog_evidence(item: AccessCombination) -> list[str]:
     return evidence
 
 
-def network_item_fields(
-    combination: AccessCombination, verification_status: str
-) -> dict[str, Any]:
+def network_item_fields(combination: AccessCombination) -> dict[str, Any]:
     return {
         "source_network_fact_ids": list(
             getattr(combination.source, "network_fact_ids", ())
@@ -184,5 +178,4 @@ def network_item_fields(
         ),
         "source_network_fact_status": segment_status(combination.source),
         "destination_network_fact_status": segment_status(combination.destination),
-        "acl_verification_status": verification_status,
     }

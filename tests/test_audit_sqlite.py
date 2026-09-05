@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from app.schemas import EvaluationRequest, EvaluationResponse
-from app.services.audit import AuditStore, request_hash
+from app.services.audit import AUDIT_SCHEMA_EPOCH, AuditStore, request_hash
 
 
 def _store(directory: Path, *, scope: str = "test-scope") -> AuditStore:
@@ -49,11 +49,6 @@ def _response(request_id: str, *, audit_id: str) -> EvaluationResponse:
             "model": {"name": "test-model", "version": "1"},
             "semantic_analysis": {"analyzed_item_ids": []},
             "items": [],
-            "acl_analysis": {
-                "raw_analysis": "",
-                "raw_config": "",
-                "extracted_facts": {},
-            },
             "audit_id": audit_id,
         }
     )
@@ -70,7 +65,6 @@ async def _persist(
         request=request,
         input_hash=request_hash(request),
         response=response,
-        acl_raw=[],
         model_raw=model_raw,
     )
 
@@ -122,7 +116,7 @@ def test_expired_claim_never_allows_request_id_reuse_with_different_input(
         conflicting = _request("expired-conflict", description="different input")
 
         assert await first.claim(request.request_id, request_hash(request)) == ("owner", None)
-        with sqlite3.connect(directory / "fare-audit.sqlite3") as connection:
+        with sqlite3.connect(directory / "fare-audit-v2.sqlite3") as connection:
             connection.execute(
                 """
                 UPDATE audit_requests
@@ -166,7 +160,7 @@ def test_cross_instance_conflict_and_completed_replay(tmp_path: Path) -> None:
         assert status == "cached"
         assert cached == response
 
-        with sqlite3.connect(tmp_path / "audit" / "fare-audit.sqlite3") as connection:
+        with sqlite3.connect(tmp_path / "audit" / "fare-audit-v2.sqlite3") as connection:
             row = connection.execute(
                 """
                 SELECT state, COUNT(*)
@@ -233,7 +227,11 @@ def test_completed_restart_does_not_reparse_jsonl(
     asyncio.run(scenario())
 
 
-def test_legacy_jsonl_is_imported_for_restart_replay(tmp_path: Path) -> None:
+def test_pre_epoch_jsonl_is_archived_not_imported(tmp_path: Path) -> None:
+    """Records written before the current schema epoch carry the removed
+    response contract: they stay untouched on disk, are never imported into
+    the live cache, and are never replayed as current responses."""
+
     async def scenario() -> None:
         directory = tmp_path / "audit"
         directory.mkdir()
@@ -251,14 +249,20 @@ def test_legacy_jsonl_is_imported_for_restart_replay(tmp_path: Path) -> None:
 
         store = _store(directory)
         status, cached = await store.claim(request.request_id, request_hash(request))
-        assert status == "cached"
-        assert cached == response
-        with sqlite3.connect(directory / "fare-audit.sqlite3") as connection:
-            scope = connection.execute(
-                "SELECT config_fingerprint FROM audit_requests WHERE request_id = ?",
+        # no cache hit from the pre-epoch record: the request evaluates fresh
+        assert status == "owner"
+        assert cached is None
+        # the archive itself is untouched (read-only history)
+        assert json.loads(archive.read_text(encoding="utf-8"))["audit_id"] == (
+            "audit-legacy"
+        )
+        with sqlite3.connect(directory / "fare-audit-v2.sqlite3") as connection:
+            imported = connection.execute(
+                "SELECT state FROM audit_requests WHERE request_id = ?",
                 (request.request_id,),
             ).fetchone()
-        assert scope == ("test-scope",)
+        # only the fresh claim row exists; no imported completed replay row
+        assert imported is None or imported == ("processing",)
 
     asyncio.run(scenario())
 
@@ -273,6 +277,7 @@ def test_processing_row_rescans_jsonl_to_recover_interrupted_persist(tmp_path: P
         assert await first.claim(request.request_id, digest) == ("owner", None)
 
         record = {
+            "schema_epoch": AUDIT_SCHEMA_EPOCH,
             "audit_id": response.audit_id,
             "request_id": request.request_id,
             "input_hash": digest,
@@ -326,7 +331,7 @@ def test_concurrent_archival_is_valid_jsonl_and_sqlite_is_redacted(tmp_path: Pat
         records = [json.loads(line) for line in archive.read_text(encoding="utf-8").splitlines()]
         assert {record["request_id"] for record in records} == {"archive-one", "archive-two"}
 
-        with sqlite3.connect(directory / "fare-audit.sqlite3") as connection:
+        with sqlite3.connect(directory / "fare-audit-v2.sqlite3") as connection:
             stored = "\n".join(
                 row[0]
                 for row in connection.execute(
@@ -338,3 +343,115 @@ def test_concurrent_archival_is_valid_jsonl_and_sqlite_is_redacted(tmp_path: Pat
         assert "[REDACTED]" in stored
 
     asyncio.run(scenario())
+
+
+def test_new_records_carry_schema_epoch_and_metadata_declares_it(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        directory = tmp_path / "audit"
+        store = _store(directory)
+        request = _request("epoch-stamped")
+        response = _response(request.request_id, audit_id="audit-epoch")
+        await store.persist(
+            request=request,
+            input_hash=request_hash(request),
+            response=response,
+        )
+        with sqlite3.connect(directory / "fare-audit-v2.sqlite3") as connection:
+            epoch = connection.execute(
+                "SELECT value FROM audit_metadata WHERE key = 'schema_epoch'"
+            ).fetchone()
+            record_json = connection.execute(
+                "SELECT audit_record_json FROM audit_requests WHERE request_id = ?",
+                (request.request_id,),
+            ).fetchone()
+        assert epoch == (AUDIT_SCHEMA_EPOCH,)
+        assert json.loads(record_json[0])["schema_epoch"] == AUDIT_SCHEMA_EPOCH
+
+    asyncio.run(scenario())
+
+
+def test_foreign_epoch_completed_row_fails_closed(tmp_path: Path) -> None:
+    from app.services.audit import AuditSchemaMismatchError
+
+    async def scenario() -> None:
+        directory = tmp_path / "audit"
+        store = _store(directory)
+        request = _request("foreign-epoch")
+        digest = request_hash(request)
+        assert await store.claim(request.request_id, digest) == ("owner", None)
+        with sqlite3.connect(directory / "fare-audit-v2.sqlite3") as connection:
+            connection.execute(
+                """
+                UPDATE audit_requests
+                SET state = 'completed',
+                    response_json = ?,
+                    audit_record_json = ?,
+                    completed_at = ?
+                WHERE request_id = ?
+                """,
+                (
+                    _response(request.request_id, audit_id="audit-x").model_dump_json(),
+                    json.dumps({"schema_epoch": "fare-audit/v1-legacy"}),
+                    datetime.now(UTC).isoformat(),
+                    request.request_id,
+                ),
+            )
+            connection.commit()
+
+        with pytest.raises(AuditSchemaMismatchError, match="fare-audit/v1-legacy"):
+            await store.claim(request.request_id, digest)
+
+    asyncio.run(scenario())
+
+
+def test_api_maps_audit_schema_mismatch_to_conflict(settings, tmp_path: Path) -> None:
+    from app.main import create_app
+    from app.schemas import EvaluationRequest
+    from app.services.audit import AUDIT_SCHEMA_EPOCH, AuditStore, request_hash
+
+    store = AuditStore(settings.audit_log_dir, settings.audit_log_retention_days)
+    store.initialize()
+    body = {
+        "request_id": "fare-audit-epoch-409",
+        "sources": [{"address": "192.0.2.1", "description": "source"}],
+        "destinations": [{"address": "198.51.100.2", "description": "destination"}],
+        "protocol": "tcp",
+        "ports": [{"start": 443, "end": 443}],
+        "request_description": "test request",
+    }
+    request = EvaluationRequest.model_validate(body)
+    stale = {
+        "schema_epoch": "fare-audit/v1-legacy",
+        "request_id": request.request_id,
+        "input_hash": request_hash(request),
+        "evaluated_at": "2026-01-01T00:00:00+00:00",
+        "final_response": {},
+    }
+    with sqlite3.connect(settings.audit_log_dir / "fare-audit-v2.sqlite3") as connection:
+        connection.execute(
+            """
+            INSERT INTO audit_requests (
+                config_fingerprint, request_id, input_hash, state,
+                response_json, audit_record_json, owner_token,
+                claimed_at, updated_at, completed_at
+            ) VALUES (?, ?, ?, 'completed', '{}', ?, 'x', ?, ?, ?)
+            """,
+            (
+                store._scope,
+                request.request_id,
+                request_hash(request),
+                json.dumps(stale),
+                datetime.now(UTC).isoformat(),
+                datetime.now(UTC).isoformat(),
+                datetime.now(UTC).isoformat(),
+            ),
+        )
+        connection.commit()
+
+    from fastapi.testclient import TestClient
+
+    with TestClient(create_app(settings)) as client:
+        response = client.post("/v2/evaluations", json=body)
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "AUDIT_SCHEMA_MISMATCH"
+    assert AUDIT_SCHEMA_EPOCH

@@ -1,0 +1,117 @@
+# 候选路径占位规则已随 0.3.0 能力移除（2026-09）。
+rules:
+- id: RN-TELNET-001
+  name: 禁止 Telnet 明文管理
+  description: 禁止使用明文远程管理协议访问任何模拟生产区域
+  category: special_port
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    protocol: tcp
+    ports:
+    - 23
+  semantic_keywords:
+  - Telnet
+  - 明文管理
+  - 远程管理
+  evidence_requirements:
+  - protocol
+  - destination_port
+  reason_template: Telnet 属于组织禁止的明文管理协议。
+  recommendation: 改用受管控的 SSH 或进入例外审批。
+  remediation_template: 改用受管控的加密管理协议或进入正式例外审批。
+- id: RN-OFFICE-PROD-001
+  name: 办公终端不得直接访问生产区
+  description: 模拟办公区到模拟生产区的直接访问必须人工复核
+  category: zone_relation
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    source_zone: office
+    destination_zone: production
+  semantic_keywords:
+  - 办公网
+  - 生产网
+  - 区域隔离
+  evidence_requirements:
+  - source_zone
+  - destination_zone
+  reason_template: 模拟办公区不得直接访问模拟生产区。
+  recommendation: 使用受控访问入口或进入例外审批流程。
+  remediation_template: 改用受控访问入口或进入正式例外审批。
+- id: RN-OPS-PROD-001
+  name: 运维特权访问须登记审批
+  description: 模拟运维堡垒机到模拟生产区的特权访问须登记变更窗口
+  category: zone_relation
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    source_zone: ops
+    destination_zone: production
+  semantic_keywords:
+  - 运维
+  - 堡垒机
+  - 特权访问
+  - 变更窗口
+  evidence_requirements:
+  - source_zone
+  - destination_zone
+  reason_template: 模拟运维特权访问须登记变更窗口并绑定审批单。
+  recommendation: 补充变更窗口与审批信息后重新提交。
+  remediation_template: 在特权访问管理流程中登记后再提交申请。
+- id: RN-ANY-001
+  name: 禁止 any 地址
+  description: 源或目的使用 any 会造成无边界开放
+  category: least_privilege
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    check: any_address
+  semantic_keywords:
+  - any
+  - 全来源
+  - 全目的
+  evidence_requirements:
+  - source_address
+  - destination_address
+  reason_template: 源或目的地址使用 any，不符合最小开放原则。
+  recommendation: 将地址范围缩小为实际需要的 IP 或 CIDR。
+  remediation_template: 将地址范围缩小为实际需要的 IP 或 CIDR。
+- id: RN-PORT-SPAN-001
+  name: 禁止过大端口范围
+  description: 端口范围不得超过 32 个端口
+  category: least_privilege
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    check: port_span
+    max_ports: 32
+  semantic_keywords:
+  - 全端口
+  - 端口范围
+  - 最小权限
+  evidence_requirements:
+  - protocol
+  - destination_port
+  reason_template: 申请端口范围超过回归策略包批准的阈值。
+  recommendation: 仅保留实际需要的离散端口或更小范围。
+  remediation_template: 仅保留实际需要的离散端口或更小范围。
+- id: RN-COMBO-001
+  name: 限制单申请访问组合数量
+  description: 限制多源、多目的与多端口形成的笛卡尔组合数量
+  category: least_privilege
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    check: combination_count
+    max_combinations: 64
+  semantic_keywords:
+  - 多源
+  - 多目的
+  - 组合过多
+  - 拆分申请
+  evidence_requirements:
+  - combination_count
+  reason_template: 多源、多目的和多端口形成的访问组合数量过多。
+  recommendation: 按业务场景和网络区域拆分申请。
+  remediation_template: 按业务场景和网络区域拆分申请。

@@ -8,35 +8,98 @@
       "id": "region-kunpeng-positive",
       "request": {
         "request_id": "group-region-kunpeng-positive",
-        "sources": [{"address": "16.201.0.10", "description": "鲲鹏应用"}],
-        "destinations": [{"address": "16.220.16.20", "description": "核心数据库"}],
-        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "sources": [
+          {
+            "address": "16.201.0.10",
+            "description": "鲲鹏应用"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.220.16.20",
+            "description": "核心数据库"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
         "request_description": "精确 Region 关系"
       },
       "expected": {
-        "decision": "待定", "lookup_count": 2, "acl_call_count": 1,
-        "accesses": [{"source": "16.201.0.10/32", "destination": "16.220.16.20/32"}],
-        "reason_codes": ["REGION-KUNPENG-CORE-DB-001"],
-        "matched_rule_ids": [["REGION-KUNPENG-CORE-DB-001"]],
-        "source_statuses": ["complete"], "destination_statuses": ["complete"],
-        "acl_statuses": ["verified"]
+        "decision": "待定",
+        "lookup_count": 2,
+        "accesses": [
+          {
+            "source": "16.201.0.10/32",
+            "destination": "16.220.16.20/32"
+          }
+        ],
+        "reason_codes": [
+          "REGION-KUNPENG-CORE-DB-001"
+        ],
+        "matched_rule_ids": [
+          [
+            "REGION-KUNPENG-CORE-DB-001"
+          ]
+        ],
+        "source_statuses": [
+          "complete"
+        ],
+        "destination_statuses": [
+          "complete"
+        ]
       }
     },
     {
       "id": "region-general-negative",
       "request": {
         "request_id": "group-region-general-negative",
-        "sources": [{"address": "16.201.2.10", "description": "通用计算"}],
-        "destinations": [{"address": "16.220.16.20", "description": "核心数据库"}],
-        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "sources": [
+          {
+            "address": "16.201.2.10",
+            "description": "通用计算"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.220.16.20",
+            "description": "核心数据库"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
         "request_description": "相同 area 不同 Region"
       },
       "expected": {
-        "decision": "合规", "lookup_count": 2, "acl_call_count": 1,
-        "accesses": [{"source": "16.201.2.10/32", "destination": "16.220.16.20/32"}],
-        "reason_codes": [null], "matched_rule_ids": [[]],
-        "source_statuses": ["complete"], "destination_statuses": ["complete"],
-        "acl_statuses": ["verified"]
+        "decision": "合规",
+        "lookup_count": 2,
+        "accesses": [
+          {
+            "source": "16.201.2.10/32",
+            "destination": "16.220.16.20/32"
+          }
+        ],
+        "reason_codes": [
+          null
+        ],
+        "matched_rule_ids": [
+          []
+        ],
+        "source_statuses": [
+          "complete"
+        ],
+        "destination_statuses": [
+          "complete"
+        ]
       }
     }
   ]

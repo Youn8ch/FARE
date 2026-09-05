@@ -175,10 +175,6 @@ def build_settings(
         ),
         network_plan_client_mode="offline_catalog",
         network_plan_mock_file=None,
-        acl_client_mode="mock",
-        acl_mock_file=None,
-        acl_decision_mode="advisory",
-        llm_acl_candidate_mode="shadow" if include_shadows else "off",
         llm_request_findings_mode="shadow" if include_shadows else "off",
         llm_temperature=0,
     )
@@ -322,7 +318,6 @@ async def run_suite(
                 request=request,
                 input_hash=request_hash(request),
                 response=result.response,
-                acl_raw=result.acl_raw,
                 model_raw=result.model_raw,
                 exceptions=result.exceptions,
                 network_plan_raw=result.network_plan_raw,
@@ -379,7 +374,7 @@ def main() -> int:
         "--include-shadows",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Also call ACL-candidate and request-finding shadow model stages.",
+        help="Also call the request-finding shadow model stage.",
     )
     parser.add_argument(
         "--resume-audit-directory",

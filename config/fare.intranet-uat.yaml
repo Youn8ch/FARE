@@ -1,15 +1,12 @@
 schema_version: fare-config/v1
 config_id: fare-intranet-uat
 environment: intranet-uat
-
 server:
   host: 0.0.0.0
   port: 8000
   max_concurrent_evaluations: 4
-
 policy:
   directory: ../policies
-
 requirement_source:
   mode: api
   execution:
@@ -25,7 +22,6 @@ requirement_source:
       type: bearer
       token: CHANGE_ME_REQUIREMENT_TOKEN
   output_file: ../run_results/intranet-uat/network_requirement_results.json
-
 network_plan:
   mode: http
   mock:
@@ -42,21 +38,6 @@ network_plan:
   cache:
     ttl_seconds: 60
     max_entries: 4096
-
-acl:
-  mode: mock
-  decision_mode: advisory
-  deterministic_pending_mode: skip
-  max_concurrency: 8
-  mock:
-    fixture: null
-  http:
-    url: https://acl.intranet.example/v1/acl/analyze
-    timeout_seconds: 10
-    auth:
-      type: bearer
-      token: CHANGE_ME_ACL_TOKEN
-
 llm:
   mode: http
   mock:
@@ -75,9 +56,7 @@ llm:
     stop: null
     thinking: null
   features:
-    acl_candidate_mode: shadow
     request_findings_mode: shadow
-
 evaluation:
   max_items: 256
   network_plan_max_subnets: 64
@@ -89,7 +68,6 @@ evaluation:
     mixed_business_context: review_required
     approval_scope_mismatch: review_required
     unclassified_privileged_access: observe_only
-
 audit:
   directory: ../audit_logs/intranet-uat
   retention_days: 30

@@ -1,16 +1,18 @@
 [build-system]
-requires = ["hatchling>=1.26"]
+requires = ["hatchling==1.32.0"]
 build-backend = "hatchling.build"
 
 [project]
 name = "fare"
-version = "0.2.0"
+version = "0.3.0"
 description = "Firewall Access Request Evaluator"
 readme = "README.md"
 requires-python = ">=3.13.7,<3.14"
 dependencies = [
   "fastapi>=0.115,<1.0",
   "httpx>=0.27,<1.0",
+  "instructor>=1.16,<1.17",
+  "openai>=2.0,<3.0",
   "pydantic>=2.9,<3.0",
   "PyYAML>=6.0,<7.0",
   "uvicorn[standard]>=0.30,<1.0",

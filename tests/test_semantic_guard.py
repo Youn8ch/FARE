@@ -21,15 +21,11 @@ EVIDENCE_SOURCES = {
         ),
         "source_description": "源生产应用",
         "destination_description": "目的生产数据库",
-        "acl_analysis": "候选路径经过防火墙 FW-1。",
-        "acl_config": "access-list ACL-1 port 443",
     },
     ITEM_2: {
         "request_description": "第二个组合的独立证据",
         "source_description": "源办公终端",
         "destination_description": "目的测试应用",
-        "acl_analysis": "候选路径经过防火墙 FW-2。",
-        "acl_config": "access-list ACL-2 port 8443",
     },
 }
 

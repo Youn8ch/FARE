@@ -1,9 +1,8 @@
 """V4-P4 acceptance: findings become auditable business output (plan §11).
 
-- P4-C01: PORT-001 + ACL-PATH-001 both survive into ``decision_findings``
-  while ``matched_rules`` keeps its frozen compatibility semantics
-  (ACL-PATH-001 only when primary);
-- P4-C02: network/catalog + rule + ACL + semantic findings coexist;
+- P4-C01: rule findings survive into ``decision_findings`` with a unique
+  primary;
+- P4-C02: network/catalog + rule + semantic findings coexist;
 - P4-C03: informational findings (``affects_decision=False``) are recorded
   without changing the decision (unit level on the formal reduce contract);
 - every finding maps one-to-one into the API field and the audit record.
@@ -26,13 +25,13 @@ from app.services.decision_reducer import (
     SemanticTrace,
 )
 from tests.helpers.llm import RecordingLlmClient
-from tests.test_architecture_baseline import ACL_NO_PATH_FIXTURE, _mock_chain, _payload
+from tests.test_architecture_baseline import _mock_chain, _payload
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _evaluate(settings: Settings, payload: dict, llm=None):
-    runtime = build_runtime(_mock_chain(settings, acl_mock_file=ACL_NO_PATH_FIXTURE))
+    runtime = build_runtime(_mock_chain(settings))
     if llm is not None:
         runtime.evaluator.llm_client = llm
     try:
@@ -46,11 +45,11 @@ def _finding_codes(item) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# P4-C01: rule pending + ACL no path — both findings survive
+# P4-C01: rule pending — the finding survives with a unique primary
 # ---------------------------------------------------------------------------
 
 
-def test_p4c01_rule_and_acl_findings_both_survive(settings: Settings) -> None:
+def test_p4c01_rule_finding_survives_with_primary(settings: Settings) -> None:
     result = _evaluate(
         settings,
         _payload(
@@ -63,23 +62,20 @@ def test_p4c01_rule_and_acl_findings_both_survive(settings: Settings) -> None:
     item = result.response.items[0]
     assert item.decision == "待定"
     assert item.reason_code == "PORT-001"
-    # 兼容语义冻结：ACL-PATH-001 不是 primary，不进 matched_rules
     assert [rule.id for rule in item.matched_rules] == ["PORT-001"]
-    # 但两个 finding 都进入 decision_findings，primary 唯一
-    assert _finding_codes(item) == ["PORT-001", "ACL-PATH-001"]
-    assert [finding.is_primary for finding in item.decision_findings] == [True, False]
+    assert _finding_codes(item) == ["PORT-001"]
+    assert [finding.is_primary for finding in item.decision_findings] == [True]
     assert item.decision_findings[0].source == "rule"
-    assert item.decision_findings[1].source == "acl"
     # 审计完整性：序列化 response（即 audit final_response 的来源）含同一 findings
     serialized = result.response.model_dump(mode="json")
     audit_codes = [
         finding["code"] for finding in serialized["items"][0]["decision_findings"]
     ]
-    assert audit_codes == ["PORT-001", "ACL-PATH-001"]
+    assert audit_codes == ["PORT-001"]
 
 
 # ---------------------------------------------------------------------------
-# P4-C02: catalog(any) + rule + ACL + semantic findings coexist
+# P4-C02: catalog(any) + rule + semantic findings coexist
 # ---------------------------------------------------------------------------
 
 
@@ -122,12 +118,11 @@ def test_p4c02_four_finding_sources_coexist(settings: Settings) -> None:
     assert item.decision == "待定"
     assert item.reason_code == "PORT-001"
     codes = _finding_codes(item)
-    # 历史首个命中顺序：matched rules -> catalog -> ACL -> semantic
+    # 历史首个命中顺序：matched rules -> catalog -> semantic
     assert codes[:3] == ["PORT-001", "LEAST-ANY-001", "ADDRESS_ANY"]
-    assert "ACL-PATH-001" in codes
     assert "SEMANTIC_FACT_CONFLICT" in codes
     sources = {finding.source for finding in item.decision_findings}
-    assert sources == {"network", "rule", "acl", "semantic"}
+    assert sources == {"network", "rule", "semantic"}
     # reason_code 与 primary 一一对应
     primaries = [f for f in item.decision_findings if f.is_primary]
     assert len(primaries) == 1

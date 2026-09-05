@@ -8,53 +8,149 @@
       "id": "special-port-tcp-22-positive",
       "request": {
         "request_id": "group-special-port-tcp22",
-        "sources": [{"address": "16.201.2.10", "description": "应用"}],
-        "destinations": [{"address": "16.220.16.20", "description": "数据库"}],
-        "protocol": "tcp", "ports": [{"start": 22, "end": 22}],
+        "sources": [
+          {
+            "address": "16.201.2.10",
+            "description": "应用"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.220.16.20",
+            "description": "数据库"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 22,
+            "end": 22
+          }
+        ],
         "request_description": "TCP SSH"
       },
       "expected": {
-        "decision": "待定", "lookup_count": 2, "acl_call_count": 1,
-        "accesses": [{"source": "16.201.2.10/32", "destination": "16.220.16.20/32"}],
-        "reason_codes": ["PORT-SSH-REVIEW-001"],
-        "matched_rule_ids": [["PORT-SSH-REVIEW-001"]],
-        "source_statuses": ["complete"], "destination_statuses": ["complete"],
-        "acl_statuses": ["verified"]
+        "decision": "待定",
+        "lookup_count": 2,
+        "accesses": [
+          {
+            "source": "16.201.2.10/32",
+            "destination": "16.220.16.20/32"
+          }
+        ],
+        "reason_codes": [
+          "PORT-SSH-REVIEW-001"
+        ],
+        "matched_rule_ids": [
+          [
+            "PORT-SSH-REVIEW-001"
+          ]
+        ],
+        "source_statuses": [
+          "complete"
+        ],
+        "destination_statuses": [
+          "complete"
+        ]
       }
     },
     {
       "id": "special-port-udp-22-negative",
       "request": {
         "request_id": "group-special-port-udp22",
-        "sources": [{"address": "16.201.2.10", "description": "应用"}],
-        "destinations": [{"address": "16.220.16.20", "description": "数据库"}],
-        "protocol": "udp", "ports": [{"start": 22, "end": 22}],
+        "sources": [
+          {
+            "address": "16.201.2.10",
+            "description": "应用"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.220.16.20",
+            "description": "数据库"
+          }
+        ],
+        "protocol": "udp",
+        "ports": [
+          {
+            "start": 22,
+            "end": 22
+          }
+        ],
         "request_description": "UDP 不命中 TCP 规则"
       },
       "expected": {
-        "decision": "合规", "lookup_count": 2, "acl_call_count": 1,
-        "accesses": [{"source": "16.201.2.10/32", "destination": "16.220.16.20/32"}],
-        "reason_codes": [null], "matched_rule_ids": [[]],
-        "source_statuses": ["complete"], "destination_statuses": ["complete"],
-        "acl_statuses": ["verified"]
+        "decision": "合规",
+        "lookup_count": 2,
+        "accesses": [
+          {
+            "source": "16.201.2.10/32",
+            "destination": "16.220.16.20/32"
+          }
+        ],
+        "reason_codes": [
+          null
+        ],
+        "matched_rule_ids": [
+          []
+        ],
+        "source_statuses": [
+          "complete"
+        ],
+        "destination_statuses": [
+          "complete"
+        ]
       }
     },
     {
       "id": "special-port-range-contains-two-rules",
       "request": {
         "request_id": "group-special-port-range",
-        "sources": [{"address": "16.201.2.10", "description": "应用"}],
-        "destinations": [{"address": "16.220.16.20", "description": "数据库"}],
-        "protocol": "tcp", "ports": [{"start": 21, "end": 23}],
+        "sources": [
+          {
+            "address": "16.201.2.10",
+            "description": "应用"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.220.16.20",
+            "description": "数据库"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 21,
+            "end": 23
+          }
+        ],
         "request_description": "端口范围同时包含 SSH 和 Telnet"
       },
       "expected": {
-        "decision": "待定", "lookup_count": 2, "acl_call_count": 1,
-        "accesses": [{"source": "16.201.2.10/32", "destination": "16.220.16.20/32"}],
-        "reason_codes": ["PORT-SSH-REVIEW-001"],
-        "matched_rule_ids": [["PORT-SSH-REVIEW-001", "PORT-TELNET-REVIEW-001"]],
-        "source_statuses": ["complete"], "destination_statuses": ["complete"],
-        "acl_statuses": ["verified"]
+        "decision": "待定",
+        "lookup_count": 2,
+        "accesses": [
+          {
+            "source": "16.201.2.10/32",
+            "destination": "16.220.16.20/32"
+          }
+        ],
+        "reason_codes": [
+          "PORT-SSH-REVIEW-001"
+        ],
+        "matched_rule_ids": [
+          [
+            "PORT-SSH-REVIEW-001",
+            "PORT-TELNET-REVIEW-001"
+          ]
+        ],
+        "source_statuses": [
+          "complete"
+        ],
+        "destination_statuses": [
+          "complete"
+        ]
       }
     }
   ]

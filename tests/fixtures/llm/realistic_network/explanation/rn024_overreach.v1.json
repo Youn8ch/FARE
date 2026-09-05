@@ -1,0 +1,16 @@
+{
+  "fixture_version": "2026.09.0",
+  "purpose": "RN-024 解释输出引用未命中规则：explanation guard 拒绝并回退模板",
+  "explanation": {
+    "items": [
+      {
+        "item_id": "@item:1",
+        "explanation": "该申请命中 RN-TELNET-001，应改用 SSH。",
+        "recommendation": "参照 RN-TELNET-001 完成整改后重新提交。",
+        "referenced_rule_ids": [
+          "RN-TELNET-001"
+        ]
+      }
+    ]
+  }
+}

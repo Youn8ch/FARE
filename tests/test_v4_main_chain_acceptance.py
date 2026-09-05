@@ -1,9 +1,11 @@
 """V4-P8: the centralized main-chain acceptance matrix (plan §15, V3-01..33).
 
 Every case runs on simulated dependencies only (mock providers / recording
-LLM / mock ACL) with precise assertions on decisions, reason codes, findings,
-decision traces, and dependency call counts. Cases overlap intentionally with
-the phase suites; this module is the single final acceptance contract.
+LLM) with precise assertions on decisions, reason codes, findings, decision
+traces, and dependency call counts. The removed candidate-verification
+chain cases (V3-09..V3-14) were retired with the 0.3.0 capability removal;
+their migration evidence now lives in the realistic network request suite
+(RN-029..RN-035).
 """
 
 from __future__ import annotations
@@ -19,17 +21,11 @@ from app.config import Settings
 from app.main import build_runtime, create_app
 from app.schemas import EvaluationRequest, LlmSemanticResponse
 from tests.helpers.llm import LlmDependencyError, RecordingLlmClient
-from tests.test_architecture_baseline import ACL_NO_PATH_FIXTURE, _mock_chain, _payload
-from tests.test_evaluator_orchestration import (
-    RecordingAclClient,
-    RecordingDecisionReducer,
-)
+from tests.test_architecture_baseline import _mock_chain, _payload
+from tests.test_evaluator_orchestration import RecordingDecisionReducer
 from tests.test_v4_characterization import RecordingPolicyBundle
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-ACL_AMBIGUOUS = PROJECT_ROOT / "tests/fixtures/acl/ambiguous.v1.json"
-ACL_PORT_MISMATCH = PROJECT_ROOT / "tests/fixtures/acl/port_mismatch.v1.json"
-ACL_NO_FIREWALL = PROJECT_ROOT / "tests/fixtures/acl/no_firewall.v1.json"
 NET_DEPENDENCY_FAILURE = (
     PROJECT_ROOT / "tests/fixtures/network_plan/dependency_failure.v1.json"
 )
@@ -40,7 +36,6 @@ NET_SUBNET_MISMATCH = (
 
 class _Calls(SimpleNamespace):
     provider: list
-    acl: list
     rule_match: list
     reduce: int
     semantic: int
@@ -50,15 +45,13 @@ def _evaluate(settings: Settings, payload: dict, *, llm=None, **changes):
     """Direct-evaluator harness with recording doubles and call accounting."""
 
     runtime = build_runtime(_mock_chain(settings, **changes))
-    acl = RecordingAclClient(runtime.evaluator.acl_client)
-    runtime.evaluator.acl_client = acl
     reducer = RecordingDecisionReducer()
     runtime.evaluator.decision_reducer = reducer
     policies = RecordingPolicyBundle(runtime.evaluator.policies)
     runtime.evaluator.policies = policies
     if llm is not None:
         runtime.evaluator.llm_client = llm
-    calls = _Calls(provider=[], acl=[], rule_match=[], reduce=0, semantic=0)
+    calls = _Calls(provider=[], rule_match=[], reduce=0, semantic=0)
     try:
         result = asyncio.run(
             runtime.evaluator.evaluate(EvaluationRequest.model_validate(payload))
@@ -66,7 +59,6 @@ def _evaluate(settings: Settings, payload: dict, *, llm=None, **changes):
         calls.provider = list(
             runtime.network_plan_resolver.provider.transport.calls
         )
-        calls.acl = list(acl.calls)
         calls.rule_match = list(policies.match_calls)
         calls.reduce = len(reducer.calls)
         calls.semantic = getattr(runtime.evaluator.llm_client, "semantic_calls", 0)
@@ -116,7 +108,6 @@ def test_v3_01_normal_https(settings: Settings) -> None:
     assert item.decision == "合规"
     assert result.response.decision == "合规"
     assert len(calls.rule_match) == 1
-    assert len(calls.acl) == 1
     assert calls.reduce == 1
 
 
@@ -127,7 +118,6 @@ def test_v3_02_network_plan_not_found(settings: Settings) -> None:
     )
     item = _item(result)
     assert (item.decision, item.reason_code) == ("待定", "NETWORK_PLAN_NOT_FOUND")
-    assert calls.acl == []
 
 
 def test_v3_03_network_dependency_failure(settings: Settings) -> None:
@@ -140,7 +130,6 @@ def test_v3_03_network_dependency_failure(settings: Settings) -> None:
     assert item.decision == "待定"
     assert item.reason_code == "NETWORK_PLAN_DEPENDENCY_FAILURE"
     assert item.source_network_fact_status == "dependency_failure"
-    assert calls.acl == []
 
 
 def test_v3_04_subnet_mismatch(settings: Settings) -> None:
@@ -152,7 +141,6 @@ def test_v3_04_subnet_mismatch(settings: Settings) -> None:
     item = _item(result)
     assert item.decision == "待定"
     assert item.reason_code == "NETWORK_PLAN_SUBNET_MISMATCH"
-    assert calls.acl == []
 
 
 # ---------------------------------------------------------------------------
@@ -169,22 +157,11 @@ def _telnet(request_id: str) -> dict:
     )
 
 
-def test_v3_05_telnet_skip_mode(settings: Settings) -> None:
-    result, calls = _evaluate(
-        settings, _telnet("v3-05"), acl_deterministic_pending_mode="skip"
-    )
-    item = _item(result)
-    assert (item.decision, item.reason_code) == ("待定", "PORT-001")
-    assert len(calls.rule_match) == 1
-    assert calls.acl == []
-
-
-def test_v3_06_telnet_analyze_mode(settings: Settings) -> None:
+def test_v3_06_telnet(settings: Settings) -> None:
     result, calls = _evaluate(settings, _telnet("v3-06"))
     item = _item(result)
     assert (item.decision, item.reason_code) == ("待定", "PORT-001")
     assert len(calls.rule_match) == 1
-    assert len(calls.acl) == 1
 
 
 def test_v3_07_broad_port_range_keeps_all_findings(settings: Settings) -> None:
@@ -208,73 +185,6 @@ def test_v3_08_any_address(settings: Settings) -> None:
     assert (item.decision, item.reason_code) == ("待定", "LEAST-ANY-001")
     # any 不发 provider 查询（仅目的端 /24 一次）
     assert calls.provider == ["16.220.16.0/24"]
-
-
-# ---------------------------------------------------------------------------
-# V3-09..V3-14: ACL chain
-# ---------------------------------------------------------------------------
-
-
-def test_v3_09_acl_dependency_advisory(settings: Settings) -> None:
-    result, calls = _evaluate(
-        settings,
-        _payload("v3-09"),
-        acl_client_mode="http",
-        acl_api_url="http://acl.invalid",
-    )
-    item = _item(result)
-    assert item.decision == "合规"
-    assert item.acl_verification_status == "unverified"
-
-
-def test_v3_10_acl_dependency_required(settings: Settings) -> None:
-    result, calls = _evaluate(
-        settings,
-        _payload("v3-10"),
-        acl_client_mode="http",
-        acl_api_url="http://acl.invalid",
-        acl_decision_mode="required",
-    )
-    item = _item(result)
-    assert (item.decision, item.reason_code) == ("待定", "ACL_DEPENDENCY_FAILURE")
-    assert calls.reduce == 1
-
-
-def test_v3_11_acl_explicit_no_path(settings: Settings) -> None:
-    result, calls = _evaluate(
-        settings, _payload("v3-11"), acl_mock_file=ACL_NO_PATH_FIXTURE
-    )
-    item = _item(result)
-    assert (item.decision, item.reason_code) == ("待定", "ACL-PATH-001")
-    assert "ACL-PATH-001" in _finding_codes(item)
-
-
-def test_v3_12_acl_ambiguous(settings: Settings) -> None:
-    result, calls = _evaluate(
-        settings, _payload("v3-12"), acl_mock_file=ACL_AMBIGUOUS
-    )
-    item = _item(result)
-    assert (item.decision, item.reason_code) == ("待定", "ACL_FACT_AMBIGUOUS")
-    assert item.acl_verification_status == "review_required"
-
-
-def test_v3_13_acl_port_mismatch(settings: Settings) -> None:
-    result, calls = _evaluate(
-        settings, _payload("v3-13"), acl_mock_file=ACL_PORT_MISMATCH
-    )
-    item = _item(result)
-    assert (item.decision, item.reason_code) == ("待定", "ACL_PORT_MISMATCH")
-
-
-def test_v3_14_acl_missing_firewall_required(settings: Settings) -> None:
-    result, calls = _evaluate(
-        settings,
-        _payload("v3-14"),
-        acl_mock_file=ACL_NO_FIREWALL,
-        acl_decision_mode="required",
-    )
-    item = _item(result)
-    assert (item.decision, item.reason_code) == ("待定", "ACL_FIREWALL_UNRESOLVED")
 
 
 # ---------------------------------------------------------------------------
@@ -390,15 +300,15 @@ def test_v3_20_fabricated_semantic_rule(settings: Settings) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_v3_21_port_and_acl_no_path_both_output(settings: Settings) -> None:
-    result, calls = _evaluate(settings, _telnet("v3-21"), acl_mock_file=ACL_NO_PATH_FIXTURE)
+def test_v3_21_port_rule_single_finding(settings: Settings) -> None:
+    result, calls = _evaluate(settings, _telnet("v3-21"))
     item = _item(result)
     assert item.reason_code == "PORT-001"
-    assert _finding_codes(item) == ["PORT-001", "ACL-PATH-001"]
+    assert _finding_codes(item) == ["PORT-001"]
 
 
-def test_v3_22_four_finding_sources_coexist(settings: Settings) -> None:
-    # any 源 + telnet + ACL 无路径 + 语义冲突：network(rule 类)/rule/acl/semantic
+def test_v3_22_three_finding_sources_coexist(settings: Settings) -> None:
+    # any 源 + telnet + 语义冲突：network(rule 类)/rule/semantic
     payload = _payload(
         "v3-22",
         sources=[{"address": "any", "description": "全来源"}],
@@ -425,20 +335,16 @@ def test_v3_22_four_finding_sources_coexist(settings: Settings) -> None:
         }
     )
     llm = RecordingLlmClient(semantic_response=conflict)
-    result, calls = _evaluate(
-        settings, payload, llm=llm, acl_mock_file=ACL_NO_PATH_FIXTURE
-    )
+    result, calls = _evaluate(settings, payload, llm=llm)
     item = _item(result)
     assert item.reason_code == "PORT-001"
     codes = _finding_codes(item)
     assert "ADDRESS_ANY" in codes
     assert "PORT-001" in codes
-    assert "ACL-PATH-001" in codes
     assert "SEMANTIC_FACT_CONFLICT" in codes
     assert {f.source for f in item.decision_findings} == {
         "network",
         "rule",
-        "acl",
         "semantic",
     }
 
@@ -455,7 +361,7 @@ def test_v3_23_item_limit_rejects_before_dependencies(settings: Settings) -> Non
     payload["destinations"].append({"address": "16.220.16.30", "description": "数据库 2"})
     with TestClient(create_app(limited)) as client:
         runtime = client.app.state.runtime
-        response = client.post("/v1/evaluations", json=payload)
+        response = client.post("/v2/evaluations", json=payload)
         provider_calls = list(
             runtime.network_plan_resolver.provider.transport.calls
         )
@@ -468,7 +374,7 @@ def test_v3_24_query_limit_rejects_before_provider(settings: Settings) -> None:
     limited = _mock_chain(settings, network_plan_max_subnets_per_request=1)
     with TestClient(create_app(limited)) as client:
         runtime = client.app.state.runtime
-        response = client.post("/v1/evaluations", json=_payload("v3-24"))
+        response = client.post("/v2/evaluations", json=_payload("v3-24"))
         provider_calls = list(
             runtime.network_plan_resolver.provider.transport.calls
         )
@@ -521,12 +427,12 @@ def test_v3_26_mock_and_offline_equivalent_facts(settings: Settings) -> None:
         )
         with TestClient(create_app(offline_settings)) as client:
             response = client.post(
-                "/v1/evaluations", json=_same_request("v3-26-offline")
+                "/v2/evaluations", json=_same_request("v3-26-offline")
             )
             offline_status, offline_body = response.status_code, response.json()
         with TestClient(create_app(mock_settings)) as client:
             response = client.post(
-                "/v1/evaluations", json=_same_request("v3-26-mock")
+                "/v2/evaluations", json=_same_request("v3-26-mock")
             )
             mock_status, mock_body = response.status_code, response.json()
 
@@ -544,9 +450,6 @@ def test_v3_27_explanation_failure_keeps_formal_decision(settings: Settings) -> 
 
 def test_v3_28_all_shadows_fail_response_still_succeeds(settings: Settings) -> None:
     class AllFail(RecordingLlmClient):
-        async def extract_acl_facts(self, inputs, *, request_id=None):
-            raise LlmDependencyError("acl candidates failure")
-
         async def analyze_request_findings(self, inputs, *, request_id=None):
             raise LlmDependencyError("request findings failure")
 
@@ -557,14 +460,12 @@ def test_v3_28_all_shadows_fail_response_still_succeeds(settings: Settings) -> N
         settings,
         _payload("v3-28"),
         llm=AllFail(),
-        llm_acl_candidate_mode="shadow",
         llm_request_findings_mode="shadow",
     )
     item = _item(result)
     assert result.response.decision == "合规"
     assert item.decision == "合规"
     assert result.exceptions == [
-        "LLM ACL candidates: acl candidates failure",
         "LLM request findings: request findings failure",
         "LLM explanation: explanation failure",
     ]
@@ -616,7 +517,7 @@ def test_v3_31_offline_multi_match_frozen(settings: Settings, tmp_path: Path) ->
     policy_dir = tmp_path / "policies"
     shutil.copytree(PROJECT_ROOT / "policies", policy_dir)
     (policy_dir / "network_catalog.yaml").write_text(
-        'version: "2026.08.0"\n'
+        'version: "2026.09.0"\n'
         "networks:\n"
         "  - id: OVERLAP-A\n"
         "    cidr: 16.9.0.0/24\n"
@@ -643,7 +544,7 @@ def test_v3_31_offline_multi_match_frozen(settings: Settings, tmp_path: Path) ->
         destinations=[{"address": "16.1.30.20", "description": "生产应用 B"}],
     )
     with TestClient(create_app(offline)) as client:
-        response = client.post("/v1/evaluations", json=payload)
+        response = client.post("/v2/evaluations", json=payload)
         body = response.json()
     assert response.status_code == 200
     assert body["items"][0]["reason_code"] == "NETWORK_PLAN_INVALID_RESPONSE"
@@ -651,11 +552,10 @@ def test_v3_31_offline_multi_match_frozen(settings: Settings, tmp_path: Path) ->
 
 def test_v3_32_exceptions_and_stage_metrics_order_frozen(settings: Settings) -> None:
     result, calls = _evaluate(settings, _payload("v3-32"))
-    # shadow off：metrics 键顺序 = semantic, acl_candidates, request_findings,
-    # explanation（off 占位），与 docs/v3-baseline.md §4.2 一致
+    # shadow off：metrics 键顺序 = semantic, request_findings, explanation
+    # （off 占位）；0.3.0 起不再有已移除影子阶段的键
     assert list(result.model_raw["stages"]) == [
         "semantic",
-        "acl_candidates",
         "request_findings",
         "explanation",
     ]
@@ -663,15 +563,10 @@ def test_v3_32_exceptions_and_stage_metrics_order_frozen(settings: Settings) -> 
 
 
 def test_v3_33_audit_records_full_decision_findings(settings: Settings) -> None:
-    result, calls = _evaluate(
-        settings, _telnet("v3-33"), acl_mock_file=ACL_NO_PATH_FIXTURE
-    )
+    result, calls = _evaluate(settings, _telnet("v3-33"))
     serialized = result.response.model_dump(mode="json")
     item = serialized["items"][0]
-    assert [f["code"] for f in item["decision_findings"]] == [
-        "PORT-001",
-        "ACL-PATH-001",
-    ]
+    assert [f["code"] for f in item["decision_findings"]] == ["PORT-001"]
     primaries = [f for f in item["decision_findings"] if f["is_primary"]]
     assert len(primaries) == 1
     assert primaries[0]["code"] == item["reason_code"]

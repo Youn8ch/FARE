@@ -1,0 +1,55 @@
+{
+  "$comment": "Machine-executable allowlist for the precise ACL-removal scan (scripts/acl_scan.py). Categories are matched in listed order; active_code hits must additionally match one of allowed_line_patterns (regex). Every change here must land in the same commit as the code/docs it describes.",
+  "pattern": "(?i:\\bacl\\b|acl_)|Acl[A-Z]|ACL-",
+  "scan_roots": [
+    "app",
+    "config",
+    "policies",
+    "evals",
+    "tests",
+    "scripts",
+    "README.md",
+    "docs",
+    "pyproject.toml",
+    "constraints.txt"
+  ],
+  "scan_tooling": {
+    "$comment": "The scanner, its allowlist, and its precision test quote ACL identifiers in order to detect them; they are not ACL capabilities.",
+    "paths": [
+      "scripts/acl_scan.py",
+      "tests/test_acl_scan_precision.py",
+      "docs/implementation/acl-scan-allowlist.json"
+    ]
+  },
+  "categories": [
+    {
+      "id": "legacy_dataset",
+      "paths": ["tests/cases/**", "evals/llm/datasets/**"],
+      "rationale": "Frozen request datasets that compare legacy vs target contract behavior."
+    },
+    {
+      "id": "negative_test",
+      "paths": ["tests/**", "evals/**"],
+      "rationale": "Tests and evals asserting the removed ACL names stay absent."
+    },
+    {
+      "id": "migration_doc",
+      "paths": ["docs/**", "README.md"],
+      "rationale": "Removal/migration documentation and historical audit archives."
+    }
+  ],
+  "active_code": {
+    "paths": [
+      "app/**",
+      "config/**",
+      "policies/**",
+      "scripts/**",
+      "pyproject.toml",
+      "constraints.txt"
+    ],
+    "allowed_line_patterns": [
+      "AUDIT_SCHEMA_EPOCH = \"fare-audit/v2-no-acl\""
+    ],
+    "rationale": "Active runtime may only carry the versioned audit epoch historical identifier; any other ACL reference is a violation."
+  }
+}

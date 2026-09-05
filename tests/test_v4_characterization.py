@@ -20,35 +20,28 @@ from app.main import build_runtime, create_app
 from app.schemas import LlmSemanticResponse
 from app.services.rule_loader import PolicyBundle
 from tests.helpers.llm import LlmDependencyError, RecordingLlmClient
-from tests.test_architecture_baseline import (
-    ACL_NO_PATH_FIXTURE,
-    _mock_chain,
-    _payload,
-)
+from tests.test_architecture_baseline import _mock_chain, _payload
 from tests.test_evaluator_orchestration import (
-    RecordingAclClient,
     RecordingDecisionReducer,
     StageRecorder,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-# V4-P1 起的真实阶段顺序（docs/v3-baseline.md §6 预注册的变更）
+# 0.3.0 起的真实阶段顺序（breaking change，见执行报告批准差异）
 BASELINE_STAGES = [
     "plan",
     "network",
     "rules",
-    "acl",
     "semantic",
     "reduce",
     "post_decision",
     "assemble",
 ]
 
-# model_raw["stages"] 固定记录四个 LLM 阶段（off 状态也占位），顺序即执行顺序
+# model_raw["stages"] 固定记录 LLM 阶段（off 状态也占位），顺序即执行顺序
 CURRENT_STAGES_METRICS_ORDER = [
     "semantic",
-    "acl_candidates",
     "request_findings",
     "explanation",
 ]
@@ -70,10 +63,7 @@ class RecordingPolicyBundle:
 
 
 class AllPostStagesFailingLlmClient(RecordingLlmClient):
-    """Fails the three non-authoritative post-decision stages at once."""
-
-    async def extract_acl_facts(self, inputs, *, request_id=None):
-        raise LlmDependencyError("recorded ACL candidate failure")
+    """Fails every non-authoritative post-decision stage at once."""
 
     async def analyze_request_findings(self, inputs, *, request_id=None):
         raise LlmDependencyError("recorded request findings failure")
@@ -86,15 +76,13 @@ def _instrument(settings: Settings, **chain_changes):
     runtime = build_runtime(_mock_chain(settings, **chain_changes))
     recorder = StageRecorder()
     llm = RecordingLlmClient()
-    acl = RecordingAclClient(runtime.evaluator.acl_client)
     reducer = RecordingDecisionReducer()
     policies = RecordingPolicyBundle(runtime.evaluator.policies)
     runtime.evaluator.llm_client = llm
-    runtime.evaluator.acl_client = acl
     runtime.evaluator.decision_reducer = reducer
     runtime.evaluator.policies = policies
     runtime.evaluator._stage_observer = recorder
-    return runtime, recorder, llm, acl, reducer, policies
+    return runtime, recorder, llm, reducer, policies
 
 
 def _close(runtime) -> None:
@@ -119,7 +107,7 @@ def _request(payload: dict):
 def test_p0c01_normal_https_freezes_stage_order_and_call_counts(
     settings: Settings,
 ) -> None:
-    runtime, recorder, llm, acl, reducer, policies = _instrument(settings)
+    runtime, recorder, llm, reducer, policies = _instrument(settings)
     try:
         result = _run(runtime, _payload("v4-p0-c01"))
     finally:
@@ -130,16 +118,14 @@ def test_p0c01_normal_https_freezes_stage_order_and_call_counts(
     item = result.response.items[0]
     assert item.decision == "合规"
     assert result.response.decision == "合规"
-    assert len(acl.calls) == 1
     assert llm.semantic_calls == 1
     assert llm.explanation_calls == 1
     # V4-P2：正式裁决每 item 恰好一次（D1 反转两次 reduce，已预注册）
     assert len(reducer.calls) == len(result.response.items)
-    # V4-P1：PolicyBundle.match 每 item 恰好一次（ACL gating 消费 RuleStage 结果）
+    # V4-P1：PolicyBundle.match 每 item 恰好一次
     assert len(policies.match_calls) == 1
     assert result.model_raw["metrics"]["llm_added_pending_count"] == 0
     assert list(result.model_raw["stages"]) == CURRENT_STAGES_METRICS_ORDER
-    assert result.model_raw["stages"]["acl_candidates"]["status"] == "off"
     assert result.model_raw["stages"]["request_findings"]["status"] == "off"
     assert result.model_raw["stages"]["semantic"]["status"] == "passed"
     assert result.model_raw["stages"]["explanation"]["status"] == "passed"
@@ -151,7 +137,7 @@ def test_p0c01_normal_https_freezes_stage_order_and_call_counts(
 
 
 def test_p0c02_network_not_found_freeze(settings: Settings) -> None:
-    runtime, recorder, llm, acl, reducer, policies = _instrument(settings)
+    runtime, recorder, llm, reducer, policies = _instrument(settings)
     try:
         result = _run(
             runtime,
@@ -167,8 +153,6 @@ def test_p0c02_network_not_found_freeze(settings: Settings) -> None:
     assert item.decision == "待定"
     assert item.reason_type == "fact_incomplete"
     assert item.reason_code == "NETWORK_PLAN_NOT_FOUND"
-    assert item.acl_verification_status == "skipped"
-    assert acl.calls == []
     assert item.decision_trace is not None
     assert item.decision_trace.deterministic_decision == "待定"
     assert item.decision_trace.semantic_effect == "unchanged"
@@ -178,69 +162,13 @@ def test_p0c02_network_not_found_freeze(settings: Settings) -> None:
 
 
 # ---------------------------------------------------------------------------
-# P0-C03: telnet + deterministic_pending_mode=skip
-# ---------------------------------------------------------------------------
-
-
-def test_p0c03_telnet_skip_mode_freeze(settings: Settings) -> None:
-    runtime, recorder, llm, acl, reducer, policies = _instrument(
-        settings, acl_deterministic_pending_mode="skip"
-    )
-    try:
-        result = _run(
-            runtime,
-            _payload(
-                "v4-p0-c03",
-                destinations=[{"address": "16.220.16.20", "description": "设备"}],
-                ports=[{"start": 23, "end": 23}],
-                request_description="Telnet 管理",
-            ),
-        )
-    finally:
-        _close(runtime)
-
-    item = result.response.items[0]
-    assert item.decision == "待定"
-    assert item.reason_code == "PORT-001"
-    assert [rule.id for rule in item.matched_rules] == ["PORT-001"]
-    assert item.acl_verification_status == "skipped"
-    assert acl.calls == []
-    # V4-P1：gating 消费 RuleStage 结果，不再自行匹配；仅 RuleStage 匹配一次
-    assert len(policies.match_calls) == 1
-    assert len(reducer.calls) == 1
-
-
-# ---------------------------------------------------------------------------
-# P0-C04: ACL explicit no path
-# ---------------------------------------------------------------------------
-
-
-def test_p0c04_acl_explicit_no_path_freeze(settings: Settings) -> None:
-    runtime, recorder, llm, acl, _reducer, _policies = _instrument(
-        settings, acl_mock_file=ACL_NO_PATH_FIXTURE
-    )
-    try:
-        result = _run(runtime, _payload("v4-p0-c04"))
-    finally:
-        _close(runtime)
-
-    item = result.response.items[0]
-    assert item.decision == "待定"
-    assert item.reason_type == "acl_no_path"
-    assert item.reason_code == "ACL-PATH-001"
-    assert [rule.id for rule in item.matched_rules] == ["ACL-PATH-001"]
-    assert item.acl_verification_status == "review_required"
-    assert len(acl.calls) == 1
-
-
-# ---------------------------------------------------------------------------
 # P0-C05: semantic conflict downgrades a compliant item
 # ---------------------------------------------------------------------------
 
 
 def test_p0c05_semantic_conflict_downgrade_freeze(settings: Settings) -> None:
     item_id = "v4-p0-c05-001"
-    runtime, recorder, llm, acl, reducer, _policies = _instrument(settings)
+    runtime, recorder, llm, reducer, _policies = _instrument(settings)
     runtime.evaluator.llm_client = RecordingLlmClient(
         semantic_response=LlmSemanticResponse.model_validate(
             {
@@ -279,45 +207,12 @@ def test_p0c05_semantic_conflict_downgrade_freeze(settings: Settings) -> None:
     # 降级指标基线：llm_added_pending_count = 1（改由 reducer 快照推导后不变）
     assert result.model_raw["metrics"]["llm_added_pending_count"] == 1
     assert len(reducer.calls) == 1
-    assert len(acl.calls) == 1
-
-
-# ---------------------------------------------------------------------------
-# Hidden freeze: ACL-PATH-001 enters matched_rules only when primary
-# ---------------------------------------------------------------------------
-
-
-def test_p0_acl_path_rule_not_in_matched_rules_when_not_primary(
-    settings: Settings,
-) -> None:
-    runtime, _recorder, _llm, acl, _reducer, _policies = _instrument(
-        settings, acl_mock_file=ACL_NO_PATH_FIXTURE
-    )
-    try:
-        result = _run(
-            runtime,
-            _payload(
-                "v4-p0-path-secondary",
-                destinations=[{"address": "16.220.16.20", "description": "设备"}],
-                ports=[{"start": 23, "end": 23}],
-                request_description="Telnet 管理",
-            ),
-        )
-    finally:
-        _close(runtime)
-
-    item = result.response.items[0]
-    # PORT-001（priority 10）压过 ACL-PATH-001（priority 30）
-    assert item.reason_code == "PORT-001"
-    assert [rule.id for rule in item.matched_rules] == ["PORT-001"]
-    assert item.acl_verification_status == "review_required"
-    assert len(acl.calls) == 1
 
 
 # ---------------------------------------------------------------------------
 # Hidden freeze: post-decision shadow stages run after reduce, before explain;
 # their failures never change the business conclusion; exceptions order is
-# acl_candidates -> request_findings -> explanation.
+# request_findings -> explanation.
 # ---------------------------------------------------------------------------
 
 
@@ -326,7 +221,6 @@ def test_p0_post_decision_failures_keep_business_result_and_exceptions_order(
 ) -> None:
     shadowed = _mock_chain(
         settings,
-        llm_acl_candidate_mode="shadow",
         llm_request_findings_mode="shadow",
     )
     runtime = build_runtime(shadowed)
@@ -345,18 +239,16 @@ def test_p0_post_decision_failures_keep_business_result_and_exceptions_order(
     assert item.reason_code is None
     assert item.explanation_source == "template"
     assert result.exceptions == [
-        "LLM ACL candidates: recorded ACL candidate failure",
         "LLM request findings: recorded request findings failure",
         "LLM explanation: recorded explanation failure",
     ]
     assert list(result.model_raw["stages"]) == CURRENT_STAGES_METRICS_ORDER
     stages = result.model_raw["stages"]
-    assert stages["acl_candidates"]["status"] == "rejected"
     assert stages["request_findings"]["status"] == "rejected"
     assert stages["explanation"]["status"] == "rejected"
     metrics = result.model_raw["metrics"]
     assert metrics["explanation_fallback_count"] == 1
-    assert metrics["model_dependency_failure_count"] == 3
+    assert metrics["model_dependency_failure_count"] == 2
 
 
 # ---------------------------------------------------------------------------
@@ -373,7 +265,7 @@ def test_p0_offline_masquerade_freeze(settings: Settings) -> None:
         request_description="生产应用 HTTPS 访问",
     )
     with TestClient(create_app(offline)) as client:
-        response = client.post("/v1/evaluations", json=payload)
+        response = client.post("/v2/evaluations", json=payload)
         body = response.json()
     assert response.status_code == 200
     assert body["decision"] == "合规"
@@ -400,7 +292,7 @@ def _write_conflicting_catalog(tmp_path: Path) -> Path:
     shutil.copytree(PROJECT_ROOT / "policies", policy_dir)
     catalog = policy_dir / "network_catalog.yaml"
     catalog.write_text(
-        'version: "2026.08.0"\n'
+        'version: "2026.09.0"\n'
         "networks:\n"
         "  - id: OVERLAP-A\n"
         "    cidr: 16.9.0.0/24\n"
@@ -431,11 +323,10 @@ def test_p0_offline_multi_match_freeze(settings: Settings, tmp_path: Path) -> No
         destinations=[{"address": "16.1.30.20", "description": "生产应用 B"}],
     )
     with TestClient(create_app(offline)) as client:
-        response = client.post("/v1/evaluations", json=payload)
+        response = client.post("/v2/evaluations", json=payload)
         body = response.json()
     assert response.status_code == 200
     item = body["items"][0]
     assert item["decision"] == "待定"
     assert item["reason_code"] == "NETWORK_PLAN_INVALID_RESPONSE"
     assert item["source_network_fact_status"] == "invalid_response"
-    assert item["acl_verification_status"] == "skipped"

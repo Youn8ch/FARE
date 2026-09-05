@@ -117,31 +117,6 @@ class _NetworkPlanConfig(_StrictConfig):
         return self
 
 
-class _AclMockConfig(_StrictConfig):
-    fixture: str | None = None
-
-
-class _AclHttpConfig(_StrictConfig):
-    url: str | None = None
-    timeout_seconds: float = Field(default=10.0, gt=0)
-    auth: _BearerAuthConfig = Field(default_factory=_BearerAuthConfig)
-
-
-class _AclConfig(_StrictConfig):
-    mode: Literal["mock", "http"]
-    decision_mode: Literal["advisory", "required"] = "advisory"
-    deterministic_pending_mode: Literal["skip", "analyze"] = "analyze"
-    max_concurrency: int = Field(default=8, ge=1)
-    mock: _AclMockConfig = Field(default_factory=_AclMockConfig)
-    http: _AclHttpConfig = Field(default_factory=_AclHttpConfig)
-
-    @model_validator(mode="after")
-    def validate_http(self) -> _AclConfig:
-        if self.mode == "http" and not self.http.url:
-            raise ValueError("acl.http.url is required in http mode")
-        return self
-
-
 class _LlmMockConfig(_StrictConfig):
     fixture: str | None = None
 
@@ -162,7 +137,6 @@ class _LlmHttpConfig(_StrictConfig):
 
 
 class _LlmFeaturesConfig(_StrictConfig):
-    acl_candidate_mode: Literal["off", "shadow"] = "off"
     request_findings_mode: Literal["off", "shadow"] = "off"
 
 
@@ -227,7 +201,6 @@ class _FareYamlConfig(_StrictConfig):
     policy: _PolicyConfig
     requirement_source: _RequirementSourceConfig
     network_plan: _NetworkPlanConfig
-    acl: _AclConfig
     llm: _LlmConfig
     evaluation: _EvaluationConfig = Field(default_factory=_EvaluationConfig)
     audit: _AuditConfig
@@ -260,10 +233,6 @@ class Settings:
     policy_dir: Path
     audit_log_dir: Path
     audit_log_retention_days: int
-    acl_client_mode: str
-    acl_mock_file: Path | None
-    acl_api_url: str | None
-    acl_timeout_seconds: float
     llm_client_mode: str
     llm_base_url: str | None
     llm_model: str | None
@@ -273,7 +242,6 @@ class Settings:
     llm_explanation_timeout_seconds: float
     llm_max_correction_retries: int
     max_concurrent_evaluations: int
-    llm_acl_candidate_mode: str = "off"
     llm_request_findings_mode: str = "off"
     network_plan_client_mode: str = "mock"
     network_plan_mock_file: Path | None = None
@@ -286,10 +254,6 @@ class Settings:
     network_plan_cache_ttl_seconds: float = 0.0
     network_plan_cache_max_entries: int = 1024
     max_evaluation_items: int = 256
-    acl_max_concurrency: int = 8
-    acl_decision_mode: str = "advisory"
-    acl_deterministic_pending_mode: str = "analyze"
-    acl_api_token: str | None = None
     network_plan_api_token: str | None = None
     llm_temperature: float = 0.0
     llm_max_tokens: int | None = None
@@ -306,17 +270,12 @@ class Settings:
     def validate(self) -> None:
         if self.audit_log_retention_days < 1:
             raise ValueError("AUDIT_LOG_RETENTION_DAYS must be at least 1")
-        if self.acl_client_mode not in {"mock", "http"}:
-            raise ValueError("ACL_CLIENT_MODE must be 'mock' or 'http'")
-        if self.acl_client_mode == "http" and not self.acl_api_url:
-            raise ValueError("ACL_API_URL is required when ACL_CLIENT_MODE=http")
         if self.llm_client_mode not in {"mock", "http"}:
             raise ValueError("LLM_CLIENT_MODE must be 'mock' or 'http'")
         if self.llm_client_mode == "http" and (not self.llm_base_url or not self.llm_model):
             raise ValueError("LLM_BASE_URL and LLM_MODEL are required when LLM_CLIENT_MODE=http")
         if (
-            self.acl_timeout_seconds <= 0
-            or self.llm_semantic_timeout_seconds <= 0
+            self.llm_semantic_timeout_seconds <= 0
             or self.llm_explanation_timeout_seconds <= 0
         ):
             raise ValueError("dependency timeouts must be positive")
@@ -324,8 +283,6 @@ class Settings:
             raise ValueError("LLM_MAX_CORRECTION_RETRIES must be 0, 1, or 2")
         if self.max_concurrent_evaluations < 1:
             raise ValueError("MAX_CONCURRENT_EVALUATIONS must be at least 1")
-        if self.llm_acl_candidate_mode not in {"off", "shadow"}:
-            raise ValueError("LLM_ACL_CANDIDATE_MODE must be 'off' or 'shadow'")
         if self.llm_request_findings_mode not in {"off", "shadow", "guarded"}:
             raise ValueError(
                 "LLM_REQUEST_FINDINGS_MODE must be 'off', 'shadow', or 'guarded'"
@@ -354,19 +311,12 @@ class Settings:
             self.network_plan_max_concurrency < 1
             or self.network_plan_max_subnets_per_request < 1
             or self.max_evaluation_items < 1
-            or self.acl_max_concurrency < 1
         ):
-            raise ValueError("network plan, evaluation, and ACL limits must be positive")
+            raise ValueError("network plan and evaluation limits must be positive")
         if self.network_plan_cache_ttl_seconds < 0:
             raise ValueError("NETWORK_PLAN_CACHE_TTL_SECONDS must not be negative")
         if self.network_plan_cache_max_entries < 1:
             raise ValueError("NETWORK_PLAN_CACHE_MAX_ENTRIES must be positive")
-        if self.acl_decision_mode not in {"advisory", "required"}:
-            raise ValueError("ACL_DECISION_MODE must be 'advisory' or 'required'")
-        if self.acl_deterministic_pending_mode not in {"skip", "analyze"}:
-            raise ValueError(
-                "ACL_DETERMINISTIC_PENDING_MODE must be 'skip' or 'analyze'"
-            )
         expected_effect_keys = set(_SemanticEffectsConfig.model_fields)
         if set(self.semantic_effects) != expected_effect_keys:
             raise ValueError("semantic effect policy keys must match the approved catalog")
@@ -408,10 +358,6 @@ class FareConfig:
             policy_dir=_resolve_path(base, parsed.policy.directory) or base,
             audit_log_dir=_resolve_path(base, parsed.audit.directory) or base,
             audit_log_retention_days=parsed.audit.retention_days,
-            acl_client_mode=parsed.acl.mode,
-            acl_mock_file=_resolve_path(base, parsed.acl.mock.fixture),
-            acl_api_url=parsed.acl.http.url,
-            acl_timeout_seconds=parsed.acl.http.timeout_seconds,
             llm_client_mode=parsed.llm.mode,
             llm_base_url=parsed.llm.http.base_url,
             llm_model=parsed.llm.http.model,
@@ -421,7 +367,6 @@ class FareConfig:
             llm_explanation_timeout_seconds=parsed.llm.http.explanation_timeout_seconds,
             llm_max_correction_retries=parsed.llm.http.max_correction_retries,
             max_concurrent_evaluations=parsed.server.max_concurrent_evaluations,
-            llm_acl_candidate_mode=parsed.llm.features.acl_candidate_mode,
             llm_request_findings_mode=parsed.llm.features.request_findings_mode,
             network_plan_client_mode=parsed.network_plan.mode,
             network_plan_mock_file=_resolve_path(base, parsed.network_plan.mock.fixture),
@@ -440,16 +385,6 @@ class FareConfig:
             network_plan_cache_ttl_seconds=parsed.network_plan.cache.ttl_seconds,
             network_plan_cache_max_entries=parsed.network_plan.cache.max_entries,
             max_evaluation_items=parsed.evaluation.max_items,
-            acl_max_concurrency=parsed.acl.max_concurrency,
-            acl_decision_mode=parsed.acl.decision_mode,
-            acl_deterministic_pending_mode=(
-                parsed.acl.deterministic_pending_mode
-            ),
-            acl_api_token=(
-                parsed.acl.http.auth.token
-                if parsed.acl.http.auth.type == "bearer"
-                else None
-            ),
             network_plan_api_token=(
                 parsed.network_plan.http.auth.token
                 if parsed.network_plan.http.auth.type == "bearer"

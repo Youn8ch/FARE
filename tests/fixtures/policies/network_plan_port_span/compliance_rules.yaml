@@ -1,25 +1,20 @@
+# 候选路径占位规则已随 0.3.0 能力移除（2026-09）。
 rules:
-  - id: PORT-SPAN-MAX-10-001
-    name: 单端口范围最多十个端口
-    description: 验证十个允许、十一个命中的边界
-    category: least_privilege
-    decision: 待定
-    reason_type: policy_violation
-    when: {check: port_span, max_ports: 10}
-    semantic_keywords: [端口范围, 最小权限]
-    evidence_requirements: [protocol, destination_port]
-    reason_template: 单个端口范围超过十个端口。
-    recommendation: 将端口缩小到实际需要的范围。
-    remediation_template: 拆分或缩小端口范围。
-  - id: ACL-PATH-001
-    name: 未找到途径防火墙
-    description: 必需系统规则
-    category: least_privilege
-    decision: 待定
-    reason_type: acl_no_path
-    when: {explicit_no_path: true}
-    semantic_keywords: [无路径]
-    evidence_requirements: [acl_explicit_no_path]
-    reason_template: 未找到候选防火墙。
-    recommendation: 人工复核。
-    remediation_template: 人工复核。
+- id: PORT-SPAN-MAX-10-001
+  name: 单端口范围最多十个端口
+  description: 验证十个允许、十一个命中的边界
+  category: least_privilege
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    check: port_span
+    max_ports: 10
+  semantic_keywords:
+  - 端口范围
+  - 最小权限
+  evidence_requirements:
+  - protocol
+  - destination_port
+  reason_template: 单个端口范围超过十个端口。
+  recommendation: 将端口缩小到实际需要的范围。
+  remediation_template: 拆分或缩小端口范围。

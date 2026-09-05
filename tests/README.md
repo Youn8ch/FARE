@@ -7,7 +7,7 @@ connection attempt.
 Area-relation requirement batches live in `cases/network_requirements/`. The
 dedicated suite automatically discovers all 30 versioned batches through the configured requirement
 source and evaluates them with the versioned network-plan fixture, isolated test
-policy bundle, mock ACL, and mock LLM. It locks rule direction, exact area/Region/
+policy bundle and mock LLM. It locks rule direction, exact area/Region/
 platform/usage matching, specific-before-general rule order, per-item isolation,
 lookup deduplication, and the single business-body 404 contract.
 

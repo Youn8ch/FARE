@@ -88,7 +88,6 @@ def test_final_cli_batch_regression_matches_versioned_expectations(
             assert item["destination_network_fact_status"] == (
                 expected_item["destination_status"]
             )
-            assert item["acl_verification_status"] == expected_item["acl_status"]
 
 
 def test_final_all_batches_summary_distribution(tmp_path: Path) -> None:

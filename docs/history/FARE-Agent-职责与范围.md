@@ -1,5 +1,8 @@
 # FARE：防火墙访问需求合规评估 Agent
 
+> [!NOTE]
+> 历史文档（0.3.0 之前）：本文描述的候选路径/拟配置分析能力已在 0.3.0 完整移除，仅供历史追溯，不代表现状。现状见 README.md 与 docs/ARCHITECTURE.md。
+
 > **FARE — Firewall Access Request Evaluator**  
 > 依据既定网络合规规范，对防火墙网络开通需求进行自动预审与合规判定。
 
