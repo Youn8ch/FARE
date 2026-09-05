@@ -204,9 +204,10 @@ def test_semantic_payload_prompt_versions_and_metrics_carry_no_removed_stage(
 
 
 def test_llm_boundary_is_split_into_fare_owned_modules() -> None:
-    """PHASE-05 gate: the LLM boundary lives in app/services/llm/ with FARE
-    ownership of ports/prompts/errors/telemetry; stages import only the
-    ports, and the old client module is a pure re-export facade."""
+    """PHASE-05 gate, hardened: the LLM boundary lives in app/services/llm/
+    with FARE ownership of ports/prompts/errors/telemetry; stages import only
+    the ports, and the interim ``app.services.llm_client`` facade is deleted —
+    the package is the single LLM boundary."""
 
     llm_dir = APP_ROOT / "services" / "llm"
     for module in (
@@ -228,8 +229,11 @@ def test_llm_boundary_is_split_into_fare_owned_modules() -> None:
         assert "from app.services.llm import" in source
         assert "from app.services.llm_client" not in source
 
-    facade = (APP_ROOT / "services" / "llm_client.py").read_text(encoding="utf-8")
-    assert "class LlmClient" not in facade
+    assert not (APP_ROOT / "services" / "llm_client.py").exists()
+    for active in sorted(APP_ROOT.rglob("*.py")):
+        assert "app.services.llm_client" not in active.read_text(
+            encoding="utf-8"
+        ), active
 
     taxonomy = (llm_dir / "errors.py").read_text(encoding="utf-8")
     for cls in (

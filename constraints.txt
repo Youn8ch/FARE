@@ -5,12 +5,11 @@
 #   pip install dist/fare-0.3.0-py3-none-any.whl -c constraints.txt
 #
 # Every pin below is the exact resolved version verified by the hardening
-# clean-wheel build/install smoke (see
-# docs/implementation/FARE_LLM_ACL_REMOVAL_EXECUTION_REPORT.md §0.3.0
-# build evidence). instructor and openai are hard-pinned to the versions the
-# provider contract suite was verified against; openai must never resolve to
-# an unbounded 3.x. Regenerate only via a fresh `pip freeze` review, never by
-# hand-editing single pins.
+# clean-wheel build/install smoke (see the build evidence section in
+# docs/implementation). instructor and openai are hard-pinned to the versions
+# the provider contract suite was verified against; openai must never resolve
+# to an unbounded 3.x. Regenerate only via a fresh `pip freeze` review, never
+# by hand-editing single pins.
 aiohappyeyeballs==2.7.1
 aiohttp==3.14.3
 aiosignal==1.4.0

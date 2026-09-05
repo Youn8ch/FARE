@@ -19,7 +19,7 @@ from app.schemas import (
     LlmRequestFindingsResponse,
     LlmSemanticResponse,
 )
-from app.services.llm_client import (
+from app.services.llm import (
     LlmClient,
     LlmClientProtocol,
     LlmDependencyError,

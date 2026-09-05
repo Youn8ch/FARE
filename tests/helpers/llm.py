@@ -12,7 +12,7 @@ from app.schemas import (
     LlmSemanticContradiction,
     LlmSemanticResponse,
 )
-from app.services.llm_client import LlmDependencyError
+from app.services.llm import LlmDependencyError
 
 FailureStage = Literal[
     "semantic",

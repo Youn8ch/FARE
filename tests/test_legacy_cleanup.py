@@ -60,10 +60,10 @@ def test_static03_no_resolver_none_compatibility_branch() -> None:
     assert "raise RuntimeError" in evaluator
 
 
-def test_llm_review_dead_code_is_removed() -> None:
-    client = _read("services/llm_client.py")
-    assert "async def review(" not in client
-    assert "LlmReviewResponse" not in client
+def test_llm_review_dead_code_and_facade_are_removed() -> None:
+    # The interim app.services.llm_client facade is deleted outright: the
+    # package under services/llm/ is the only LLM boundary.
+    assert not (APP_ROOT / "services" / "llm_client.py").exists()
     schemas = _read("schemas.py")
     assert "LlmReviewResponse" not in schemas
     assert "LlmReviewItem" not in schemas

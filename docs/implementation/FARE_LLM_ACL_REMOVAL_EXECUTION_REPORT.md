@@ -335,8 +335,12 @@ Categories:
 | `telemetry.py` | ContextVar 完成轨迹（per-adapter，无全局可变 hook） | FARE |
 | `mock_adapter.py` | 离线确定性适配器（不经任何第三方 runtime） | Test adapter |
 
-- `app/services/llm_client.py` 变为纯 re-export 兼容 facade；stage/evaluator/
-  main 改为直接 `from app.services.llm import ...`。
+- `app/services/llm_client.py` 曾临时作为纯 re-export 兼容 facade（PHASE-05）。
+  **硬化决定（2026-09-06）：facade 已删除**——仓库内全部现役 tests/evals/
+  helpers 迁移到 `from app.services.llm import ...`，facade 模块移除，负向
+  架构测试（`tests/test_v4_invariants.py::test_llm_boundary_is_split_into_
+  fare_owned_modules`）禁止新旧入口并存；`app.services.llm` 包是唯一 LLM
+  边界。
 - 错误消息不携带原始 provider 响应或 prompt 全文（gate 测试断言长度与字段）。
 - `SemanticPolicyFailure` 仅用于启动/编程错误（文档化于 errors.py）。
 
@@ -546,21 +550,39 @@ pydantic 模型 schema 为准。）
 
 ## 最终状态（Definition of Done）
 
+> 硬化更新（2026-09-06）：本节与后续章节已按 hardening 分支
+> `codex/llm-infrastructure-acl-removal-v1-hardening` 的四份硬化提交修正
+> （no-auth 严格 parity、完整 `/v2` OpenAPI 响应 schema、constraints 锁定与
+> clean wheel 安装证据、精确 ACL 扫描口径与 facade 删除）。历史数字以
+> 删除线/修正注记保留，避免改写审计脉络。
+
 ```text
 engineering_complete: true
 committed: true
-tests_passed: true（全量 572 passed；realistic 35/35；显式 eval 5 passed；ruff 全绿）
-acl_active_references: 0（现役代码/配置/策略/现状文档；61 行剩余命中均为已批准的
-                        负向门禁/迁移说明/新 epoch 常量，见 phase08-acl-scan-final.md）
+tests_passed: true（hardening 后全量 585 passed；realistic 35/35；显式 eval
+              5 passed；ruff 全绿。PHASE-08 交付时为 572 passed）
+acl_active_references: 0（精确口径：scripts/acl_scan.py +
+                        docs/implementation/acl-scan-allowlist.json。
+                        现役代码/配置/策略/脚本仅 1 处 allowlisted 命中 =
+                        AUDIT_SCHEMA_EPOCH = "fare-audit/v2-no-acl"；
+                        其余命中分类为负向测试（71）、legacy 数据集（97）、
+                        迁移文档（578）、扫描工具自身（19），0 违规。
+                        宽泛子串扫描口径已废弃，见 phase08-acl-scan-final.md
+                        的历史记录）
 realistic_cases_passed: 35/35
-provider_parity_passed: true（23 项 provider contract 全绿；差异仅 3 类已审核
-                        SDK 无害差异 + 契约测试按批准差异更新）
+provider_parity_passed: true（provider contract 全绿；hardening 后已批准 SDK
+                        差异仅剩 3 类，no-auth 占位头差异已删除——严格 parity
+                        恢复）
 push_authorized: false（除非用户另行授权）
 pr_created: false
 merge_authorized: false
 ```
 
-### 提交清单（9 个阶段提交，各自可独立 `git revert`）
+### 提交清单（9 个阶段提交；**按依赖逆序 revert**，不承诺任意单项独立可运行）
+
+> 修正：原表述“各自可独立 `git revert`”不成立——PHASE-02/03/04 存在依赖链
+> （ACL 删除依赖中立 context；API 0.3.0 依赖 ACL 删除），单独回退中间阶段
+> 会导致测试与运行时不一致。正确口径是下方“回退步骤”的逆序回退。
 
 | 阶段 | SHA | 标题 |
 |---|---|---|

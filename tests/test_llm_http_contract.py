@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from app.main import build_runtime, create_app
 from app.schemas import EvaluationRequest
-from app.services.llm_client import LlmClient, LlmClientProtocol, LlmDependencyError
+from app.services.llm import LlmClient, LlmClientProtocol, LlmDependencyError
 from tests.conftest import payload
 from tests.helpers.llm import RecordingLlmClient
 

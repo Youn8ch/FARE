@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.llm_client import LlmClient
+from app.services.llm import LlmClient
 from evals.llm.case_schema import load_manifest, load_suite
 
 pytestmark = pytest.mark.llm_eval
