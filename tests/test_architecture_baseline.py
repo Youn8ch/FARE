@@ -37,7 +37,6 @@ from tests.helpers.llm import RecordingLlmClient
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 NETWORK_PLAN_FIXTURE = PROJECT_ROOT / "tests/fixtures/network_plan/multi_region.v1.json"
-ACL_NO_PATH_FIXTURE = PROJECT_ROOT / "tests/fixtures/acl/explicit_no_path.v2.json"
 CASE_ROOT = PROJECT_ROOT / "tests/cases/network_requirements"
 AREA_RELATIONS_CONFIG = PROJECT_ROOT / "config/fare.test-area-relations.yaml"
 
@@ -59,7 +58,6 @@ def _mock_chain(settings: Settings, **changes) -> Settings:
     values = {
         "network_plan_client_mode": "mock",
         "network_plan_mock_file": NETWORK_PLAN_FIXTURE,
-        "acl_decision_mode": "advisory",
         **changes,
     }
     return replace(settings, **values)
@@ -86,7 +84,6 @@ def test_case01_single_ip_normal_access_baseline(settings: Settings) -> None:
         runtime = client.app.state.runtime
         status, body = _post(client, _payload("ac00-case-01"))
         network_calls = list(runtime.network_plan_resolver.provider.transport.calls)
-        acl_calls = list(runtime.evaluator.acl_client.calls)
     assert status == 200
     assert body["decision"] == "合规"
     item = _item(body)
@@ -100,12 +97,10 @@ def test_case01_single_ip_normal_access_baseline(settings: Settings) -> None:
     assert item["destination_network_fact_status"] == "complete"
     assert item["source_network_fact_ids"] == ["NPF-10C90100"]
     assert item["destination_network_fact_ids"] == ["NPF-10DC1000"]
-    assert item["acl_verification_status"] == "verified"
     # 真实访问范围不得扩大为 /24
     assert item["access"]["source"] != "16.201.1.0/24"
     assert len(body["network_analysis"]["lookups"]) == 2
     assert network_calls == ["16.201.1.0/24", "16.220.16.0/24"]
-    assert len(acl_calls) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -119,7 +114,6 @@ def test_case02_network_plan_not_found_baseline(settings: Settings) -> None:
         runtime = client.app.state.runtime
         status, body = _post(client, payload)
         network_calls = list(runtime.network_plan_resolver.provider.transport.calls)
-        acl_calls = list(runtime.evaluator.acl_client.calls)
     assert status == 200
     assert body["decision"] == "待定"
     item = _item(body)
@@ -127,8 +121,6 @@ def test_case02_network_plan_not_found_baseline(settings: Settings) -> None:
     assert item["reason_type"] == "fact_incomplete"
     assert item["reason_code"] == "NETWORK_PLAN_NOT_FOUND"
     assert item["source_network_fact_status"] == "not_found"
-    assert item["acl_verification_status"] == "skipped"
-    assert acl_calls == []
     assert network_calls == ["16.201.3.0/24", "16.220.16.0/24"]
 
 
@@ -145,13 +137,11 @@ def test_case03_query_limit_baseline(settings: Settings) -> None:
         # 同一 request_id 重复提交不得卡在处理中，也不得消耗依赖
         repeat_status, repeat_body = _post(client, _payload("ac00-case-03"))
         network_calls = list(runtime.network_plan_resolver.provider.transport.calls)
-        acl_calls = list(runtime.evaluator.acl_client.calls)
     assert status == repeat_status == 422
     assert body["error"]["code"] == "NETWORK_PLAN_QUERY_LIMIT_EXCEEDED"
     assert body["error"]["details"] == {"actual": 2, "limit": 1}
     assert repeat_body["error"]["code"] == "NETWORK_PLAN_QUERY_LIMIT_EXCEEDED"
     assert network_calls == []
-    assert acl_calls == []
 
 
 # ---------------------------------------------------------------------------
@@ -187,9 +177,7 @@ def test_case05_port_rule_baseline(settings: Settings) -> None:
         request_description="Telnet 管理",
     )
     with TestClient(create_app(_mock_chain(settings))) as client:
-        runtime = client.app.state.runtime
         status, body = _post(client, payload)
-        acl_calls = list(runtime.evaluator.acl_client.calls)
     assert status == 200
     assert body["decision"] == "待定"
     item = _item(body)
@@ -197,8 +185,6 @@ def test_case05_port_rule_baseline(settings: Settings) -> None:
     assert item["reason_type"] == "policy_violation"
     assert item["reason_code"] == "PORT-001"
     assert [rule["id"] for rule in item["matched_rules"]] == ["PORT-001"]
-    # 当前 acl_deterministic_pending_mode=analyze：待定规则不跳过 ACL
-    assert len(acl_calls) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -214,7 +200,6 @@ def test_case06_any_address_baseline(settings: Settings) -> None:
         runtime = client.app.state.runtime
         status, body = _post(client, payload)
         network_calls = list(runtime.network_plan_resolver.provider.transport.calls)
-        acl_calls = list(runtime.evaluator.acl_client.calls)
     assert status == 200
     assert body["decision"] == "待定"
     item = _item(body)
@@ -226,8 +211,6 @@ def test_case06_any_address_baseline(settings: Settings) -> None:
     assert item["source_network_fact_status"] == "not_applicable"
     # any 不得发送给网段规划
     assert network_calls == ["16.220.16.0/24"]
-    # AC-00 表征：deterministic_pending_mode=analyze 时 any 仍调用 ACL 一次
-    assert len(acl_calls) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -250,67 +233,6 @@ def test_case07_port_span_baseline(settings: Settings) -> None:
         "PORT-001",
         "LEAST-PORT-001",
     ]
-
-
-# ---------------------------------------------------------------------------
-# CASE-08: ACL advisory / required dependency failure
-# ---------------------------------------------------------------------------
-
-
-def test_case08_acl_dependency_failure_modes_baseline(settings: Settings) -> None:
-    broken_acl = dict(network_plan_client_mode="mock", acl_client_mode="http")
-    with TestClient(
-        create_app(
-            _mock_chain(
-                settings,
-                acl_client_mode="http",
-                acl_api_url="http://acl.invalid",
-            )
-        )
-    ) as client:
-        advisory_status, advisory = _post(client, _payload("ac00-case-08-advisory"))
-    with TestClient(
-        create_app(
-            _mock_chain(
-                settings,
-                acl_client_mode="http",
-                acl_api_url="http://acl.invalid",
-                acl_decision_mode="required",
-            )
-        )
-    ) as client:
-        required_status, required = _post(client, _payload("ac00-case-08-required"))
-    assert advisory_status == required_status == 200
-    assert broken_acl["network_plan_client_mode"] == "mock"
-    advisory_item = _item(advisory)
-    required_item = _item(required)
-    assert advisory_item["decision"] == "合规"
-    assert advisory_item["acl_verification_status"] == "unverified"
-    assert required_item["decision"] == "待定"
-    assert required_item["reason_type"] == "dependency_failure"
-    assert required_item["reason_code"] == "ACL_DEPENDENCY_FAILURE"
-
-
-# ---------------------------------------------------------------------------
-# CASE-09: ACL explicit no path
-# ---------------------------------------------------------------------------
-
-
-def test_case09_acl_explicit_no_path_baseline(settings: Settings) -> None:
-    configured = _mock_chain(settings, acl_mock_file=ACL_NO_PATH_FIXTURE)
-    with TestClient(create_app(configured)) as client:
-        runtime = client.app.state.runtime
-        status, body = _post(client, _payload("ac00-case-09"))
-        acl_calls = list(runtime.evaluator.acl_client.calls)
-    assert status == 200
-    assert body["decision"] == "待定"
-    item = _item(body)
-    assert item["decision"] == "待定"
-    assert item["reason_type"] == "acl_no_path"
-    assert item["reason_code"] == "ACL-PATH-001"
-    assert [rule["id"] for rule in item["matched_rules"]] == ["ACL-PATH-001"]
-    assert item["acl_verification_status"] == "review_required"
-    assert len(acl_calls) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -616,4 +538,3 @@ def test_cli_batch_not_found_reason_codes_are_stable(tmp_path: Path) -> None:
     # not_found 批次的缺失网段在目的端（16.201.3.0/24），源端正常解析
     assert item["destination_network_fact_status"] == "not_found"
     assert item["source_network_fact_status"] == "complete"
-    assert item["acl_verification_status"] == "skipped"

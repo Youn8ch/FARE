@@ -2,153 +2,682 @@
   "schema_version": "fare-area-relation-expected/v1",
   "requests": {
     "area-office-core-db": {
-      "decision": "待定", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.210.8.10/32", "destination": "16.220.16.20/32", "decision": "待定", "reason_code": "ZONE-OFFICE-CORE-DB-001", "matched_rule_ids": ["ZONE-OFFICE-CORE-DB-001", "ZONE-OFFICE-CORE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "待定",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.210.8.10/32",
+          "destination": "16.220.16.20/32",
+          "decision": "待定",
+          "reason_code": "ZONE-OFFICE-CORE-DB-001",
+          "matched_rule_ids": [
+            "ZONE-OFFICE-CORE-DB-001",
+            "ZONE-OFFICE-CORE-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-office-core-app": {
-      "decision": "待定", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.210.8.10/32", "destination": "16.220.17.20/32", "decision": "待定", "reason_code": "ZONE-OFFICE-CORE-001", "matched_rule_ids": ["ZONE-OFFICE-CORE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "待定",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.210.8.10/32",
+          "destination": "16.220.17.20/32",
+          "decision": "待定",
+          "reason_code": "ZONE-OFFICE-CORE-001",
+          "matched_rule_ids": [
+            "ZONE-OFFICE-CORE-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-kunpeng-core-db": {
-      "decision": "待定", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.201.0.10/32", "destination": "16.220.16.20/32", "decision": "待定", "reason_code": "REGION-KUNPENG-CORE-DB-001", "matched_rule_ids": ["REGION-KUNPENG-CORE-DB-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "待定",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.201.0.10/32",
+          "destination": "16.220.16.20/32",
+          "decision": "待定",
+          "reason_code": "REGION-KUNPENG-CORE-DB-001",
+          "matched_rule_ids": [
+            "REGION-KUNPENG-CORE-DB-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-general-vm-core-db": {
-      "decision": "待定", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.201.2.10/32", "destination": "16.220.16.20/32", "decision": "待定", "reason_code": "MULTI-GENERAL-VM-CORE-DB-001", "matched_rule_ids": ["MULTI-GENERAL-VM-CORE-DB-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "待定",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.201.2.10/32",
+          "destination": "16.220.16.20/32",
+          "decision": "待定",
+          "reason_code": "MULTI-GENERAL-VM-CORE-DB-001",
+          "matched_rule_ids": [
+            "MULTI-GENERAL-VM-CORE-DB-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-core-app-office": {
-      "decision": "待定", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.220.17.20/32", "destination": "16.210.8.10/32", "decision": "待定", "reason_code": "PLATFORM-CORE-APP-OFFICE-001", "matched_rule_ids": ["PLATFORM-CORE-APP-OFFICE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "待定",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.220.17.20/32",
+          "destination": "16.210.8.10/32",
+          "decision": "待定",
+          "reason_code": "PLATFORM-CORE-APP-OFFICE-001",
+          "matched_rule_ids": [
+            "PLATFORM-CORE-APP-OFFICE-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-core-db-office-reverse": {
-      "decision": "合规", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.220.16.20/32", "destination": "16.210.8.10/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "合规",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.220.16.20/32",
+          "destination": "16.210.8.10/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-general-vm-core-app-near-miss": {
-      "decision": "合规", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.201.2.10/32", "destination": "16.220.17.20/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "合规",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.201.2.10/32",
+          "destination": "16.220.17.20/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-kunpeng-office-near-miss": {
-      "decision": "合规", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.201.0.10/32", "destination": "16.210.8.10/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "合规",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.201.0.10/32",
+          "destination": "16.210.8.10/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-core-app-core-db-internal": {
-      "decision": "合规", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.220.17.20/32", "destination": "16.220.16.20/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "合规",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.220.17.20/32",
+          "destination": "16.220.16.20/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-office-office-internal": {
-      "decision": "合规", "item_count": 1, "lookup_count": 1, "acl_call_count": 1,
-      "items": [{"source": "16.210.8.10/32", "destination": "16.210.8.20/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "合规",
+      "item_count": 1,
+      "lookup_count": 1,
+      "items": [
+        {
+          "source": "16.210.8.10/32",
+          "destination": "16.210.8.20/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-combination-isolation": {
-      "decision": "待定", "item_count": 4, "lookup_count": 3, "acl_call_count": 4,
+      "decision": "待定",
+      "item_count": 4,
+      "lookup_count": 3,
       "items": [
-        {"source": "16.210.8.10/32", "destination": "16.220.16.20/32", "decision": "待定", "reason_code": "ZONE-OFFICE-CORE-DB-001", "matched_rule_ids": ["ZONE-OFFICE-CORE-DB-001", "ZONE-OFFICE-CORE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
-        {"source": "16.210.8.10/32", "destination": "16.210.8.20/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
-        {"source": "16.220.17.20/32", "destination": "16.220.16.20/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
-        {"source": "16.220.17.20/32", "destination": "16.210.8.20/32", "decision": "待定", "reason_code": "PLATFORM-CORE-APP-OFFICE-001", "matched_rule_ids": ["PLATFORM-CORE-APP-OFFICE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}
+        {
+          "source": "16.210.8.10/32",
+          "destination": "16.220.16.20/32",
+          "decision": "待定",
+          "reason_code": "ZONE-OFFICE-CORE-DB-001",
+          "matched_rule_ids": [
+            "ZONE-OFFICE-CORE-DB-001",
+            "ZONE-OFFICE-CORE-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        },
+        {
+          "source": "16.210.8.10/32",
+          "destination": "16.210.8.20/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        },
+        {
+          "source": "16.220.17.20/32",
+          "destination": "16.220.16.20/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        },
+        {
+          "source": "16.220.17.20/32",
+          "destination": "16.210.8.20/32",
+          "decision": "待定",
+          "reason_code": "PLATFORM-CORE-APP-OFFICE-001",
+          "matched_rule_ids": [
+            "PLATFORM-CORE-APP-OFFICE-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
       ]
     },
     "area-success-office-db-02": {
-      "decision": "待定", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.210.8.30/32", "destination": "16.220.16.30/32", "decision": "待定", "reason_code": "ZONE-OFFICE-CORE-DB-001", "matched_rule_ids": ["ZONE-OFFICE-CORE-DB-001", "ZONE-OFFICE-CORE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "待定",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.210.8.30/32",
+          "destination": "16.220.16.30/32",
+          "decision": "待定",
+          "reason_code": "ZONE-OFFICE-CORE-DB-001",
+          "matched_rule_ids": [
+            "ZONE-OFFICE-CORE-DB-001",
+            "ZONE-OFFICE-CORE-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-success-office-app-02": {
-      "decision": "待定", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.210.8.31/32", "destination": "16.220.17.30/32", "decision": "待定", "reason_code": "ZONE-OFFICE-CORE-001", "matched_rule_ids": ["ZONE-OFFICE-CORE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "待定",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.210.8.31/32",
+          "destination": "16.220.17.30/32",
+          "decision": "待定",
+          "reason_code": "ZONE-OFFICE-CORE-001",
+          "matched_rule_ids": [
+            "ZONE-OFFICE-CORE-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-success-app-office-02": {
-      "decision": "待定", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.220.17.31/32", "destination": "16.210.8.32/32", "decision": "待定", "reason_code": "PLATFORM-CORE-APP-OFFICE-001", "matched_rule_ids": ["PLATFORM-CORE-APP-OFFICE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "待定",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.220.17.31/32",
+          "destination": "16.210.8.32/32",
+          "decision": "待定",
+          "reason_code": "PLATFORM-CORE-APP-OFFICE-001",
+          "matched_rule_ids": [
+            "PLATFORM-CORE-APP-OFFICE-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-success-db-office-reverse-02": {
-      "decision": "合规", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.220.16.31/32", "destination": "16.210.8.33/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "合规",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.220.16.31/32",
+          "destination": "16.210.8.33/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-success-kunpeng0-db-02": {
-      "decision": "待定", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.201.0.30/32", "destination": "16.220.16.32/32", "decision": "待定", "reason_code": "REGION-KUNPENG-CORE-DB-001", "matched_rule_ids": ["REGION-KUNPENG-CORE-DB-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "待定",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.201.0.30/32",
+          "destination": "16.220.16.32/32",
+          "decision": "待定",
+          "reason_code": "REGION-KUNPENG-CORE-DB-001",
+          "matched_rule_ids": [
+            "REGION-KUNPENG-CORE-DB-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-success-kunpeng1-db-02": {
-      "decision": "待定", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.201.1.30/32", "destination": "16.220.16.33/32", "decision": "待定", "reason_code": "REGION-KUNPENG-CORE-DB-001", "matched_rule_ids": ["REGION-KUNPENG-CORE-DB-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "待定",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.201.1.30/32",
+          "destination": "16.220.16.33/32",
+          "decision": "待定",
+          "reason_code": "REGION-KUNPENG-CORE-DB-001",
+          "matched_rule_ids": [
+            "REGION-KUNPENG-CORE-DB-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-success-kunpeng-app-near-miss-02": {
-      "decision": "合规", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.201.0.31/32", "destination": "16.220.17.32/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "合规",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.201.0.31/32",
+          "destination": "16.220.17.32/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-success-general-db-02": {
-      "decision": "待定", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.201.2.30/32", "destination": "16.220.16.34/32", "decision": "待定", "reason_code": "MULTI-GENERAL-VM-CORE-DB-001", "matched_rule_ids": ["MULTI-GENERAL-VM-CORE-DB-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "待定",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.201.2.30/32",
+          "destination": "16.220.16.34/32",
+          "decision": "待定",
+          "reason_code": "MULTI-GENERAL-VM-CORE-DB-001",
+          "matched_rule_ids": [
+            "MULTI-GENERAL-VM-CORE-DB-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-success-general-app-near-miss-02": {
-      "decision": "合规", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.201.2.31/32", "destination": "16.220.17.33/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "合规",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.201.2.31/32",
+          "destination": "16.220.17.33/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-success-general-office-02": {
-      "decision": "合规", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.201.2.32/32", "destination": "16.210.8.34/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "合规",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.201.2.32/32",
+          "destination": "16.210.8.34/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-success-office-kunpeng-02": {
-      "decision": "合规", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.210.8.35/32", "destination": "16.201.0.32/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "合规",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.210.8.35/32",
+          "destination": "16.201.0.32/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-success-db-kunpeng-reverse-02": {
-      "decision": "合规", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.220.16.35/32", "destination": "16.201.1.31/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "合规",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.220.16.35/32",
+          "destination": "16.201.1.31/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-success-app-db-internal-02": {
-      "decision": "合规", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.220.17.34/32", "destination": "16.220.16.36/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "合规",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.220.17.34/32",
+          "destination": "16.220.16.36/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-success-db-app-internal-02": {
-      "decision": "合规", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.220.16.37/32", "destination": "16.220.17.35/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "合规",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.220.16.37/32",
+          "destination": "16.220.17.35/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-success-kunpeng-internal-02": {
-      "decision": "合规", "item_count": 1, "lookup_count": 2, "acl_call_count": 1,
-      "items": [{"source": "16.201.0.33/32", "destination": "16.201.1.32/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}]
+      "decision": "合规",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.201.0.33/32",
+          "destination": "16.201.1.32/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
+      ]
     },
     "area-success-office-general-cross-02": {
-      "decision": "待定", "item_count": 4, "lookup_count": 4, "acl_call_count": 4,
+      "decision": "待定",
+      "item_count": 4,
+      "lookup_count": 4,
       "items": [
-        {"source": "16.210.8.40/32", "destination": "16.220.16.40/32", "decision": "待定", "reason_code": "ZONE-OFFICE-CORE-DB-001", "matched_rule_ids": ["ZONE-OFFICE-CORE-DB-001", "ZONE-OFFICE-CORE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
-        {"source": "16.210.8.40/32", "destination": "16.220.17.40/32", "decision": "待定", "reason_code": "ZONE-OFFICE-CORE-001", "matched_rule_ids": ["ZONE-OFFICE-CORE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
-        {"source": "16.201.2.40/32", "destination": "16.220.16.40/32", "decision": "待定", "reason_code": "MULTI-GENERAL-VM-CORE-DB-001", "matched_rule_ids": ["MULTI-GENERAL-VM-CORE-DB-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
-        {"source": "16.201.2.40/32", "destination": "16.220.17.40/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}
+        {
+          "source": "16.210.8.40/32",
+          "destination": "16.220.16.40/32",
+          "decision": "待定",
+          "reason_code": "ZONE-OFFICE-CORE-DB-001",
+          "matched_rule_ids": [
+            "ZONE-OFFICE-CORE-DB-001",
+            "ZONE-OFFICE-CORE-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        },
+        {
+          "source": "16.210.8.40/32",
+          "destination": "16.220.17.40/32",
+          "decision": "待定",
+          "reason_code": "ZONE-OFFICE-CORE-001",
+          "matched_rule_ids": [
+            "ZONE-OFFICE-CORE-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        },
+        {
+          "source": "16.201.2.40/32",
+          "destination": "16.220.16.40/32",
+          "decision": "待定",
+          "reason_code": "MULTI-GENERAL-VM-CORE-DB-001",
+          "matched_rule_ids": [
+            "MULTI-GENERAL-VM-CORE-DB-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        },
+        {
+          "source": "16.201.2.40/32",
+          "destination": "16.220.17.40/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
       ]
     },
     "area-success-core-kunpeng-cross-02": {
-      "decision": "待定", "item_count": 4, "lookup_count": 4, "acl_call_count": 4,
+      "decision": "待定",
+      "item_count": 4,
+      "lookup_count": 4,
       "items": [
-        {"source": "16.220.17.41/32", "destination": "16.210.8.41/32", "decision": "待定", "reason_code": "PLATFORM-CORE-APP-OFFICE-001", "matched_rule_ids": ["PLATFORM-CORE-APP-OFFICE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
-        {"source": "16.220.17.41/32", "destination": "16.201.0.40/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
-        {"source": "16.220.16.41/32", "destination": "16.210.8.41/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
-        {"source": "16.220.16.41/32", "destination": "16.201.0.40/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}
+        {
+          "source": "16.220.17.41/32",
+          "destination": "16.210.8.41/32",
+          "decision": "待定",
+          "reason_code": "PLATFORM-CORE-APP-OFFICE-001",
+          "matched_rule_ids": [
+            "PLATFORM-CORE-APP-OFFICE-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        },
+        {
+          "source": "16.220.17.41/32",
+          "destination": "16.201.0.40/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        },
+        {
+          "source": "16.220.16.41/32",
+          "destination": "16.210.8.41/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        },
+        {
+          "source": "16.220.16.41/32",
+          "destination": "16.201.0.40/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
       ]
     },
     "area-success-kunpeng-office-cross-02": {
-      "decision": "待定", "item_count": 4, "lookup_count": 3, "acl_call_count": 4,
+      "decision": "待定",
+      "item_count": 4,
+      "lookup_count": 3,
       "items": [
-        {"source": "16.201.1.40/32", "destination": "16.220.16.42/32", "decision": "待定", "reason_code": "REGION-KUNPENG-CORE-DB-001", "matched_rule_ids": ["REGION-KUNPENG-CORE-DB-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
-        {"source": "16.201.1.40/32", "destination": "16.210.8.43/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
-        {"source": "16.210.8.42/32", "destination": "16.220.16.42/32", "decision": "待定", "reason_code": "ZONE-OFFICE-CORE-DB-001", "matched_rule_ids": ["ZONE-OFFICE-CORE-DB-001", "ZONE-OFFICE-CORE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
-        {"source": "16.210.8.42/32", "destination": "16.210.8.43/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}
+        {
+          "source": "16.201.1.40/32",
+          "destination": "16.220.16.42/32",
+          "decision": "待定",
+          "reason_code": "REGION-KUNPENG-CORE-DB-001",
+          "matched_rule_ids": [
+            "REGION-KUNPENG-CORE-DB-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        },
+        {
+          "source": "16.201.1.40/32",
+          "destination": "16.210.8.43/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        },
+        {
+          "source": "16.210.8.42/32",
+          "destination": "16.220.16.42/32",
+          "decision": "待定",
+          "reason_code": "ZONE-OFFICE-CORE-DB-001",
+          "matched_rule_ids": [
+            "ZONE-OFFICE-CORE-DB-001",
+            "ZONE-OFFICE-CORE-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        },
+        {
+          "source": "16.210.8.42/32",
+          "destination": "16.210.8.43/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
       ]
     },
     "area-success-office-app-bidirectional-02": {
-      "decision": "待定", "item_count": 4, "lookup_count": 2, "acl_call_count": 4,
+      "decision": "待定",
+      "item_count": 4,
+      "lookup_count": 2,
       "items": [
-        {"source": "16.210.8.44/32", "destination": "16.220.17.43/32", "decision": "待定", "reason_code": "ZONE-OFFICE-CORE-001", "matched_rule_ids": ["ZONE-OFFICE-CORE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
-        {"source": "16.210.8.44/32", "destination": "16.210.8.45/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
-        {"source": "16.220.17.42/32", "destination": "16.220.17.43/32", "decision": "合规", "reason_code": null, "matched_rule_ids": [], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"},
-        {"source": "16.220.17.42/32", "destination": "16.210.8.45/32", "decision": "待定", "reason_code": "PLATFORM-CORE-APP-OFFICE-001", "matched_rule_ids": ["PLATFORM-CORE-APP-OFFICE-001"], "source_status": "complete", "destination_status": "complete", "acl_status": "verified"}
+        {
+          "source": "16.210.8.44/32",
+          "destination": "16.220.17.43/32",
+          "decision": "待定",
+          "reason_code": "ZONE-OFFICE-CORE-001",
+          "matched_rule_ids": [
+            "ZONE-OFFICE-CORE-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        },
+        {
+          "source": "16.210.8.44/32",
+          "destination": "16.210.8.45/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        },
+        {
+          "source": "16.220.17.42/32",
+          "destination": "16.220.17.43/32",
+          "decision": "合规",
+          "reason_code": null,
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "complete"
+        },
+        {
+          "source": "16.220.17.42/32",
+          "destination": "16.210.8.45/32",
+          "decision": "待定",
+          "reason_code": "PLATFORM-CORE-APP-OFFICE-001",
+          "matched_rule_ids": [
+            "PLATFORM-CORE-APP-OFFICE-001"
+          ],
+          "source_status": "complete",
+          "destination_status": "complete"
+        }
       ]
     },
     "area-network-plan-not-found": {
-      "decision": "待定", "item_count": 1, "lookup_count": 2, "acl_call_count": 0,
-      "items": [{"source": "16.201.2.10/32", "destination": "16.201.3.10/32", "decision": "待定", "reason_code": "NETWORK_PLAN_NOT_FOUND", "matched_rule_ids": [], "source_status": "complete", "destination_status": "not_found", "acl_status": "skipped"}]
+      "decision": "待定",
+      "item_count": 1,
+      "lookup_count": 2,
+      "items": [
+        {
+          "source": "16.201.2.10/32",
+          "destination": "16.201.3.10/32",
+          "decision": "待定",
+          "reason_code": "NETWORK_PLAN_NOT_FOUND",
+          "matched_rule_ids": [],
+          "source_status": "complete",
+          "destination_status": "not_found"
+        }
+      ]
     }
   }
 }

@@ -117,7 +117,6 @@ def test_default_package_disables_object_001() -> None:
     bundle = _bundle()
     assert "OBJECT-001" not in bundle.rule_ids
     assert "PORT-001" in bundle.rule_ids
-    assert "ACL-PATH-001" in bundle.rule_ids
 
 
 def test_object_relation_capability_is_preserved_in_fixture_package() -> None:
@@ -240,9 +239,6 @@ def test_every_default_active_rule_has_positive_and_near_miss() -> None:
         _combination(source, destination), total=64
     )
 
-    # ACL-PATH-001: 事实驱动，由 acl_no_path_rule 提供（不在 match() 中）
-    assert bundle.acl_no_path_rule.id == "ACL-PATH-001"
-
 
 def test_default_rules_e2e_reachability_mapping() -> None:
     """每条默认启用规则至少有一个主路径正例挂靠点（v2 套件或本套件）。"""
@@ -253,11 +249,9 @@ def test_default_rules_e2e_reachability_mapping() -> None:
         "LEAST-CIDR-001": "test_rule_limits.py prefix boundaries (rule-level)",
         "LEAST-PORT-001": "core.v2.json port_span_101_is_rejected_v2",
         "LEAST-COMBINATION-001": "test_rule_reachability.py (rule-level)",
-        "ACL-PATH-001": "core.v2.json acl_explicit_no_path_v2",
     }
     bundle = _bundle()
-    active = bundle.rule_ids - {"ACL-PATH-001"}
-    assert active == set(mapping) - {"ACL-PATH-001"}
+    assert bundle.rule_ids == set(mapping)
 
 
 # ---------------------------------------------------------------------------

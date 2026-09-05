@@ -76,7 +76,6 @@ def _keys(item: dict) -> dict:
         "destination_network_fact_status": item["destination_network_fact_status"],
         "source_network_fact_ids": item["source_network_fact_ids"],
         "destination_network_fact_ids": item["destination_network_fact_ids"],
-        "acl_verification_status": item["acl_verification_status"],
         "semantic_effect": item["decision_trace"]["semantic_effect"],
         "final_decision": item["decision_trace"]["final_decision"],
     }

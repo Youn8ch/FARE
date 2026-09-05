@@ -81,7 +81,6 @@ def _protected_snapshot(response) -> dict[str, Any]:
             }
             for item in response.items
         ],
-        "acl_facts": response.acl_analysis.extracted_facts.model_dump(mode="json"),
     }
 
 
@@ -130,16 +129,12 @@ def _finding_inputs() -> list[dict[str, Any]]:
             "request_description": "统一变更申请",
             "source_description": "支付生产变更",
             "destination_description": "生产数据库",
-            "acl_analysis": "候选路径经过防火墙 FW-01。",
-            "acl_config": "access-list ACL-01 port 443",
         },
         {
             "item_id": "finding-002",
             "request_description": "统一变更申请",
             "source_description": "测试环境维护",
             "destination_description": "测试应用",
-            "acl_analysis": "候选路径经过防火墙 FW-02。",
-            "acl_config": "access-list ACL-02 port 8443",
         },
     ]
 
@@ -224,8 +219,6 @@ def test_guarded_mode_is_rejected_by_evaluator_even_without_settings(settings) -
     with pytest.raises(ValueError, match="guarded mode is not approved"):
         type(runtime.evaluator)(
             policies=runtime.evaluator.policies,
-            acl_client=runtime.evaluator.acl_client,
-            extractor=runtime.evaluator.extractor,
             llm_client=runtime.evaluator.llm_client,
             llm_request_findings_mode="guarded",
         )

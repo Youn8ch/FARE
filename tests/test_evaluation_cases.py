@@ -11,13 +11,13 @@ from pydantic import ValidationError
 from app.config import Settings
 from app.main import create_app
 from app.schemas import (
-    LlmAclExtractionResponse,
     LlmExplanationResponse,
     LlmRequestFindingsResponse,
     LlmSemanticResponse,
 )
 from tests.case_schema import CaseSuite, Dependencies
 from tests.helpers.case_loader import (
+    LLM_FIXTURE_ROOT,
     LoadedCase,
     _safe_path,
     load_all_suites,
@@ -40,12 +40,9 @@ def test_v2_evaluation_case(loaded: LoadedCase, settings: Settings) -> None:
     case_settings = replace(
         settings,
         policy_dir=loaded.policy_dir,
-        acl_mock_file=loaded.acl_fixture,
-        llm_acl_candidate_mode=loaded.case.feature_flags.llm_acl_candidate_mode,
         llm_request_findings_mode=(
             loaded.case.feature_flags.llm_request_findings_mode
         ),
-        acl_decision_mode=loaded.case.feature_flags.acl_decision_mode,
     )
     if loaded.case.dependencies.network_plan_mode is not None:
         case_settings = replace(
@@ -78,15 +75,7 @@ def test_v2_evaluation_case(loaded: LoadedCase, settings: Settings) -> None:
         assert item["reason"]
         assert item["recommendation"]
 
-    if expected.acl_analysis:
-        actual_facts = body["acl_analysis"]["extracted_facts"]
-        for name, value in expected.acl_analysis.extracted_facts.model_dump(
-            exclude_none=True
-        ).items():
-            assert actual_facts[name] == value
-
     assert recorder.semantic_calls == expected.llm_calls.semantic
-    assert recorder.acl_candidate_calls == expected.llm_calls.acl_candidates
     assert recorder.request_finding_calls == expected.llm_calls.request_findings
     assert recorder.explanation_calls == expected.llm_calls.explanation
     if expected.llm_text:
@@ -106,7 +95,6 @@ def test_v2_suite_envelope_and_global_ids_are_valid() -> None:
     assert {suite.suite for suite in V2_SUITES} == {
         "core",
         "llm_pipeline",
-        "acl_candidates",
         "request_findings",
         "explanation",
     }
@@ -166,22 +154,14 @@ def test_loader_rejects_more_than_four_combinations() -> None:
 
 
 @pytest.mark.parametrize("relative", ["../escape.json", "missing.json"])
-def test_fixture_path_must_exist_inside_allowed_root(relative: str) -> None:
-    case = CORE_V2_CASES[0].case.model_copy(
-        update={"dependencies": Dependencies(acl_fixture=relative)}
-    )
+def test_llm_fixture_path_must_exist_inside_allowed_root(relative: str) -> None:
     with pytest.raises((ValueError, FileNotFoundError)):
-        prepare_case(case)
+        _safe_path(LLM_FIXTURE_ROOT, relative)
 
 
 def test_absolute_fixture_and_policy_traversal_are_rejected() -> None:
-    absolute_fixture_case = CORE_V2_CASES[0].case.model_copy(
-        update={
-            "dependencies": Dependencies(acl_fixture=str(CASE_ROOT.resolve()))
-        }
-    )
     with pytest.raises(ValueError, match="relative"):
-        prepare_case(absolute_fixture_case)
+        _safe_path(LLM_FIXTURE_ROOT, str(CASE_ROOT.resolve()))
 
     escaped_policy_case = CORE_V2_CASES[0].case.model_copy(
         update={"dependencies": Dependencies(policy_dir="../policies")}
@@ -190,14 +170,7 @@ def test_absolute_fixture_and_policy_traversal_are_rejected() -> None:
         prepare_case(escaped_policy_case)
 
 
-def test_schema_rejects_off_mode_fixture_and_noncontiguous_item_indices() -> None:
-    document = json.loads(
-        (CASE_ROOT / "acl_candidates.v2.json").read_text(encoding="utf-8")
-    )
-    document["cases"][0]["feature_flags"]["llm_acl_candidate_mode"] = "off"
-    with pytest.raises(ValidationError, match="mode is off"):
-        CaseSuite.model_validate(document)
-
+def test_schema_rejects_noncontiguous_item_indices() -> None:
     document = json.loads((CASE_ROOT / "core.v2.json").read_text(encoding="utf-8"))
     document["cases"] = [document["cases"][0]]
     document["cases"][0]["expected"]["items"][0]["index"] = 2
@@ -231,24 +204,13 @@ def test_symlink_fixture_escape_is_rejected(tmp_path: Path) -> None:
 
 def _recorder(loaded: LoadedCase) -> RecordingLlmClient:
     semantic = loaded.llm_fixtures.get("semantic", {}).get("semantic")
-    candidate = loaded.llm_fixtures.get("acl_candidates", {}).get(
-        "acl_candidates"
-    )
     findings = loaded.llm_fixtures.get("request_findings", {}).get(
         "request_findings"
     )
     explanation = loaded.llm_fixtures.get("explanation", {}).get("explanation")
-    candidate_response = (
-        LlmAclExtractionResponse.model_validate(candidate) if candidate else None
-    )
     return RecordingLlmClient(
         semantic_response=(
             LlmSemanticResponse.model_validate(semantic) if semantic else None
-        ),
-        acl_candidates=(
-            {item.item_id: item for item in candidate_response.items}
-            if candidate_response
-            else None
         ),
         request_findings=(
             LlmRequestFindingsResponse.model_validate(findings) if findings else None

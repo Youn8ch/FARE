@@ -12,7 +12,6 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.config import Settings
 from app.main import create_app
 from app.schemas import EvaluationRequest
-from app.services.acl_client import MockAclClient
 from app.services.network_plan_client import MockNetworkPlanClient
 from app.services.rule_loader import PolicyBundle
 
@@ -34,13 +33,11 @@ class _ExpectedAccess(_StrictModel):
 class _ExpectedResult(_StrictModel):
     decision: Literal["合规", "待定"]
     lookup_count: int = Field(ge=0)
-    acl_call_count: int = Field(ge=0)
     accesses: list[_ExpectedAccess] = Field(min_length=1)
     reason_codes: list[str | None]
     matched_rule_ids: list[list[str]]
     source_statuses: list[str]
     destination_statuses: list[str]
-    acl_statuses: list[str]
 
     @model_validator(mode="after")
     def aligned_item_expectations(self) -> _ExpectedResult:
@@ -50,7 +47,6 @@ class _ExpectedResult(_StrictModel):
             len(self.matched_rule_ids),
             len(self.source_statuses),
             len(self.destination_statuses),
-            len(self.acl_statuses),
         }
         if len(lengths) != 1:
             raise ValueError("all expected item arrays must have the same length")
@@ -154,7 +150,6 @@ def test_local_network_rule_requirement_group(
         policy_dir=policy_dir,
         network_plan_client_mode="mock",
         network_plan_mock_file=network_plan_fixture,
-        acl_decision_mode="advisory",
     )
     with TestClient(create_app(configured)) as client:
         runtime = client.app.state.runtime
@@ -164,9 +159,7 @@ def test_local_network_rule_requirement_group(
         resolver = runtime.network_plan_resolver
         assert resolver is not None
         assert isinstance(resolver.provider.transport, MockNetworkPlanClient)
-        assert isinstance(runtime.evaluator.acl_client, MockAclClient)
         lookup_calls = list(resolver.provider.transport.calls)
-        acl_calls = list(runtime.evaluator.acl_client.calls)
 
     expected = case.expected
     assert response.status_code == 200
@@ -174,7 +167,6 @@ def test_local_network_rule_requirement_group(
     assert body["decision"] == expected.decision
     assert len(body["network_analysis"]["lookups"]) == expected.lookup_count
     assert len(lookup_calls) == len(set(lookup_calls)) == expected.lookup_count
-    assert len(acl_calls) == expected.acl_call_count
     assert len(body["items"]) == len(expected.accesses)
     for index, item in enumerate(body["items"]):
         assert item["access"]["source"] == expected.accesses[index].source
@@ -188,7 +180,6 @@ def test_local_network_rule_requirement_group(
             item["destination_network_fact_status"]
             == expected.destination_statuses[index]
         )
-        assert item["acl_verification_status"] == expected.acl_statuses[index]
 
 
 @pytest.mark.parametrize("case", INVALID_SUITE.cases, ids=lambda case: case.id)
@@ -216,7 +207,6 @@ def test_at_least_ten_new_valid_rule_packages_are_independently_loadable() -> No
     assert len(package_paths) >= 10
     bundles = [PolicyBundle.load(path) for path in package_paths]
     assert len({bundle.version for bundle in bundles}) == len(package_paths)
-    assert all("ACL-PATH-001" in bundle.rule_ids for bundle in bundles)
 
 
 def test_all_valid_network_plan_rule_packages_remain_loadable() -> None:

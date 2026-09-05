@@ -1,58 +1,57 @@
+# ACL-PATH-001 占位规则已随 ACL 能力完整移除（2026-09）。
 rules:
-  - id: PORT-TEST-TELNET-001
-    name: 测试规则禁止 Telnet
-    description: 验证特殊端口规则和网段规划失败的主附原因优先级
-    category: special_port
-    decision: 待定
-    reason_type: policy_violation
-    when:
-      protocol: tcp
-      ports: [23]
-    semantic_keywords: [Telnet, 明文管理]
-    evidence_requirements: [protocol, destination_port]
-    reason_template: TCP/23 Telnet 访问需要复核。
-    recommendation: 改用受控的加密管理协议。
-    remediation_template: 改用 SSH 或进入正式例外审批。
-
-  - id: LEAST-TEST-ANY-001
-    name: 测试规则禁止 any 地址
-    description: 验证 any 不进入网段查询但仍执行最小权限规则
-    category: least_privilege
-    decision: 待定
-    reason_type: policy_violation
-    when:
-      check: any_address
-    semantic_keywords: [any, 全来源, 全目的]
-    evidence_requirements: [source_address, destination_address]
-    reason_template: 源或目的使用 any，不符合最小开放原则。
-    recommendation: 将地址缩小为实际需要的 IP 或 CIDR。
-    remediation_template: 缩小地址范围并说明业务必要性。
-
-  - id: ZONE-TEST-OFFICE-CORE-001
-    name: 测试规则办公区到核心生产区访问复核
-    description: 验证区域规则与特殊端口规则可以同时保留
-    category: zone_relation
-    decision: 待定
-    reason_type: policy_violation
-    when:
-      source_area_id: 本部办公区
-      destination_area_id: 核心生产区
-    semantic_keywords: [办公区, 核心生产区]
-    evidence_requirements: [source_area_id, destination_area_id]
-    reason_template: 办公区到核心生产区的访问需要复核。
-    recommendation: 使用受控访问入口或进入正式例外审批。
-    remediation_template: 使用受控访问入口并补充审批依据。
-
-  - id: ACL-PATH-001
-    name: 未找到途径防火墙
-    description: ACL API 明确表达没有途径防火墙时进行人工复核
-    category: least_privilege
-    decision: 待定
-    reason_type: acl_no_path
-    when:
-      explicit_no_path: true
-    semantic_keywords: [未找到防火墙, 无路径, 候选路径]
-    evidence_requirements: [acl_explicit_no_path]
-    reason_template: ACL API 明确表示未找到该访问组合经过的防火墙。
-    recommendation: 核实网段规划、候选路径和申请地址后提交人工复核。
-    remediation_template: 核实网段规划、候选路径和申请地址。
+- id: PORT-TEST-TELNET-001
+  name: 测试规则禁止 Telnet
+  description: 验证特殊端口规则和网段规划失败的主附原因优先级
+  category: special_port
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    protocol: tcp
+    ports:
+    - 23
+  semantic_keywords:
+  - Telnet
+  - 明文管理
+  evidence_requirements:
+  - protocol
+  - destination_port
+  reason_template: TCP/23 Telnet 访问需要复核。
+  recommendation: 改用受控的加密管理协议。
+  remediation_template: 改用 SSH 或进入正式例外审批。
+- id: LEAST-TEST-ANY-001
+  name: 测试规则禁止 any 地址
+  description: 验证 any 不进入网段查询但仍执行最小权限规则
+  category: least_privilege
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    check: any_address
+  semantic_keywords:
+  - any
+  - 全来源
+  - 全目的
+  evidence_requirements:
+  - source_address
+  - destination_address
+  reason_template: 源或目的使用 any，不符合最小开放原则。
+  recommendation: 将地址缩小为实际需要的 IP 或 CIDR。
+  remediation_template: 缩小地址范围并说明业务必要性。
+- id: ZONE-TEST-OFFICE-CORE-001
+  name: 测试规则办公区到核心生产区访问复核
+  description: 验证区域规则与特殊端口规则可以同时保留
+  category: zone_relation
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    source_area_id: 本部办公区
+    destination_area_id: 核心生产区
+  semantic_keywords:
+  - 办公区
+  - 核心生产区
+  evidence_requirements:
+  - source_area_id
+  - destination_area_id
+  reason_template: 办公区到核心生产区的访问需要复核。
+  recommendation: 使用受控访问入口或进入正式例外审批。
+  remediation_template: 使用受控访问入口并补充审批依据。

@@ -20,7 +20,6 @@ ALLOWED_REASON_TYPES = {
     "policy_violation",
     "fact_incomplete",
     "fact_conflict",
-    "acl_no_path",
     "dependency_failure",
     "risk_uncertain",
 }
@@ -124,23 +123,17 @@ class PolicyBundle:
                     remediation_template=_required(raw, "remediation_template"),
                 )
             )
-        if "ACL-PATH-001" not in ids:
-            raise ValueError("policy bundle must contain ACL-PATH-001")
         return cls(version=version, released_at=released_at, rules=tuple(rules))
 
     @property
     def rule_ids(self) -> set[str]:
         return {rule.id for rule in self.rules}
 
-    @property
-    def acl_no_path_rule(self) -> Rule:
-        return next(rule for rule in self.rules if rule.id == "ACL-PATH-001")
-
     def match(self, combination: AccessCombination, total_combinations: int) -> list[Rule]:
         return [
             rule
             for rule in self.rules
-            if rule.id != "ACL-PATH-001" and _matches(rule, combination, total_combinations)
+            if _matches(rule, combination, total_combinations)
         ]
 
 
@@ -289,14 +282,11 @@ def _validate_when(rule_id: str, category: str, when: dict[str, Any]) -> None:
             "port_span": {"check", "max_ports"},
             "combination_count": {"check", "max_combinations"},
         }
-        if check is None and when == {"explicit_no_path": True}:
-            allowed = {"explicit_no_path"}
-        elif check not in allowed_by_check:
+        if check not in allowed_by_check:
             raise ValueError(f"rule {rule_id} has an unsupported least_privilege check")
-        else:
-            allowed = allowed_by_check[str(check)]
-            if allowed - set(when):
-                raise ValueError(f"rule {rule_id} is missing required conditions")
+        allowed = allowed_by_check[str(check)]
+        if allowed - set(when):
+            raise ValueError(f"rule {rule_id} is missing required conditions")
     else:
         raise ValueError(f"unsupported rule category: {category}")
     unknown = set(when) - allowed

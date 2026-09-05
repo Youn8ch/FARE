@@ -1,25 +1,21 @@
+# ACL-PATH-001 占位规则已随 ACL 能力完整移除（2026-09）。
 rules:
-  - id: USAGE-PROD-APP-OFFICE-001
-    name: 生产应用用途到办公终端用途访问复核
-    description: 验证 usageCode 精确值和方向性
-    category: zone_relation
-    decision: 待定
-    reason_type: policy_violation
-    when: {source_usage_code: PROD_APPLICATION, destination_usage_code: OFFICE_CLIENT}
-    semantic_keywords: [生产应用, 办公终端, 用途方向]
-    evidence_requirements: [source_usage_code, destination_usage_code]
-    reason_template: 生产应用用途到办公终端用途的访问需要复核。
-    recommendation: 核实反向业务访问必要性。
-    remediation_template: 按用途编码拆分并补充审批依据。
-  - id: ACL-PATH-001
-    name: 未找到途径防火墙
-    description: 必需系统规则
-    category: least_privilege
-    decision: 待定
-    reason_type: acl_no_path
-    when: {explicit_no_path: true}
-    semantic_keywords: [无路径]
-    evidence_requirements: [acl_explicit_no_path]
-    reason_template: 未找到候选防火墙。
-    recommendation: 人工复核。
-    remediation_template: 人工复核。
+- id: USAGE-PROD-APP-OFFICE-001
+  name: 生产应用用途到办公终端用途访问复核
+  description: 验证 usageCode 精确值和方向性
+  category: zone_relation
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    source_usage_code: PROD_APPLICATION
+    destination_usage_code: OFFICE_CLIENT
+  semantic_keywords:
+  - 生产应用
+  - 办公终端
+  - 用途方向
+  evidence_requirements:
+  - source_usage_code
+  - destination_usage_code
+  reason_template: 生产应用用途到办公终端用途的访问需要复核。
+  recommendation: 核实反向业务访问必要性。
+  remediation_template: 按用途编码拆分并补充审批依据。

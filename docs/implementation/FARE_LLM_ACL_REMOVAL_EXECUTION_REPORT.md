@@ -164,3 +164,96 @@ Categories:
 | full `pytest -q` | **617 passed** (615 + 2 new gate tests) |
 | `ruff check . --no-cache` | **All checks passed** |
 | `rg -n 'AclRecord' app/services/stages/{semantic,reduce,post_decision}_stage.py` | **no matches** |
+
+---
+
+## PHASE-03: ACL capability fully removed (breaking change)
+
+**Commit:** `feat!: remove acl assessment capability`（见 git log）
+
+### Deleted production files
+
+- `app/services/acl_client.py`（Mock/Http ACL 客户端）
+- `app/services/acl_extract.py`（确定性 ACL 抽取器）
+- `app/services/acl_candidate_merge.py`（LLM candidate merge）
+- `app/services/stages/acl_stage.py`（ACL stage）
+- `app/services/response_assembler.py`（纯 ACL 的 aggregate_analyses）
+
+### Deleted test assets
+
+- `tests/test_acl_deterministic_short_circuit.py`、`tests/test_acl_llm_gating.py`、
+  `tests/test_llm_guard.py`（整文件为 ACL candidate guard）
+- `tests/test_catalog_and_acl.py` → 非 ACL 用例迁移至新 `tests/test_catalog.py`
+- `tests/fixtures/acl/**`、`tests/fixtures/llm/acl_candidates/**`、
+  `tests/cases/evaluations/acl_candidates.v2.json`
+- core.v2.json 的 4 个 ACL 用例（14→10）
+
+### Production changes
+
+- **主链收敛**：`plan → network → rules → semantic → reduce → post_decision → assemble`。
+- `decision_reducer.py`：`FindingSource = network|rule|semantic`；`PRIORITY_ACL`、
+  `ItemFindingSet.acl` 删除；确定性快照 = network+rules+catalog。
+- `finding_factory.py`：`acl_findings()`、`ACL_ERROR_TEXT`、`acl_no_path_rule`
+  参数删除；`finding_text(primary, matched)` 两参。
+- `rule_loader.py`：ACL-PATH-001 强制校验、`acl_no_path_rule` 属性、match 特殊
+  排除、`explicit_no_path` 条件、`acl_no_path` reason type 全部删除（旧策略包
+  因 unsupported condition 自然加载失败）。
+- `schemas.py`：`AclAnalysis`/`AclCandidateAnalysis`/`LlmAclExtraction*`/
+  `ExtractedFacts`/`AclRawResponse` DTO 删除；`EvaluationItem.acl_verification_status`、
+  `EvaluationResponse.acl_analysis/acl_candidate_analysis` 删除；
+  `DecisionFinding.source` 收敛为 network|rule|semantic；`acl_no_path` reason
+  type 删除；evidence source 联合类型删除 acl_analysis/acl_config。
+- `item_assembler.py`：`acl_verification_status` 与 ACL 文案参数删除。
+- `llm_client.py`：`extract_acl_facts`、`LlmAclCandidateClientProtocol`、
+  `guard_acl_candidates`、ACL prompt/fixture loader 删除；semantic/request
+  findings prompt 重写——防火墙路径与访问控制状态明确列为不可推导事实。
+- `post_decision_stage.py`：ACL candidate shadow 删除；顺序收敛为
+  request findings → explanation。
+- `semantic_stage.py`：payload/evidence 的 acl_analysis/acl_config 通道删除。
+- `audit.py`：`persist()` 不再接收/写入 `acl_raw`；新审计记录无 ACL 数据。
+- `main.py`：ACL 客户端构造/生命周期/aclose 通道删除；`__main__.py` CLI 状态
+  输出删除 ACL mode。
+- 策略包：`policies/compliance_rules.yaml` 与 22 个 fixture 策略包删除
+  ACL-PATH-001；根策略版本 2026.08.0 → **2026.09.0**（manifest + catalog 同步）。
+- 修正 PHASE-02 遗留：main.py 中 redaction 调用曾被误缩进 except 块（本阶段
+  修复，live 响应脱敏恢复与基线一致）。
+
+### Test changes
+
+- realistic 套件 `ACTIVE_CONTRACT` 翻转为 **`acl_free`**：`target_expected`
+  成为唯一门禁；RN-029..035 的批准差异全部按阶段 1 清单落地（4 例待定→合规、
+  1 例 advisory 无决策漂移、shadow 能力整体删除）；legacy_expected 保留为
+  只读取证数据，运行时不再断言。
+- realistic schema/dataset 删除 acl_fixture/acl_decision_mode/acl_candidate_*
+  字段；`tests/fixtures/acl/realistic/` 与 realistic acl_candidates fixture 删除。
+- v2 case schema/数据删除 ACL 面；`RecordingLlmClient` 删除 ACL surface。
+- `test_v4_invariants.py` 新增负向门禁：OpenAPI+response 无验证字段、finding
+  factory 无 legacy code、semantic payload/prompt versions/stage metrics 无
+  已删 stage；静态检查 ACL stage/客户端/DTO 全不存在。
+- characterization / main-chain / architecture-baseline / orchestration 套件
+  按 ACL-free 行为更新（stage 顺序、metrics 键序、exceptions 序、V3-21/22/28/32/33）。
+- area_relation expected 数据集（29 个文件）与 rule-packages 数据集删除
+  acl_status/acl_call_count 字段。
+
+### Test results
+
+| Command | Result |
+|---|---|
+| full `pytest -q` | **552 passed**（基线 577 中删除 68 个 ACL 专用断言 + 新增/改写 43 个） |
+| `ruff check . --no-cache` | **All checks passed** |
+| `pytest evals/llm/test_contract_dataset.py tests/test_real_semantic_acceptance_scoring.py -q` | **5 passed** |
+| realistic suite (acl_free contract) | **38 passed**（35 场景 + 3 元测试） |
+| app/ ACL 引用扫描（不含 config.py，PHASE-04 清理） | **0** |
+
+### Approved differences realized (per PHASE-01 list)
+
+- RN-030/031/032/033/034：`待定` → `合规`（无其他 finding 时）。
+- RN-029：决策不变，仅审计/验证表面消失。
+- RN-035：ACL candidate shadow LLM 调用 1→0，`acl_candidate_analysis` 字段消失。
+- 无清单之外的行为漂移（realistic suite 全绿即为门禁）。
+
+### Notes
+
+- `app/config.py` 的 ACL 配置 schema 按方案留待 PHASE-04 删除（运行时已不消费）。
+- `explanation_guard.py` 的越权断言模式改写为等价的
+  `live/production firewall|access control ...` 形式，保护语义不变。

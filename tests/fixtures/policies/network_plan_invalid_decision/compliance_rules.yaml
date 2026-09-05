@@ -1,25 +1,17 @@
+# ACL-PATH-001 占位规则已随 ACL 能力完整移除（2026-09）。
 rules:
-  - id: INVALID-DECISION-001
-    name: 非法自动合规规则
-    description: 验证规则不能通过 YAML 直接生成合规结论
-    category: zone_relation
-    decision: 合规
-    reason_type: policy_violation
-    when: {source_area_id: 本部办公区}
-    semantic_keywords: [非法结论]
-    evidence_requirements: [source_area_id]
-    reason_template: 不应加载。
-    recommendation: 修正规则结论。
-    remediation_template: 修正规则结论。
-  - id: ACL-PATH-001
-    name: 未找到途径防火墙
-    description: 必需系统规则
-    category: least_privilege
-    decision: 待定
-    reason_type: acl_no_path
-    when: {explicit_no_path: true}
-    semantic_keywords: []
-    evidence_requirements: [acl_explicit_no_path]
-    reason_template: 未找到候选防火墙。
-    recommendation: 人工复核。
-    remediation_template: 人工复核。
+- id: INVALID-DECISION-001
+  name: 非法自动合规规则
+  description: 验证规则不能通过 YAML 直接生成合规结论
+  category: zone_relation
+  decision: 合规
+  reason_type: policy_violation
+  when:
+    source_area_id: 本部办公区
+  semantic_keywords:
+  - 非法结论
+  evidence_requirements:
+  - source_area_id
+  reason_template: 不应加载。
+  recommendation: 修正规则结论。
+  remediation_template: 修正规则结论。

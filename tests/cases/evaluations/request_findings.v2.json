@@ -5,11 +5,68 @@
     {
       "id": "request_finding_shadow_valid_v2",
       "category": "request_findings",
-      "dependencies": {"acl_fixture": null, "policy_dir": null},
-      "feature_flags": {"llm_acl_candidate_mode": "off", "llm_request_findings_mode": "shadow"},
-      "request": {"request_id": "v2-request-finding-valid", "sources": [{"address": "16.1.30.10", "description": "生产应用 A"}], "destinations": [{"address": "16.1.30.20", "description": "生产应用 B"}], "protocol": "tcp", "ports": [{"start": 443, "end": 443}], "request_description": "临时访问但未说明审批上下文"},
-      "llm": {"profile": "fixture", "semantic_fixture": null, "acl_candidate_fixture": null, "request_finding_fixture": "request_findings/valid.v2.json", "explanation_fixture": null},
-      "expected": {"http_status": 200, "decision": "合规", "items": [{"index": 1, "access": {"source": "16.1.30.10/32", "destination": "16.1.30.20/32", "protocol": "tcp", "port": {"start": 443, "end": 443}}, "decision": "合规", "reason_type": null, "reason_code": null, "matched_rule_ids": []}], "llm_calls": {"semantic": 1, "acl_candidates": 0, "request_findings": 1, "explanation": 1}}
+      "dependencies": {
+        "policy_dir": null
+      },
+      "feature_flags": {
+        "llm_request_findings_mode": "shadow"
+      },
+      "request": {
+        "request_id": "v2-request-finding-valid",
+        "sources": [
+          {
+            "address": "16.1.30.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "临时访问但未说明审批上下文"
+      },
+      "llm": {
+        "profile": "fixture",
+        "semantic_fixture": null,
+        "request_finding_fixture": "request_findings/valid.v2.json",
+        "explanation_fixture": null
+      },
+      "expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "16.1.30.10/32",
+              "destination": "16.1.30.20/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": []
+          }
+        ],
+        "llm_calls": {
+          "semantic": 1,
+          "request_findings": 1,
+          "explanation": 1
+        }
+      }
     }
   ]
 }

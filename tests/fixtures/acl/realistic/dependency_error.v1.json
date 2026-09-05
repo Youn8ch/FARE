@@ -1,9 +1,0 @@
-{
-  "fixture_version": "2026.09.0",
-  "purpose": "realistic ACL 依赖失败：mock 客户端抛出依赖异常",
-  "responses": {
-    "203.0.113.5/32|198.51.100.60/32|tcp|5432-5432": {
-      "error": "simulated acl dependency timeout (RN-029/030)"
-    }
-  }
-}

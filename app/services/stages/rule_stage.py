@@ -16,7 +16,7 @@ def run(
     request_id: str,
     combinations: list[AccessCombination],
 ) -> tuple[RuleStageResult, ...]:
-    """item_id is minted here (before ACL) with the historical numbering."""
+    """item_id is minted here with the historical numbering."""
 
     total_combinations = len(combinations)
     results: list[RuleStageResult] = []

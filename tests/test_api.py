@@ -26,8 +26,7 @@ def test_complete_facts_without_rejection_are_compliant(client: TestClient):
     assert body["config_fingerprint"] == "direct-settings"
     assert body["decision"] == "合规"
     assert body["items"][0]["reason_type"] is None
-    assert body["acl_analysis"]["classification"] == "候选路径与拟新增策略分析，非现网 ACL 状态"
-    assert "MOCK-FW-01" in body["acl_analysis"]["extracted_facts"]["firewalls"]
+    assert "acl" not in json.dumps(body).lower().replace("dataclass", "")
 
 
 def test_object_rule_is_deterministic_without_unapproved_zone_rule(settings):
@@ -153,72 +152,6 @@ def test_host_address_and_explicit_host_prefix_are_same_idempotent_input(client:
     second = client.post("/v1/evaluations", json=value)
     assert second.status_code == 200
     assert second.json() == first
-
-
-def test_http_acl_mode_fails_closed_as_business_pending(settings):
-    # required 模式语义：ACL 依赖失败必须降为待定（dev 默认为 advisory）
-    http_settings = replace(
-        settings,
-        acl_client_mode="http",
-        acl_api_url="http://acl.invalid",
-        acl_decision_mode="required",
-    )
-    with TestClient(create_app(http_settings)) as client:
-        response = client.post(
-            "/v1/evaluations", json=payload(request_id="fare-test-http-adapter")
-        )
-    assert response.status_code == 200
-    item = response.json()["items"][0]
-    assert item["decision"] == "待定"
-    assert item["reason_type"] == "dependency_failure"
-    assert item["reason_code"] == "ACL_DEPENDENCY_FAILURE"
-
-
-def test_explicit_acl_no_path_is_distinct_from_missing_firewall(settings, tmp_path):
-    fixture = tmp_path / "acl.json"
-    fixture.write_text(
-        json.dumps(
-            {
-                "default": {
-                    "analysis": "未找到该访问组合经过的防火墙。",
-                    "config": "",
-                }
-            },
-            ensure_ascii=False,
-        ),
-        encoding="utf-8",
-    )
-    fixture_settings = replace(settings, acl_mock_file=fixture)
-    with TestClient(create_app(fixture_settings)) as fixture_client:
-        body = fixture_client.post(
-            "/v1/evaluations", json=payload(request_id="fare-test-no-path")
-        ).json()
-    item = body["items"][0]
-    assert item["reason_type"] == "acl_no_path"
-    assert item["reason_code"] == "ACL-PATH-001"
-
-
-def test_acl_port_mismatch_is_fact_conflict(settings, tmp_path):
-    fixture = tmp_path / "acl-port.json"
-    fixture.write_text(
-        json.dumps(
-            {
-                "default": {
-                    "analysis": "候选路径经过防火墙 FW-01。",
-                    "config": "access-list CANDIDATE port 8443",
-                }
-            },
-            ensure_ascii=False,
-        ),
-        encoding="utf-8",
-    )
-    fixture_settings = replace(settings, acl_mock_file=fixture)
-    with TestClient(create_app(fixture_settings)) as fixture_client:
-        body = fixture_client.post(
-            "/v1/evaluations", json=payload(request_id="fare-test-port-mismatch")
-        ).json()
-    assert body["items"][0]["reason_type"] == "fact_conflict"
-    assert body["items"][0]["reason_code"] == "ACL_PORT_MISMATCH"
 
 
 def test_audit_is_written_before_response_and_contains_no_api_key(client, settings):

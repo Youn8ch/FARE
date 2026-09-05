@@ -24,7 +24,6 @@ SYMBOL_LIST_FIELDS = {"analyzed_item_ids", "affected_item_ids"}
 class LoadedCase:
     case: EvaluationCase
     item_ids: list[str]
-    acl_fixture: Path | None
     policy_dir: Path
     llm_fixtures: dict[str, dict[str, Any]]
 
@@ -93,18 +92,9 @@ def prepare_case(case: EvaluationCase) -> LoadedCase:
         f"{case.request.request_id}-{index:03d}"
         for index in range(1, combinations + 1)
     ]
-    acl_fixture = (
-        _safe_path(FIXTURE_ROOT, case.dependencies.acl_fixture)
-        if case.dependencies.acl_fixture
-        else None
-    )
-    if acl_fixture:
-        _validate_fixture_metadata(_read_json(acl_fixture), acl_fixture)
-
     llm_fixtures: dict[str, dict[str, Any]] = {}
     for stage, relative in (
         ("semantic", case.llm.semantic_fixture),
-        ("acl_candidates", case.llm.acl_candidate_fixture),
         ("request_findings", case.llm.request_finding_fixture),
         ("explanation", case.llm.explanation_fixture),
     ):
@@ -115,7 +105,7 @@ def prepare_case(case: EvaluationCase) -> LoadedCase:
         _validate_fixture_metadata(document, fixture_path)
         llm_fixtures[stage] = resolve_item_symbols(document, item_ids)
 
-    return LoadedCase(case, item_ids, acl_fixture, policy_dir, llm_fixtures)
+    return LoadedCase(case, item_ids, policy_dir, llm_fixtures)
 
 
 def resolve_item_symbols(value: Any, item_ids: list[str], field: str | None = None) -> Any:
@@ -203,7 +193,6 @@ def prepare_realistic_llm_fixtures(
     resolved: dict[str, dict[str, Any]] = {}
     for stage, relative in (
         ("semantic", profile.semantic_fixture),
-        ("acl_candidates", profile.acl_candidate_fixture),
         ("request_findings", profile.request_finding_fixture),
         ("explanation", profile.explanation_fixture),
     ):

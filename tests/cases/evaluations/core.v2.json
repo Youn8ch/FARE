@@ -6,11 +6,9 @@
       "id": "compliant_https_v2",
       "category": "core",
       "dependencies": {
-        "acl_fixture": null,
         "policy_dir": null
       },
       "feature_flags": {
-        "llm_acl_candidate_mode": "off",
         "llm_request_findings_mode": "off"
       },
       "request": {
@@ -39,7 +37,6 @@
       "llm": {
         "profile": "recording",
         "semantic_fixture": null,
-        "acl_candidate_fixture": null,
         "request_finding_fixture": null,
         "explanation_fixture": null
       },
@@ -64,21 +61,8 @@
             "matched_rule_ids": []
           }
         ],
-        "acl_analysis": {
-          "extracted_facts": {
-            "firewalls": [
-              "MOCK-FW-01"
-            ],
-            "explicit_no_path": false,
-            "ambiguous": false,
-            "observed_ports": [
-              443
-            ]
-          }
-        },
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         }
@@ -88,12 +72,10 @@
       "id": "object_office_to_production_database_v2",
       "category": "core",
       "dependencies": {
-        "acl_fixture": null,
         "policy_dir": "tests/fixtures/policies/network_plan_object_relation",
         "network_plan_mode": "offline_catalog"
       },
       "feature_flags": {
-        "llm_acl_candidate_mode": "off",
         "llm_request_findings_mode": "off"
       },
       "request": {
@@ -122,7 +104,6 @@
       "llm": {
         "profile": "recording",
         "semantic_fixture": null,
-        "acl_candidate_fixture": null,
         "request_finding_fixture": null,
         "explanation_fixture": null
       },
@@ -151,7 +132,6 @@
         ],
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         }
@@ -161,11 +141,9 @@
       "id": "tcp_23_is_rejected_v2",
       "category": "core",
       "dependencies": {
-        "acl_fixture": null,
         "policy_dir": null
       },
       "feature_flags": {
-        "llm_acl_candidate_mode": "off",
         "llm_request_findings_mode": "off"
       },
       "request": {
@@ -194,7 +172,6 @@
       "llm": {
         "profile": "passthrough",
         "semantic_fixture": null,
-        "acl_candidate_fixture": null,
         "request_finding_fixture": null,
         "explanation_fixture": null
       },
@@ -223,7 +200,6 @@
         ],
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         }
@@ -233,11 +209,9 @@
       "id": "udp_23_does_not_match_tcp_rule_v2",
       "category": "core",
       "dependencies": {
-        "acl_fixture": null,
         "policy_dir": null
       },
       "feature_flags": {
-        "llm_acl_candidate_mode": "off",
         "llm_request_findings_mode": "off"
       },
       "request": {
@@ -266,7 +240,6 @@
       "llm": {
         "profile": "passthrough",
         "semantic_fixture": null,
-        "acl_candidate_fixture": null,
         "request_finding_fixture": null,
         "explanation_fixture": null
       },
@@ -293,7 +266,6 @@
         ],
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         }
@@ -303,11 +275,9 @@
       "id": "any_address_v2",
       "category": "core",
       "dependencies": {
-        "acl_fixture": null,
         "policy_dir": null
       },
       "feature_flags": {
-        "llm_acl_candidate_mode": "off",
         "llm_request_findings_mode": "off"
       },
       "request": {
@@ -336,7 +306,6 @@
       "llm": {
         "profile": "passthrough",
         "semantic_fixture": null,
-        "acl_candidate_fixture": null,
         "request_finding_fixture": null,
         "explanation_fixture": null
       },
@@ -365,7 +334,6 @@
         ],
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         }
@@ -375,11 +343,9 @@
       "id": "ipv6_prefix_too_broad_v2",
       "category": "core",
       "dependencies": {
-        "acl_fixture": null,
         "policy_dir": null
       },
       "feature_flags": {
-        "llm_acl_candidate_mode": "off",
         "llm_request_findings_mode": "off"
       },
       "request": {
@@ -408,7 +374,6 @@
       "llm": {
         "profile": "passthrough",
         "semantic_fixture": null,
-        "acl_candidate_fixture": null,
         "request_finding_fixture": null,
         "explanation_fixture": null
       },
@@ -437,7 +402,6 @@
         ],
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         }
@@ -447,11 +411,9 @@
       "id": "port_span_100_is_allowed_v2",
       "category": "core",
       "dependencies": {
-        "acl_fixture": null,
         "policy_dir": null
       },
       "feature_flags": {
-        "llm_acl_candidate_mode": "off",
         "llm_request_findings_mode": "off"
       },
       "request": {
@@ -480,7 +442,6 @@
       "llm": {
         "profile": "passthrough",
         "semantic_fixture": null,
-        "acl_candidate_fixture": null,
         "request_finding_fixture": null,
         "explanation_fixture": null
       },
@@ -507,7 +468,6 @@
         ],
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         }
@@ -517,11 +477,9 @@
       "id": "port_span_101_is_rejected_v2",
       "category": "core",
       "dependencies": {
-        "acl_fixture": null,
         "policy_dir": null
       },
       "feature_flags": {
-        "llm_acl_candidate_mode": "off",
         "llm_request_findings_mode": "off"
       },
       "request": {
@@ -550,7 +508,6 @@
       "llm": {
         "profile": "passthrough",
         "semantic_fixture": null,
-        "acl_candidate_fixture": null,
         "request_finding_fixture": null,
         "explanation_fixture": null
       },
@@ -579,7 +536,6 @@
         ],
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         }
@@ -589,11 +545,9 @@
       "id": "unknown_catalog_address_v2",
       "category": "core",
       "dependencies": {
-        "acl_fixture": null,
         "policy_dir": null
       },
       "feature_flags": {
-        "llm_acl_candidate_mode": "off",
         "llm_request_findings_mode": "off"
       },
       "request": {
@@ -622,7 +576,6 @@
       "llm": {
         "profile": "passthrough",
         "semantic_fixture": null,
-        "acl_candidate_fixture": null,
         "request_finding_fixture": null,
         "explanation_fixture": null
       },
@@ -649,7 +602,6 @@
         ],
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         }
@@ -659,11 +611,9 @@
       "id": "two_by_two_cartesian_product_v2",
       "category": "core",
       "dependencies": {
-        "acl_fixture": null,
         "policy_dir": null
       },
       "feature_flags": {
-        "llm_acl_candidate_mode": "off",
         "llm_request_findings_mode": "off"
       },
       "request": {
@@ -700,7 +650,6 @@
       "llm": {
         "profile": "passthrough",
         "semantic_fixture": null,
-        "acl_candidate_fixture": null,
         "request_finding_fixture": null,
         "explanation_fixture": null
       },
@@ -775,332 +724,6 @@
         ],
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
-          "request_findings": 0,
-          "explanation": 1
-        }
-      }
-    },
-    {
-      "id": "acl_explicit_no_path_v2",
-      "category": "core",
-      "dependencies": {
-        "acl_fixture": "acl/explicit_no_path.v2.json",
-        "policy_dir": null
-      },
-      "feature_flags": {
-        "llm_acl_candidate_mode": "off",
-        "llm_request_findings_mode": "off"
-      },
-      "request": {
-        "request_id": "v2-core-acl-no-path",
-        "sources": [
-          {
-            "address": "16.1.30.10",
-            "description": "生产应用 A"
-          }
-        ],
-        "destinations": [
-          {
-            "address": "16.1.30.20",
-            "description": "生产应用 B"
-          }
-        ],
-        "protocol": "tcp",
-        "ports": [
-          {
-            "start": 443,
-            "end": 443
-          }
-        ],
-        "request_description": "ACL 明确无路径测试"
-      },
-      "llm": {
-        "profile": "passthrough",
-        "semantic_fixture": null,
-        "acl_candidate_fixture": null,
-        "request_finding_fixture": null,
-        "explanation_fixture": null
-      },
-      "expected": {
-        "http_status": 200,
-        "decision": "待定",
-        "items": [
-          {
-            "index": 1,
-            "access": {
-              "source": "16.1.30.10/32",
-              "destination": "16.1.30.20/32",
-              "protocol": "tcp",
-              "port": {
-                "start": 443,
-                "end": 443
-              }
-            },
-            "decision": "待定",
-            "reason_type": "acl_no_path",
-            "reason_code": "ACL-PATH-001",
-            "matched_rule_ids": [
-              "ACL-PATH-001"
-            ]
-          }
-        ],
-        "acl_analysis": {
-          "extracted_facts": {
-            "firewalls": [],
-            "explicit_no_path": true,
-            "ambiguous": false,
-            "observed_ports": []
-          }
-        },
-        "llm_calls": {
-          "semantic": 1,
-          "acl_candidates": 0,
-          "request_findings": 0,
-          "explanation": 1
-        }
-      }
-    },
-    {
-      "id": "acl_firewall_unresolved_v2",
-      "category": "core",
-      "dependencies": {
-        "acl_fixture": "acl/missing_firewall.v2.json",
-        "policy_dir": null
-      },
-      "feature_flags": {
-        "llm_acl_candidate_mode": "off",
-        "llm_request_findings_mode": "off",
-        "acl_decision_mode": "required"
-      },
-      "request": {
-        "request_id": "v2-core-acl-no-firewall",
-        "sources": [
-          {
-            "address": "16.1.30.10",
-            "description": "生产应用 A"
-          }
-        ],
-        "destinations": [
-          {
-            "address": "16.1.30.20",
-            "description": "生产应用 B"
-          }
-        ],
-        "protocol": "tcp",
-        "ports": [
-          {
-            "start": 443,
-            "end": 443
-          }
-        ],
-        "request_description": "ACL 未识别防火墙测试"
-      },
-      "llm": {
-        "profile": "passthrough",
-        "semantic_fixture": null,
-        "acl_candidate_fixture": null,
-        "request_finding_fixture": null,
-        "explanation_fixture": null
-      },
-      "expected": {
-        "http_status": 200,
-        "decision": "待定",
-        "items": [
-          {
-            "index": 1,
-            "access": {
-              "source": "16.1.30.10/32",
-              "destination": "16.1.30.20/32",
-              "protocol": "tcp",
-              "port": {
-                "start": 443,
-                "end": 443
-              }
-            },
-            "decision": "待定",
-            "reason_type": "fact_incomplete",
-            "reason_code": "ACL_FIREWALL_UNRESOLVED",
-            "matched_rule_ids": []
-          }
-        ],
-        "acl_analysis": {
-          "extracted_facts": {
-            "firewalls": [],
-            "explicit_no_path": false,
-            "ambiguous": false,
-            "observed_ports": [
-              443
-            ]
-          }
-        },
-        "llm_calls": {
-          "semantic": 1,
-          "acl_candidates": 0,
-          "request_findings": 0,
-          "explanation": 1
-        }
-      }
-    },
-    {
-      "id": "acl_ambiguous_v2",
-      "category": "core",
-      "dependencies": {
-        "acl_fixture": "acl/ambiguous.v2.json",
-        "policy_dir": null
-      },
-      "feature_flags": {
-        "llm_acl_candidate_mode": "off",
-        "llm_request_findings_mode": "off"
-      },
-      "request": {
-        "request_id": "v2-core-acl-ambiguous",
-        "sources": [
-          {
-            "address": "16.1.30.10",
-            "description": "生产应用 A"
-          }
-        ],
-        "destinations": [
-          {
-            "address": "16.1.30.20",
-            "description": "生产应用 B"
-          }
-        ],
-        "protocol": "tcp",
-        "ports": [
-          {
-            "start": 443,
-            "end": 443
-          }
-        ],
-        "request_description": "ACL 歧义测试"
-      },
-      "llm": {
-        "profile": "passthrough",
-        "semantic_fixture": null,
-        "acl_candidate_fixture": null,
-        "request_finding_fixture": null,
-        "explanation_fixture": null
-      },
-      "expected": {
-        "http_status": 200,
-        "decision": "待定",
-        "items": [
-          {
-            "index": 1,
-            "access": {
-              "source": "16.1.30.10/32",
-              "destination": "16.1.30.20/32",
-              "protocol": "tcp",
-              "port": {
-                "start": 443,
-                "end": 443
-              }
-            },
-            "decision": "待定",
-            "reason_type": "fact_conflict",
-            "reason_code": "ACL_FACT_AMBIGUOUS",
-            "matched_rule_ids": []
-          }
-        ],
-        "acl_analysis": {
-          "extracted_facts": {
-            "firewalls": [
-              "FW-AMBIGUOUS"
-            ],
-            "explicit_no_path": false,
-            "ambiguous": true,
-            "observed_ports": [
-              443
-            ]
-          }
-        },
-        "llm_calls": {
-          "semantic": 1,
-          "acl_candidates": 0,
-          "request_findings": 0,
-          "explanation": 1
-        }
-      }
-    },
-    {
-      "id": "acl_port_mismatch_v2",
-      "category": "core",
-      "dependencies": {
-        "acl_fixture": "acl/port_mismatch.v2.json",
-        "policy_dir": null
-      },
-      "feature_flags": {
-        "llm_acl_candidate_mode": "off",
-        "llm_request_findings_mode": "off"
-      },
-      "request": {
-        "request_id": "v2-core-acl-port-mismatch",
-        "sources": [
-          {
-            "address": "16.1.30.10",
-            "description": "生产应用 A"
-          }
-        ],
-        "destinations": [
-          {
-            "address": "16.1.30.20",
-            "description": "生产应用 B"
-          }
-        ],
-        "protocol": "tcp",
-        "ports": [
-          {
-            "start": 443,
-            "end": 443
-          }
-        ],
-        "request_description": "ACL 端口不一致测试"
-      },
-      "llm": {
-        "profile": "passthrough",
-        "semantic_fixture": null,
-        "acl_candidate_fixture": null,
-        "request_finding_fixture": null,
-        "explanation_fixture": null
-      },
-      "expected": {
-        "http_status": 200,
-        "decision": "待定",
-        "items": [
-          {
-            "index": 1,
-            "access": {
-              "source": "16.1.30.10/32",
-              "destination": "16.1.30.20/32",
-              "protocol": "tcp",
-              "port": {
-                "start": 443,
-                "end": 443
-              }
-            },
-            "decision": "待定",
-            "reason_type": "fact_conflict",
-            "reason_code": "ACL_PORT_MISMATCH",
-            "matched_rule_ids": []
-          }
-        ],
-        "acl_analysis": {
-          "extracted_facts": {
-            "firewalls": [
-              "FW-MISMATCH"
-            ],
-            "explicit_no_path": false,
-            "ambiguous": false,
-            "observed_ports": [
-              8443
-            ]
-          }
-        },
-        "llm_calls": {
-          "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         }

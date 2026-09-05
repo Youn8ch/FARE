@@ -24,7 +24,6 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.main import create_app
 from app.schemas import (
-    LlmAclExtractionResponse,
     LlmExplanationResponse,
     LlmRequestFindingsResponse,
     LlmSemanticResponse,
@@ -46,7 +45,7 @@ SUITE = load_realistic_suite(SUITE_PATH)
 # PHASE-01 freezes legacy evidence against the ACL-present runtime. The ACL
 # removal phase flips this constant to "acl_free" in its own commit; after
 # that flip the legacy expectations are dead evidence and never asserted.
-ACTIVE_CONTRACT: Literal["legacy", "acl_free"] = "legacy"
+ACTIVE_CONTRACT: Literal["legacy", "acl_free"] = "acl_free"
 
 NETWORK_PLAN_FIXTURE_ROOT = FIXTURE_ROOT / "network_plan"
 DOCUMENTATION_BLOCKS = (
@@ -72,30 +71,15 @@ def _loaded(case: RealisticCase) -> Loaded:
 LOADED: list[Loaded] = [_loaded(case) for case in SUITE.cases]
 
 
-def _acl_candidate_calls(recorder: RecordingLlmClient) -> int:
-    # The recorder loses its ACL surface together with the runtime; count 0
-    # when the use case no longer exists.
-    return int(getattr(recorder, "acl_candidate_calls", 0))
-
-
 def _recorder(loaded: Loaded) -> RecordingLlmClient:
     case, _, llm_fixtures = loaded
     semantic = llm_fixtures.get("semantic", {}).get("semantic")
     findings = llm_fixtures.get("request_findings", {}).get("request_findings")
     explanation = llm_fixtures.get("explanation", {}).get("explanation")
-    candidate = llm_fixtures.get("acl_candidates", {}).get("acl_candidates")
-    candidate_response = (
-        LlmAclExtractionResponse.model_validate(candidate) if candidate else None
-    )
     return RecordingLlmClient(
         fail_stage=case.llm_profile.fail_stage,
         semantic_response=(
             LlmSemanticResponse.model_validate(semantic) if semantic else None
-        ),
-        acl_candidates=(
-            {item.item_id: item for item in candidate_response.items}
-            if candidate_response
-            else None
         ),
         request_findings=(
             LlmRequestFindingsResponse.model_validate(findings) if findings else None
@@ -115,23 +99,12 @@ def _case_settings(settings: Settings, loaded: Loaded) -> Settings:
     )
     if not network_fixture.is_file():
         raise ValueError(f"missing network plan fixture: {network_fixture}")
-    acl_fixture = (
-        FIXTURE_ROOT / "acl" / case.dependency_profile.acl_fixture
-        if case.dependency_profile.acl_fixture
-        else None
-    )
     case_settings = replace(
         settings,
         policy_dir=REALISTIC_POLICY_DIR,
         network_plan_client_mode="mock",
         network_plan_mock_file=network_fixture,
-        acl_mock_file=acl_fixture,
-        acl_decision_mode=case.dependency_profile.acl_decision_mode,
-        acl_deterministic_pending_mode=(
-            case.dependency_profile.acl_deterministic_pending_mode
-        ),
         llm_request_findings_mode=case.llm_profile.request_findings_mode,
-        llm_acl_candidate_mode=case.llm_profile.acl_candidate_mode,
     )
     overrides = case.settings_overrides
     if overrides is not None:
@@ -182,7 +155,6 @@ def _assert_llm_surface(
 ) -> None:
     calls = expected["llm_calls"]
     assert recorder.semantic_calls == calls["semantic"]
-    assert _acl_candidate_calls(recorder) == calls["acl_candidates"]
     assert recorder.request_finding_calls == calls["request_findings"]
     assert recorder.explanation_calls == calls["explanation"]
 
@@ -204,25 +176,6 @@ def _assert_llm_surface(
             (item["explanation_source"] == "template") is llm_text["fallback"]
             for item in body["items"]
         )
-
-
-def _assert_legacy_acl(
-    body: dict[str, Any], case: RealisticCase, recorder: RecordingLlmClient
-) -> None:
-    acl = case.legacy_expected.acl
-    if acl is None:
-        return
-    assert ("acl_analysis" in body) is acl.acl_analysis_present
-    verification = [item["acl_verification_status"] for item in body["items"]]
-    assert verification == acl.verification_status
-    assert _acl_candidate_calls(recorder) == acl.acl_candidate_calls
-    assert ("acl_candidate_analysis" in body) is acl.acl_candidate_analysis_present
-    if acl.acl_candidate_analysis_present:
-        statuses = [
-            comparison["status"]
-            for comparison in body["acl_candidate_analysis"]["items"]
-        ]
-        assert statuses == acl.acl_candidate_item_status
 
 
 def _assert_acl_free(body: dict[str, Any]) -> None:
@@ -258,10 +211,7 @@ def test_realistic_network_request(loaded: Loaded, settings: Settings) -> None:
             assert body["decision"] == expected["decision"]
             _assert_items(body, expected, item_ids)
         _assert_llm_surface(body, recorder, expected)
-        if ACTIVE_CONTRACT == "legacy":
-            _assert_legacy_acl(body, case, recorder)
-        else:
-            _assert_acl_free(body)
+        _assert_acl_free(body)
 
 
 def _run_replay(
@@ -295,10 +245,7 @@ def _run_replay(
         assert second.json()["error"]["code"] == "idempotency_conflict"
 
     _assert_llm_surface(first_body, recorder, expected)
-    if ACTIVE_CONTRACT == "legacy":
-        _assert_legacy_acl(first_body, case, recorder)
-    else:
-        _assert_acl_free(first_body)
+    _assert_acl_free(first_body)
 
 
 def test_realistic_suite_metadata() -> None:
@@ -317,11 +264,8 @@ def test_realistic_acl_migration_cases_carry_approved_differences() -> None:
     assert len(migration) == len(migration_ids)
     for case in migration:
         assert any("批准" in diff for diff in case.approved_differences), case.id
-    assert all(
-        case.legacy_expected.acl is not None
-        and case.legacy_expected.acl.verification_status
-        for case in migration
-    )
+        # The legacy evidence is retained verbatim but is never the gate.
+        assert case.legacy_expected.model_dump(mode="json") is not None
 
 
 def test_realistic_addresses_are_documentation_reserved() -> None:

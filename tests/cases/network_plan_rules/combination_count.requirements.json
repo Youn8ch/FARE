@@ -9,23 +9,59 @@
       "request": {
         "request_id": "group-combination-count-2",
         "sources": [
-          {"address": "16.201.2.10", "description": "应用一"},
-          {"address": "16.201.2.11", "description": "应用二"}
+          {
+            "address": "16.201.2.10",
+            "description": "应用一"
+          },
+          {
+            "address": "16.201.2.11",
+            "description": "应用二"
+          }
         ],
-        "destinations": [{"address": "16.220.16.20", "description": "数据库"}],
-        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "destinations": [
+          {
+            "address": "16.220.16.20",
+            "description": "数据库"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
         "request_description": "两个组合等于阈值"
       },
       "expected": {
-        "decision": "合规", "lookup_count": 2, "acl_call_count": 2,
+        "decision": "合规",
+        "lookup_count": 2,
         "accesses": [
-          {"source": "16.201.2.10/32", "destination": "16.220.16.20/32"},
-          {"source": "16.201.2.11/32", "destination": "16.220.16.20/32"}
+          {
+            "source": "16.201.2.10/32",
+            "destination": "16.220.16.20/32"
+          },
+          {
+            "source": "16.201.2.11/32",
+            "destination": "16.220.16.20/32"
+          }
         ],
-        "reason_codes": [null, null], "matched_rule_ids": [[], []],
-        "source_statuses": ["complete", "complete"],
-        "destination_statuses": ["complete", "complete"],
-        "acl_statuses": ["verified", "verified"]
+        "reason_codes": [
+          null,
+          null
+        ],
+        "matched_rule_ids": [
+          [],
+          []
+        ],
+        "source_statuses": [
+          "complete",
+          "complete"
+        ],
+        "destination_statuses": [
+          "complete",
+          "complete"
+        ]
       }
     },
     {
@@ -33,32 +69,87 @@
       "request": {
         "request_id": "group-combination-count-4",
         "sources": [
-          {"address": "16.201.2.10", "description": "应用一"},
-          {"address": "16.201.2.11", "description": "应用二"}
+          {
+            "address": "16.201.2.10",
+            "description": "应用一"
+          },
+          {
+            "address": "16.201.2.11",
+            "description": "应用二"
+          }
         ],
         "destinations": [
-          {"address": "16.220.16.20", "description": "数据库一"},
-          {"address": "16.220.16.21", "description": "数据库二"}
+          {
+            "address": "16.220.16.20",
+            "description": "数据库一"
+          },
+          {
+            "address": "16.220.16.21",
+            "description": "数据库二"
+          }
         ],
-        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
         "request_description": "四个组合超过阈值"
       },
       "expected": {
-        "decision": "待定", "lookup_count": 2, "acl_call_count": 4,
+        "decision": "待定",
+        "lookup_count": 2,
         "accesses": [
-          {"source": "16.201.2.10/32", "destination": "16.220.16.20/32"},
-          {"source": "16.201.2.10/32", "destination": "16.220.16.21/32"},
-          {"source": "16.201.2.11/32", "destination": "16.220.16.20/32"},
-          {"source": "16.201.2.11/32", "destination": "16.220.16.21/32"}
+          {
+            "source": "16.201.2.10/32",
+            "destination": "16.220.16.20/32"
+          },
+          {
+            "source": "16.201.2.10/32",
+            "destination": "16.220.16.21/32"
+          },
+          {
+            "source": "16.201.2.11/32",
+            "destination": "16.220.16.20/32"
+          },
+          {
+            "source": "16.201.2.11/32",
+            "destination": "16.220.16.21/32"
+          }
         ],
-        "reason_codes": ["COMBINATION-MAX-2-001", "COMBINATION-MAX-2-001", "COMBINATION-MAX-2-001", "COMBINATION-MAX-2-001"],
+        "reason_codes": [
+          "COMBINATION-MAX-2-001",
+          "COMBINATION-MAX-2-001",
+          "COMBINATION-MAX-2-001",
+          "COMBINATION-MAX-2-001"
+        ],
         "matched_rule_ids": [
-          ["COMBINATION-MAX-2-001"], ["COMBINATION-MAX-2-001"],
-          ["COMBINATION-MAX-2-001"], ["COMBINATION-MAX-2-001"]
+          [
+            "COMBINATION-MAX-2-001"
+          ],
+          [
+            "COMBINATION-MAX-2-001"
+          ],
+          [
+            "COMBINATION-MAX-2-001"
+          ],
+          [
+            "COMBINATION-MAX-2-001"
+          ]
         ],
-        "source_statuses": ["complete", "complete", "complete", "complete"],
-        "destination_statuses": ["complete", "complete", "complete", "complete"],
-        "acl_statuses": ["verified", "verified", "verified", "verified"]
+        "source_statuses": [
+          "complete",
+          "complete",
+          "complete",
+          "complete"
+        ],
+        "destination_statuses": [
+          "complete",
+          "complete",
+          "complete",
+          "complete"
+        ]
       }
     }
   ]

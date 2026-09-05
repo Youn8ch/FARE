@@ -181,5 +181,3 @@ def test_configuration_summary_exposes_profile_identity_without_loading_runtime(
     assert summary["environment"] == "intranet-uat"
     assert summary["config_fingerprint"] == config.settings.config_fingerprint
     assert summary["network_plan_mode"] == "http"
-    assert summary["acl_mode"] == "mock"
-    assert summary["acl_deterministic_pending_mode"] == "skip"

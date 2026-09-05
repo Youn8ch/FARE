@@ -30,19 +30,14 @@
         "request_description": "生产应用访问生产数据库 PostgreSQL，用于订单数据写入。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -71,7 +66,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -108,7 +102,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -155,19 +148,14 @@
         "request_description": "办公终端直接访问生产数据库提取报表。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -200,7 +188,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -241,7 +228,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -287,19 +273,14 @@
         "request_description": "DMZ 网关回源生产应用 HTTPS 业务流量。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -328,7 +309,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -365,7 +345,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -410,19 +389,14 @@
         "request_description": "合作方平台 PARTNER-A 申请临时联调访问对外 API 网关，周期 2 周。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/partner_dmz.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/partner_dmz.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": "realistic_network/semantic/rn004_temporary_gap.v1.json",
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -453,7 +427,6 @@
         "semantic_effect": "downgraded",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -492,7 +465,6 @@
         "semantic_effect": "downgraded",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -538,19 +510,14 @@
         "request_description": "运维堡垒机按变更窗口 CHG-EXAMPLE-001 SSH 登录生产数据库服务器执行巡检。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/ops.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/ops.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": "realistic_network/semantic/rn005_duration_question.v1.json",
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -583,7 +550,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -624,7 +590,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -669,19 +634,14 @@
         "request_description": "生产应用解析共享 DNS 区域记录。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/apptier_shared.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/apptier_shared.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -710,7 +670,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -747,7 +706,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -796,19 +754,14 @@
         "request_description": "生产应用通过 UDP 53 与 UDP 953 查询共享 DNS 服务。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/apptier_shared.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/apptier_shared.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -855,7 +808,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -910,7 +862,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -967,19 +918,14 @@
         "request_description": "监控平台采集生产区两台节点的双端口指标。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -1166,7 +1112,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -1361,7 +1306,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -1411,19 +1355,14 @@
         "request_description": "两个应用服务访问同一生产数据库实例。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -1478,7 +1417,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -1541,7 +1479,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -1586,19 +1523,14 @@
         "request_description": "临时脚本使用 any 源地址访问生产数据库（预期被拒绝）。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -1632,7 +1564,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -1674,7 +1605,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -1719,19 +1649,14 @@
         "request_description": "临时使用 Telnet 调试生产数据库服务器（预期命中正式端口规则）。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -1764,7 +1689,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -1805,7 +1729,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -1850,19 +1773,14 @@
         "request_description": "访问一个网段规划无法正常应答的地址。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/notfound.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/notfound.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -1893,7 +1811,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -1932,7 +1849,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -1979,19 +1895,14 @@
         "request_description": "访问一个网段规划无法正常应答的地址。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/failure408.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/failure408.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -2022,7 +1933,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -2061,7 +1971,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -2108,19 +2017,14 @@
         "request_description": "访问一个网段规划无法正常应答的地址。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/failure401.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/failure401.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -2151,7 +2055,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -2190,7 +2093,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -2237,19 +2139,14 @@
         "request_description": "访问一个网段规划无法正常应答的地址。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/failureinvalid.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/failureinvalid.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -2280,7 +2177,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -2319,7 +2215,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -2366,19 +2261,14 @@
         "request_description": "访问一个网段规划无法正常应答的地址。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/conflict.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/conflict.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -2409,7 +2299,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -2448,7 +2337,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -2495,19 +2383,14 @@
         "request_description": "通过 HTTPS(443) 访问生产数据库网关端口 8443。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": "realistic_network/semantic/rn015_port_contradiction.v1.json",
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -2538,7 +2421,6 @@
         "semantic_effect": "downgraded",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -2577,7 +2459,6 @@
         "semantic_effect": "downgraded",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -2622,19 +2503,14 @@
         "request_description": "申请描述引用了不存在的规则 RN-XX-999。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": "realistic_network/semantic/rn016_fabricated_rule.v1.json",
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -2668,7 +2544,6 @@
         "semantic_effect": "semantic_failure",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 0
         },
@@ -2710,7 +2585,6 @@
         "semantic_effect": "semantic_failure",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 0
         },
@@ -2756,19 +2630,14 @@
         "request_description": "业务系统访问。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "shadow",
         "fail_stage": null,
         "semantic_fixture": "realistic_network/semantic/rn017_missing_purpose.v1.json",
         "request_finding_fixture": "realistic_network/request_findings/rn017_request_finding.v1.json",
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -2797,7 +2666,6 @@
         "semantic_effect": "question_only",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 1,
           "explanation": 1
         },
@@ -2837,7 +2705,6 @@
         "semantic_effect": "question_only",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 1,
           "explanation": 1
         },
@@ -2886,19 +2753,14 @@
         "request_description": "幂等重放：相同请求重复提交。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -2927,7 +2789,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -2964,7 +2825,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -3012,19 +2872,14 @@
         "request_description": "幂等冲突：第二次提交修改描述。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -3053,7 +2908,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -3090,7 +2944,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -3150,19 +3003,14 @@
         "request_description": "贴近评估上限的多组合申请。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -3305,7 +3153,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -3456,7 +3303,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -3516,19 +3362,14 @@
         "request_description": "贴近评估上限的多组合申请。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 422,
@@ -3538,7 +3379,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 0,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 0
         },
@@ -3553,7 +3393,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 0,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 0
         },
@@ -3602,19 +3441,14 @@
         "request_description": "一次申请跨三个 /24 查询网段。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 422,
@@ -3624,7 +3458,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 0,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 0
         },
@@ -3639,7 +3472,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 0,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 0
         },
@@ -3684,19 +3516,14 @@
         "request_description": "混合描述 mixed 描述 ✅ token=TEST-PLACEHOLDER-NOT-REAL password=FAKE-EXAMPLE-VALUE"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": "realistic_network/semantic/rn021_unicode_claim.v1.json",
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -3725,7 +3552,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -3762,7 +3588,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -3808,19 +3633,14 @@
         "request_description": "办公终端使用 Telnet 访问生产数据库（双规则命中）。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -3855,7 +3675,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -3898,7 +3717,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -3943,19 +3761,14 @@
         "request_description": "语义分析依赖故障场景。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": "semantic",
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -3986,7 +3799,6 @@
         "semantic_effect": "semantic_failure",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 0
         },
@@ -4025,7 +3837,6 @@
         "semantic_effect": "semantic_failure",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 0
         },
@@ -4070,19 +3881,14 @@
         "request_description": "解释越权场景申请。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": "realistic_network/explanation/rn024_overreach.v1.json",
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": "realistic_network/explanation/rn024_overreach.v1.json"
       },
       "legacy_expected": {
         "http_status": 200,
@@ -4115,7 +3921,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -4156,7 +3961,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -4201,19 +4005,14 @@
         "request_description": "ACL 退场迁移取证申请（DMZ 到生产数据库）。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": "realistic/dependency_error.v1.json",
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -4242,7 +4041,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -4250,16 +4048,7 @@
           "presence": "present",
           "fallback": false
         },
-        "request_findings": null,
-        "acl": {
-          "acl_analysis_present": true,
-          "verification_status": [
-            "unverified"
-          ],
-          "acl_candidate_calls": 0,
-          "acl_candidate_analysis_present": false,
-          "acl_candidate_item_status": []
-        }
+        "request_findings": null
       },
       "target_expected": {
         "http_status": 200,
@@ -4288,7 +4077,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -4334,19 +4122,14 @@
         "request_description": "ACL 退场迁移取证申请（DMZ 到生产数据库）。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": "realistic/dependency_error.v1.json",
-        "acl_decision_mode": "required",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -4378,7 +4161,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -4386,16 +4168,7 @@
           "presence": "present",
           "fallback": false
         },
-        "request_findings": null,
-        "acl": {
-          "acl_analysis_present": true,
-          "verification_status": [
-            "unverified"
-          ],
-          "acl_candidate_calls": 0,
-          "acl_candidate_analysis_present": false,
-          "acl_candidate_item_status": []
-        }
+        "request_findings": null
       },
       "target_expected": {
         "http_status": 200,
@@ -4424,7 +4197,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -4471,19 +4243,14 @@
         "request_description": "ACL 退场迁移取证申请（DMZ 到生产数据库）。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": "realistic/explicit_no_path.v1.json",
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -4516,7 +4283,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -4524,16 +4290,7 @@
           "presence": "present",
           "fallback": false
         },
-        "request_findings": null,
-        "acl": {
-          "acl_analysis_present": true,
-          "verification_status": [
-            "review_required"
-          ],
-          "acl_candidate_calls": 0,
-          "acl_candidate_analysis_present": false,
-          "acl_candidate_item_status": []
-        }
+        "request_findings": null
       },
       "target_expected": {
         "http_status": 200,
@@ -4562,7 +4319,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -4609,19 +4365,14 @@
         "request_description": "ACL 退场迁移取证申请（DMZ 到生产数据库）。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": "realistic/ambiguous.v1.json",
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -4652,7 +4403,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -4660,16 +4410,7 @@
           "presence": "present",
           "fallback": false
         },
-        "request_findings": null,
-        "acl": {
-          "acl_analysis_present": true,
-          "verification_status": [
-            "review_required"
-          ],
-          "acl_candidate_calls": 0,
-          "acl_candidate_analysis_present": false,
-          "acl_candidate_item_status": []
-        }
+        "request_findings": null
       },
       "target_expected": {
         "http_status": 200,
@@ -4698,7 +4439,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -4744,19 +4484,14 @@
         "request_description": "ACL 退场迁移取证申请（DMZ 到生产数据库）。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": "realistic/port_mismatch.v1.json",
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -4787,7 +4522,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -4795,16 +4529,7 @@
           "presence": "present",
           "fallback": false
         },
-        "request_findings": null,
-        "acl": {
-          "acl_analysis_present": true,
-          "verification_status": [
-            "review_required"
-          ],
-          "acl_candidate_calls": 0,
-          "acl_candidate_analysis_present": false,
-          "acl_candidate_item_status": []
-        }
+        "request_findings": null
       },
       "target_expected": {
         "http_status": 200,
@@ -4833,7 +4558,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -4879,19 +4603,14 @@
         "request_description": "ACL 退场迁移取证申请（DMZ 到生产数据库）。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": "realistic/no_firewall.v1.json",
-        "acl_decision_mode": "required",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": null,
-        "acl_candidate_mode": "off"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -4922,7 +4641,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -4930,16 +4648,7 @@
           "presence": "present",
           "fallback": false
         },
-        "request_findings": null,
-        "acl": {
-          "acl_analysis_present": true,
-          "verification_status": [
-            "unverified"
-          ],
-          "acl_candidate_calls": 0,
-          "acl_candidate_analysis_present": false,
-          "acl_candidate_item_status": []
-        }
+        "request_findings": null
       },
       "target_expected": {
         "http_status": 200,
@@ -4968,7 +4677,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },
@@ -5014,19 +4722,14 @@
         "request_description": "ACL candidate shadow 取证申请。"
       },
       "dependency_profile": {
-        "network_plan_fixture": "realistic/main.v1.json",
-        "acl_fixture": null,
-        "acl_decision_mode": "advisory",
-        "acl_deterministic_pending_mode": "analyze"
+        "network_plan_fixture": "realistic/main.v1.json"
       },
       "llm_profile": {
         "request_findings_mode": "off",
         "fail_stage": null,
         "semantic_fixture": null,
         "request_finding_fixture": null,
-        "explanation_fixture": null,
-        "acl_candidate_fixture": "realistic_network/acl_candidates/rn035_shadow.v1.json",
-        "acl_candidate_mode": "shadow"
+        "explanation_fixture": null
       },
       "legacy_expected": {
         "http_status": 200,
@@ -5059,7 +4762,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 1,
           "request_findings": 0,
           "explanation": 1
         },
@@ -5067,18 +4769,7 @@
           "presence": "present",
           "fallback": false
         },
-        "request_findings": null,
-        "acl": {
-          "acl_analysis_present": true,
-          "verification_status": [
-            "verified"
-          ],
-          "acl_candidate_calls": 1,
-          "acl_candidate_analysis_present": true,
-          "acl_candidate_item_status": [
-            "agree"
-          ]
-        }
+        "request_findings": null
       },
       "target_expected": {
         "http_status": 200,
@@ -5111,7 +4802,6 @@
         "semantic_effect": "unchanged",
         "llm_calls": {
           "semantic": 1,
-          "acl_candidates": 0,
           "request_findings": 0,
           "explanation": 1
         },

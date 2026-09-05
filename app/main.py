@@ -10,8 +10,6 @@ from fastapi.responses import JSONResponse
 
 from app.config import DEFAULT_CONFIG_PATH, FareConfig, Settings
 from app.schemas import ErrorDetail, ErrorResponse, EvaluationRequest, EvaluationResponse
-from app.services.acl_client import HttpAclClient, MockAclClient
-from app.services.acl_extract import AclFactExtractor
 from app.services.audit import AuditStore, redact_evaluation_response, request_hash
 from app.services.catalog import NetworkCatalog
 from app.services.evaluator import Evaluator
@@ -89,7 +87,6 @@ class Runtime:
                     request=payload,
                     input_hash=digest,
                     response=result.response,
-                    acl_raw=result.acl_raw,
                     model_raw=result.model_raw,
                     exceptions=result.exceptions,
                     network_plan_raw=result.network_plan_raw,
@@ -136,7 +133,6 @@ class Runtime:
     async def aclose(self) -> None:
         resources = [
             self.evaluator.llm_client,
-            self.evaluator.acl_client,
             self.network_plan_resolver.provider,
         ]
         seen: set[int] = set()
@@ -191,14 +187,6 @@ def build_runtime(settings: Settings) -> Runtime:
         config_fingerprint=settings.config_fingerprint,
     )
     audit.initialize()
-    if settings.acl_client_mode == "mock":
-        acl_client = MockAclClient(settings.acl_mock_file)
-    else:
-        acl_client = HttpAclClient(
-            settings.acl_api_url or "",
-            settings.acl_timeout_seconds,
-            token=settings.acl_api_token,
-        )
     llm_client = LlmClient(
         mode=settings.llm_client_mode,
         base_url=settings.llm_base_url,
@@ -249,17 +237,11 @@ def build_runtime(settings: Settings) -> Runtime:
     )
     evaluator = Evaluator(
         policies=policies,
-        acl_client=acl_client,
-        extractor=AclFactExtractor(),
         llm_client=llm_client,
-        llm_acl_candidate_mode=settings.llm_acl_candidate_mode,
         llm_request_findings_mode=settings.llm_request_findings_mode,
         semantic_effects=settings.semantic_effects,
         network_plan_resolver=network_plan_resolver,
         max_evaluation_items=settings.max_evaluation_items,
-        acl_max_concurrency=settings.acl_max_concurrency,
-        acl_decision_mode=settings.acl_decision_mode,
-        acl_deterministic_pending_mode=settings.acl_deterministic_pending_mode,
         config_id=settings.config_id,
         environment=settings.environment,
         config_fingerprint=settings.config_fingerprint,

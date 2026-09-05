@@ -10,9 +10,8 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Literal
 
-from app.schemas import ExtractedFacts, SemanticAnalysis
+from app.schemas import SemanticAnalysis
 from app.services.decision_reducer import (
-    PRIORITY_ACL,
     PRIORITY_CATALOG,
     PRIORITY_NETWORK,
     PRIORITY_SEMANTIC,
@@ -21,7 +20,7 @@ from app.services.decision_reducer import (
 from app.services.rule_loader import Rule
 from app.services.splitter import AccessCombination
 
-FindingSource = Literal["network", "rule", "acl", "semantic"]
+FindingSource = Literal["network", "rule", "semantic"]
 
 SEMANTIC_FAILURE_TEXT = (
     "必要的全申请语义分析未通过依赖或输出守卫，未据此输出合规结论。",
@@ -45,31 +44,8 @@ CATALOG_ERROR_TEXT = {
     "ZONE_CONFLICT": "地址子范围同时命中多个权威网络目录项。",
 }
 
-ACL_ERROR_TEXT = {
-    "ACL_DEPENDENCY_FAILURE": (
-        "ACL 分析依赖调用失败，无法形成完整的候选路径事实。",
-        "检查评估依赖并提交人工复核；如流程允许，创建新的评估版本。",
-    ),
-    "ACL_FACT_AMBIGUOUS": (
-        "ACL 候选路径或拟配置分析存在歧义或冲突。",
-        "由网络团队核实 ACL 分析原文并补充无歧义事实。",
-    ),
-    "ACL_PORT_MISMATCH": (
-        "ACL 候选分析中明确出现的端口与申请端口不一致。",
-        "核对申请端口和 ACL 分析输入后重新评估。",
-    ),
-    "ACL_FIREWALL_UNRESOLVED": (
-        "ACL 分析未能确认候选路径中的防火墙；这不等同于明确无路径。",
-        "补充可解析的候选防火墙路径事实。",
-    ),
-}
 
-
-def finding_text(
-    primary: Finding, matched: list[Rule], acl_no_path_rule: Rule
-) -> tuple[str, str]:
-    if primary.code in ACL_ERROR_TEXT:
-        return ACL_ERROR_TEXT[primary.code]
+def finding_text(primary: Finding, matched: list[Rule]) -> tuple[str, str]:
     if primary.code in CATALOG_ERROR_TEXT:
         return (
             CATALOG_ERROR_TEXT[primary.code],
@@ -77,8 +53,6 @@ def finding_text(
         )
     if primary.source == "network":
         return NETWORK_ERROR_TEXT
-    if primary.code == acl_no_path_rule.id:
-        return acl_no_path_rule.reason_template, acl_no_path_rule.recommendation
     for rule in matched:
         if rule.id == primary.code:
             return rule.reason_template, rule.recommendation
@@ -104,10 +78,6 @@ def primary_network_error(combination: AccessCombination) -> str | None:
         if status not in {"complete", "not_applicable"}:
             return str(getattr(segment, "error_code", None) or "NETWORK_PLAN_INVALID_RESPONSE")
     return None
-
-
-def network_fact_blocks_acl(combination: AccessCombination) -> bool:
-    return primary_network_error(combination) is not None
 
 
 def network_findings(combination: AccessCombination) -> list[Finding]:
@@ -163,70 +133,6 @@ def catalog_findings(combination: AccessCombination) -> list[Finding]:
             )
         ]
     return []
-
-
-def acl_findings(
-    combination: AccessCombination,
-    facts: ExtractedFacts,
-    dependency_error: str | None,
-    *,
-    decision_mode: str,
-    no_path_rule: Rule,
-) -> tuple[Finding, ...]:
-    """ACL findings owned by the ACL stage, in the historical order:
-    dependency failure, explicit no path, ambiguity, port mismatch,
-    unresolved firewall."""
-
-    findings: list[Finding] = []
-    if dependency_error and decision_mode == "required":
-        findings.append(
-            Finding(
-                code="ACL_DEPENDENCY_FAILURE",
-                source="acl",
-                reason_type="dependency_failure",
-                priority=PRIORITY_ACL,
-            )
-        )
-    if facts.explicit_no_path:
-        findings.append(
-            Finding(
-                code=no_path_rule.id,
-                source="acl",
-                reason_type=no_path_rule.reason_type,
-                priority=PRIORITY_ACL,
-            )
-        )
-    if facts.ambiguous:
-        findings.append(
-            Finding(
-                code="ACL_FACT_AMBIGUOUS",
-                source="acl",
-                reason_type="fact_conflict",
-                priority=PRIORITY_ACL,
-            )
-        )
-    if facts.observed_ports and not any(
-        combination.port.start <= port <= combination.port.end
-        for port in facts.observed_ports
-    ):
-        findings.append(
-            Finding(
-                code="ACL_PORT_MISMATCH",
-                source="acl",
-                reason_type="fact_conflict",
-                priority=PRIORITY_ACL,
-            )
-        )
-    if not facts.firewalls and decision_mode == "required":
-        findings.append(
-            Finding(
-                code="ACL_FIREWALL_UNRESOLVED",
-                source="acl",
-                reason_type="fact_incomplete",
-                priority=PRIORITY_ACL,
-            )
-        )
-    return tuple(findings)
 
 
 def apply_configured_semantic_effects(

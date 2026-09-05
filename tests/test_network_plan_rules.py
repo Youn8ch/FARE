@@ -39,20 +39,6 @@ approvals: [{role: owner, approver: test, approved_at: '2026-08-05'}]
                 "recommendation": "人工复核。",
                 "remediation_template": "人工复核。",
             },
-            {
-                "id": "ACL-PATH-001",
-                "name": "无路径",
-                "description": "无路径",
-                "category": "least_privilege",
-                "decision": "待定",
-                "reason_type": "acl_no_path",
-                "when": {"explicit_no_path": True},
-                "semantic_keywords": [],
-                "evidence_requirements": [],
-                "reason_template": "无路径。",
-                "recommendation": "复核。",
-                "remediation_template": "复核。",
-            },
         ]
     }
     (path / "compliance_rules.yaml").write_text(

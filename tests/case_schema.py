@@ -10,7 +10,6 @@ SCHEMA_VERSION = "2026.08.0"
 SuiteName = Literal[
     "core",
     "llm_pipeline",
-    "acl_candidates",
     "request_findings",
     "explanation",
 ]
@@ -21,7 +20,6 @@ class StrictModel(BaseModel):
 
 
 class Dependencies(StrictModel):
-    acl_fixture: str | None = None
     policy_dir: str | None = None
     # None keeps the harness default (mock + versioned core fixture);
     # offline_catalog runs the explicit compatibility provider chain.
@@ -29,15 +27,12 @@ class Dependencies(StrictModel):
 
 
 class FeatureFlags(StrictModel):
-    llm_acl_candidate_mode: Literal["off", "shadow"] = "off"
     llm_request_findings_mode: Literal["off", "shadow"] = "off"
-    acl_decision_mode: Literal["advisory", "required"] = "advisory"
 
 
 class LlmProfile(StrictModel):
     profile: Literal["passthrough", "recording", "fixture", "http_stub"]
     semantic_fixture: str | None = None
-    acl_candidate_fixture: str | None = None
     request_finding_fixture: str | None = None
     explanation_fixture: str | None = None
 
@@ -58,20 +53,8 @@ class ExpectedItem(StrictModel):
     matched_rule_ids: list[str]
 
 
-class ExpectedAclFacts(StrictModel):
-    firewalls: list[str] | None = None
-    explicit_no_path: bool | None = None
-    ambiguous: bool | None = None
-    observed_ports: list[int] | None = None
-
-
-class ExpectedAclAnalysis(StrictModel):
-    extracted_facts: ExpectedAclFacts
-
-
 class ExpectedLlmCalls(StrictModel):
     semantic: int = Field(ge=0)
-    acl_candidates: int = Field(ge=0)
     request_findings: int = Field(ge=0)
     explanation: int = Field(ge=0)
 
@@ -91,7 +74,6 @@ class ExpectedResult(StrictModel):
     http_status: int = 200
     decision: Literal["合规", "待定"]
     items: list[ExpectedItem] = Field(min_length=1, max_length=4)
-    acl_analysis: ExpectedAclAnalysis | None = None
     llm_calls: ExpectedLlmCalls
     semantic: dict[str, list[dict[str, Any]]] | None = None
     llm_text: ExpectedLlmText | None = None
@@ -116,18 +98,12 @@ class EvaluationCase(StrictModel):
     @model_validator(mode="after")
     def fixture_modes_are_consistent(self) -> EvaluationCase:
         if (
-            self.feature_flags.llm_acl_candidate_mode == "off"
-            and self.llm.acl_candidate_fixture is not None
-        ):
-            raise ValueError("ACL candidate fixture is forbidden while mode is off")
-        if (
             self.feature_flags.llm_request_findings_mode == "off"
             and self.llm.request_finding_fixture is not None
         ):
             raise ValueError("request finding fixture is forbidden while mode is off")
         fixture_values = (
             self.llm.semantic_fixture,
-            self.llm.acl_candidate_fixture,
             self.llm.request_finding_fixture,
             self.llm.explanation_fixture,
         )
@@ -173,28 +149,19 @@ RealisticSemanticEffect = Literal[
 
 class RealisticDependencies(StrictModel):
     network_plan_fixture: str
-    acl_fixture: str | None = None
-    acl_decision_mode: Literal["advisory", "required"] = "advisory"
-    acl_deterministic_pending_mode: Literal["analyze", "skip"] = "analyze"
 
 
 class RealisticLlmProfile(StrictModel):
     request_findings_mode: Literal["off", "shadow"] = "off"
-    acl_candidate_mode: Literal["off", "shadow"] = "off"
     fail_stage: (
-        Literal["semantic", "acl_candidates", "request_findings", "explanation"] | None
+        Literal["semantic", "request_findings", "explanation"] | None
     ) = None
     semantic_fixture: str | None = None
     request_finding_fixture: str | None = None
     explanation_fixture: str | None = None
-    acl_candidate_fixture: str | None = None
 
     @model_validator(mode="after")
     def fixtures_match_modes(self) -> RealisticLlmProfile:
-        if self.acl_candidate_mode == "off" and self.acl_candidate_fixture is not None:
-            raise ValueError("ACL candidate fixture is forbidden while mode is off")
-        if self.acl_candidate_mode == "shadow" and self.acl_candidate_fixture is None:
-            raise ValueError("ACL candidate shadow mode requires a fixture")
         if self.request_findings_mode == "off" and self.request_finding_fixture is not None:
             raise ValueError("request finding fixture is forbidden while mode is off")
         if self.request_findings_mode == "shadow" and self.request_finding_fixture is None:
@@ -231,7 +198,6 @@ class RealisticExpectedItem(StrictModel):
 
 class RealisticLlmCalls(StrictModel):
     semantic: int = Field(default=0, ge=0)
-    acl_candidates: int = Field(default=0, ge=0)
     request_findings: int = Field(default=0, ge=0)
     explanation: int = Field(default=0, ge=0)
 
@@ -270,18 +236,12 @@ class _RealisticExpectedCore(StrictModel):
         return self
 
 
-class RealisticLegacyAcl(StrictModel):
-    acl_analysis_present: bool = True
-    verification_status: list[str] = Field(min_length=1)
-    acl_candidate_calls: int = Field(default=0, ge=0)
-    acl_candidate_analysis_present: bool = False
-    acl_candidate_item_status: list[str] = Field(default_factory=list)
-
-
 class RealisticLegacyExpected(_RealisticExpectedCore):
-    """Legacy (ACL present) behavior evidence; never the final gate."""
+    """Legacy behavior evidence captured before the ACL removal commit.
 
-    acl: RealisticLegacyAcl | None = None
+    Retained verbatim as frozen migration evidence; the runner never asserts
+    it after the flip to the ACL-free contract.
+    """
 
 
 class RealisticTargetExpected(_RealisticExpectedCore):

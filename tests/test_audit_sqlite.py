@@ -49,11 +49,6 @@ def _response(request_id: str, *, audit_id: str) -> EvaluationResponse:
             "model": {"name": "test-model", "version": "1"},
             "semantic_analysis": {"analyzed_item_ids": []},
             "items": [],
-            "acl_analysis": {
-                "raw_analysis": "",
-                "raw_config": "",
-                "extracted_facts": {},
-            },
             "audit_id": audit_id,
         }
     )
@@ -70,7 +65,6 @@ async def _persist(
         request=request,
         input_hash=request_hash(request),
         response=response,
-        acl_raw=[],
         model_raw=model_raw,
     )
 

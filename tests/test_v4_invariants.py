@@ -1,12 +1,17 @@
 """V4 invariant static checks (grow with each phase).
 
 Each check pins one architectural invariant from the V4 plan §4 so that a
-regression fails fast instead of drifting silently.
+regression fails fast instead of drifting silently. Updated for the ACL-free
+main chain (PHASE-03): the ACL stage no longer exists anywhere in app/.
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+
+from tests.helpers.llm import RecordingLlmClient
+from tests.test_architecture_baseline import _mock_chain, _payload
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 APP_ROOT = PROJECT_ROOT / "app"
@@ -17,15 +22,35 @@ def _read(relative: str) -> str:
 
 
 def test_rule_match_is_called_exactly_once_per_item_path() -> None:
-    """Invariant 4.2.1/4.2.2: the formal PolicyBundle.match() call lives only
-    in the rule stage; ACL gating consumes RuleStageResult."""
+    """Invariant 4.2.1: the formal PolicyBundle.match() call lives only in the
+    rule stage; no other stage or the evaluator re-matches."""
 
     rule_stage = _read("services/stages/rule_stage.py")
     assert rule_stage.count("policies.match(") == 1
-    acl_stage = _read("services/stages/acl_stage.py")
-    assert ".match(" not in acl_stage
     evaluator = _read("services/evaluator.py")
     assert "policies.match(" not in evaluator
+
+
+def test_acl_stage_is_fully_removed() -> None:
+    """Invariant (PHASE-03): no ACL stage module, no ACL finding source, and
+    no ACL client/extract/merge modules remain in the runtime."""
+
+    for relative in (
+        "services/stages/acl_stage.py",
+        "services/acl_client.py",
+        "services/acl_extract.py",
+        "services/acl_candidate_merge.py",
+        "services/response_assembler.py",
+    ):
+        assert not (APP_ROOT / relative).exists(), relative
+    reducer = _read("services/decision_reducer.py")
+    assert 'Literal["network", "rule", "semantic"]' in reducer
+    assert "PRIORITY_ACL" not in reducer
+    schemas = _read("schemas.py")
+    assert "acl" not in schemas.lower().replace("dataclass", "")
+    for banned in ("AclAnalysis", "AclCandidateAnalysis", "acl_verification_status",
+                   "acl_no_path", "LlmAclExtraction"):
+        assert banned not in schemas, banned
 
 
 def test_single_formal_reduce_entry() -> None:
@@ -35,7 +60,7 @@ def test_single_formal_reduce_entry() -> None:
 
     reduce_stage = _read("services/stages/reduce_stage.py")
     assert reduce_stage.count("decision_reducer.reduce_item(") == 1
-    for module in ("services/evaluator.py", "services/stages/acl_stage.py",
+    for module in ("services/evaluator.py",
                    "services/stages/rule_stage.py",
                    "services/stages/semantic_stage.py",
                    "services/stages/post_decision_stage.py"):
@@ -46,8 +71,7 @@ def test_single_formal_reduce_entry() -> None:
 
 def test_reducer_owns_the_priority_algorithm() -> None:
     """Invariant 4.3.3: the primary-finding algorithm lives in the reducer;
-    the evaluator obtains the ACL-PATH-001 injection condition through
-    reducer.primary_of instead of re-implementing priorities."""
+    stages never re-implement priorities."""
 
     reducer = _read("services/decision_reducer.py")
     assert "def primary_of(" in reducer
@@ -96,4 +120,84 @@ def test_stage_contracts_are_frozen_dataclasses() -> None:
     types = _read("services/evaluation_types.py")
     assert "@dataclass(frozen=True, slots=True)" in types
     assert "class RuleStageResult" in types
-    assert "class AclStageResult" in types
+    assert "class EvaluationItemContext" in types
+    assert "AclStageResult" not in types
+
+
+def test_openapi_and_response_contract_carry_no_verification_fields(
+    settings, client
+) -> None:
+    """PHASE-03 negative gate: the response/OpenAPI contract carries no
+    candidate-path verification fields anywhere."""
+
+    spec = client.get("/openapi.json").json()
+    body = client.post("/v1/evaluations", json=_payload("invariant-openapi")).json()
+    serialized_spec = json.dumps(spec)
+    serialized_body = json.dumps(body)
+    for banned in (
+        "acl_analysis",
+        "acl_candidate",
+        "acl_verification_status",
+        "acl_no_path",
+    ):
+        assert banned not in serialized_spec, banned
+        assert banned not in serialized_body, banned
+
+
+def test_removed_finding_codes_are_unreachable_in_runtime_maps() -> None:
+    """PHASE-03 negative gate: the legacy candidate-path finding codes and the
+    dedicated text maps no longer exist in the finding factory."""
+
+    import app.services.finding_factory as factory
+
+    assert not hasattr(factory, "acl_findings")
+    assert not hasattr(factory, "ACL_ERROR_TEXT")
+    factory_source = (APP_ROOT / "services/finding_factory.py").read_text(
+        encoding="utf-8"
+    )
+    for legacy_code in (
+        "ACL_DEPENDENCY_FAILURE",
+        "ACL_FACT_AMBIGUOUS",
+        "ACL_PORT_MISMATCH",
+        "ACL_FIREWALL_UNRESOLVED",
+        "ACL-PATH-001",
+    ):
+        assert legacy_code not in factory_source
+
+
+def test_semantic_payload_prompt_versions_and_metrics_carry_no_removed_stage(
+    settings,
+) -> None:
+    """PHASE-03 negative gate: the semantic payload, prompt versions, and
+    stage metrics expose no candidate-path evidence channel or stage."""
+
+    import asyncio
+    import json as _json
+
+    from app.main import build_runtime
+    from app.schemas import EvaluationRequest
+
+    runtime = build_runtime(_mock_chain(settings))
+    runtime.evaluator.llm_client = RecordingLlmClient()
+    try:
+        result = asyncio.run(
+            runtime.evaluator.evaluate(
+                EvaluationRequest.model_validate(_payload("invariant-payload"))
+            )
+        )
+    finally:
+        asyncio.run(runtime.aclose())
+
+    payload_serialized = _json.dumps(result.model_raw["semantic_input"])
+    for banned in ("acl_analysis", "acl_config"):
+        assert banned not in payload_serialized, banned
+    assert set(result.model_raw["metadata"]["prompt_versions"]) == {
+        "semantic",
+        "request_findings",
+        "explanation",
+    }
+    assert set(result.model_raw["stages"]) == {
+        "semantic",
+        "request_findings",
+        "explanation",
+    }

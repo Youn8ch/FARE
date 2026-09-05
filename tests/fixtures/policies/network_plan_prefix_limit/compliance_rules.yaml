@@ -1,25 +1,22 @@
+# ACL-PATH-001 占位规则已随 ACL 能力完整移除（2026-09）。
 rules:
-  - id: PREFIX-MIN-24-001
-    name: IPv4 地址范围不得宽于 /24
-    description: 使用测试阈值验证 /24 与 /23 边界
-    category: least_privilege
-    decision: 待定
-    reason_type: policy_violation
-    when: {check: prefix_too_broad, min_ipv4_prefix: 24, min_ipv6_prefix: 64}
-    semantic_keywords: [地址范围, 前缀, 最小权限]
-    evidence_requirements: [source_address, destination_address]
-    reason_template: 申请地址范围宽于测试规则允许的 /24。
-    recommendation: 缩小地址范围或按区域拆分申请。
-    remediation_template: 将地址范围缩小到 /24 或更精确。
-  - id: ACL-PATH-001
-    name: 未找到途径防火墙
-    description: 必需系统规则
-    category: least_privilege
-    decision: 待定
-    reason_type: acl_no_path
-    when: {explicit_no_path: true}
-    semantic_keywords: [无路径]
-    evidence_requirements: [acl_explicit_no_path]
-    reason_template: 未找到候选防火墙。
-    recommendation: 人工复核。
-    remediation_template: 人工复核。
+- id: PREFIX-MIN-24-001
+  name: IPv4 地址范围不得宽于 /24
+  description: 使用测试阈值验证 /24 与 /23 边界
+  category: least_privilege
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    check: prefix_too_broad
+    min_ipv4_prefix: 24
+    min_ipv6_prefix: 64
+  semantic_keywords:
+  - 地址范围
+  - 前缀
+  - 最小权限
+  evidence_requirements:
+  - source_address
+  - destination_address
+  reason_template: 申请地址范围宽于测试规则允许的 /24。
+  recommendation: 缩小地址范围或按区域拆分申请。
+  remediation_template: 将地址范围缩小到 /24 或更精确。

@@ -11,7 +11,6 @@ from fastapi.testclient import TestClient
 from app.config import FareConfig
 from app.main import create_app
 from app.requirement_runner import fetch_requirements
-from app.services.acl_client import MockAclClient
 from app.services.network_plan_client import MockNetworkPlanClient
 from app.services.requirement_source import RequirementBatch
 from app.services.rule_loader import PolicyBundle
@@ -139,7 +138,6 @@ def test_area_relation_policy_is_isolated_ordered_and_pending_only() -> None:
     ids = [rule.id for rule in bundle.rules]
 
     assert ids[:2] == ["ZONE-OFFICE-CORE-DB-001", "ZONE-OFFICE-CORE-001"]
-    assert ids[-1] == "ACL-PATH-001"
     assert all(rule.decision == "待定" for rule in bundle.rules)
     assert not (POLICY_DIR / "network_catalog.yaml").exists()
 
@@ -167,11 +165,9 @@ def test_requirement_source_runs_area_matrix_with_mock_dependencies(
         resolver = runtime.network_plan_resolver
         assert resolver is not None
         assert isinstance(resolver.provider.transport, MockNetworkPlanClient)
-        assert isinstance(runtime.evaluator.acl_client, MockAclClient)
 
         for request in requests:
             network_before = len(resolver.provider.transport.calls)
-            acl_before = len(runtime.evaluator.acl_client.calls)
             response = client.post(
                 "/v1/evaluations", json=request.model_dump(mode="json")
             )
@@ -184,10 +180,6 @@ def test_requirement_source_runs_area_matrix_with_mock_dependencies(
             assert (
                 len(resolver.provider.transport.calls) - network_before
                 == expected["lookup_count"]
-            )
-            assert (
-                len(runtime.evaluator.acl_client.calls) - acl_before
-                == expected["acl_call_count"]
             )
             assert len(body["network_analysis"]["lookups"]) == expected["lookup_count"]
 
@@ -207,7 +199,6 @@ def test_requirement_source_runs_area_matrix_with_mock_dependencies(
                 assert item["destination_network_fact_status"] == (
                     expected_item["destination_status"]
                 )
-                assert item["acl_verification_status"] == expected_item["acl_status"]
 
 
 def test_not_found_batch_uses_only_the_planned_missing_destination() -> None:

@@ -1,10 +1,11 @@
 """V4-P5b: the Evaluator is an orchestrator over named stages.
 
 Every stage is a separately owned step (app/services/stages/, app/services/
-finding_factory.py, item_assembler.py, request_decision.py,
-response_assembler.py); the Evaluator only expresses stage order, dependency
-wiring, and error propagation. Finding construction, text mapping, item
-mutation, metrics details, and shadow-stage flow live outside.
+finding_factory.py, item_assembler.py, request_decision.py); the Evaluator
+only expresses stage order, dependency wiring, and error propagation.
+Finding construction, text mapping, item mutation, metrics details, and the
+shadow-stage flow live outside. Stage order:
+plan -> network -> rules -> semantic -> reduce -> post_decision -> assemble.
 """
 
 from __future__ import annotations
@@ -19,8 +20,6 @@ from app.schemas import (
     EvaluationResponse,
     ModelInfo,
 )
-from app.services.acl_client import AclClient
-from app.services.acl_extract import AclFactExtractor
 from app.services.decision_reducer import DecisionReducer
 from app.services.evaluation_types import EvaluationItemContext
 from app.services.llm_client import LlmClientProtocol
@@ -30,12 +29,10 @@ from app.services.network_plan_resolver import (
     NetworkPlanResolver,
 )
 from app.services.request_decision import aggregate_request_decision
-from app.services.response_assembler import aggregate_analyses
 from app.services.rule_loader import PolicyBundle
 from app.services.splitter import split_resolved_request
 from app.services.stage_metrics import llm_metadata, llm_metrics
 from app.services.stages import (
-    acl_stage,
     post_decision_stage,
     reduce_stage,
     rule_stage,
@@ -46,7 +43,6 @@ from app.services.stages import (
 @dataclass(slots=True)
 class EvaluationResult:
     response: EvaluationResponse
-    acl_raw: list[dict[str, Any]]
     model_raw: dict[str, Any]
     exceptions: list[str]
     network_plan_raw: list[dict[str, object]]
@@ -64,17 +60,11 @@ class Evaluator:
         self,
         *,
         policies: PolicyBundle,
-        acl_client: AclClient,
-        extractor: AclFactExtractor,
         llm_client: LlmClientProtocol,
-        llm_acl_candidate_mode: str = "off",
         llm_request_findings_mode: str = "off",
         semantic_effects: dict[str, str] | None = None,
         network_plan_resolver: NetworkPlanResolver | None = None,
         max_evaluation_items: int = 256,
-        acl_max_concurrency: int = 8,
-        acl_decision_mode: str = "required",
-        acl_deterministic_pending_mode: str = "analyze",
         config_id: str | None = None,
         environment: str | None = None,
         config_fingerprint: str | None = None,
@@ -84,22 +74,12 @@ class Evaluator:
             raise ValueError(
                 "request findings guarded mode is not approved; use off or shadow"
             )
-        if acl_deterministic_pending_mode not in {"skip", "analyze"}:
-            raise ValueError(
-                "ACL deterministic pending mode must be 'skip' or 'analyze'"
-            )
         self.policies = policies
-        self.acl_client = acl_client
-        self.extractor = extractor
         self.llm_client = llm_client
-        self.llm_acl_candidate_mode = llm_acl_candidate_mode
         self.llm_request_findings_mode = llm_request_findings_mode
         self.semantic_effects = dict(semantic_effects or {})
         self.network_plan_resolver = network_plan_resolver
         self.max_evaluation_items = max_evaluation_items
-        self.acl_max_concurrency = acl_max_concurrency
-        self.acl_decision_mode = acl_decision_mode
-        self.acl_deterministic_pending_mode = acl_deterministic_pending_mode
         self.decision_reducer = DecisionReducer()
         self._stage_observer = stage_observer
         self.config_id = config_id
@@ -133,24 +113,7 @@ class Evaluator:
         rule_results = rule_stage.run(
             self.policies, request.request_id, combinations
         )
-
-        self._stage("acl")
-        acl_output = await acl_stage.run(
-            acl_client=self.acl_client,
-            extractor=self.extractor,
-            decision_mode=self.acl_decision_mode,
-            pending_mode=self.acl_deterministic_pending_mode,
-            no_path_rule=self.policies.acl_no_path_rule,
-            max_concurrency=self.acl_max_concurrency,
-            rule_results=rule_results,
-        )
-        records = acl_output.records
-        raw_records = acl_output.raw_records
-        exceptions = acl_output.exceptions
-        # Neutral per-item stage contract: downstream stages never see the
-        # ACL stage's record type. The ACL stage adapts its output into the
-        # compatibility channel and the ACL evidence-text mapping below;
-        # both die together with the ACL stage.
+        # Neutral per-item stage contract shared by every downstream stage.
         contexts = [
             EvaluationItemContext(
                 item_id=rule_result.item_id,
@@ -159,22 +122,15 @@ class Evaluator:
             )
             for rule_result in rule_results
         ]
-        acl_compat = acl_stage.compat_outcomes(records)
-        extra_evidence = {
-            outcome.item_id: {
-                "acl_analysis": outcome.raw_analysis,
-                "acl_config": outcome.raw_config,
-            }
-            for outcome in acl_compat
-        }
+        exceptions: list[str] = []
         model_raw: dict[str, Any] = {
             "metadata": llm_metadata(self.llm_client, self.policies.version),
             "stages": {},
         }
 
         # 确定性装配：分区收集 findings，不产生 decision；reduce 阶段统一裁决。
-        outcomes, analyses = reduce_stage.assemble_outcomes(
-            self.policies, self.decision_reducer, contexts, acl_compat
+        outcomes = reduce_stage.assemble_outcomes(
+            self.policies, self.decision_reducer, contexts
         )
         deterministic_candidates = {
             rule.id
@@ -189,7 +145,6 @@ class Evaluator:
             semantic_effects=self.semantic_effects,
             request=request,
             contexts=contexts,
-            extra_evidence=extra_evidence,
             model_raw=model_raw,
             exceptions=exceptions,
             deterministic_candidates=deterministic_candidates,
@@ -202,28 +157,22 @@ class Evaluator:
             contexts,
             outcomes,
             semantic_result,
-            acl_compat,
         )
 
         # Post-decision analysis (serial, D4): explanation / shadows may only
         # observe and explain; they cannot change the business conclusion.
         self._stage("post_decision")
-        items, acl_candidate_analysis, request_findings = (
-            await post_decision_stage.run(
-                llm_client=self.llm_client,
-                policies=self.policies,
-                request=request,
-                items=items,
-                contexts=contexts,
-                acl_outcomes=acl_compat,
-                extra_evidence=extra_evidence,
-                semantic_succeeded=semantic_result.succeeded,
-                semantic_payload_items=semantic_result.payload_items,
-                acl_candidate_mode=self.llm_acl_candidate_mode,
-                request_findings_mode=self.llm_request_findings_mode,
-                model_raw=model_raw,
-                exceptions=exceptions,
-            )
+        items, request_findings = await post_decision_stage.run(
+            llm_client=self.llm_client,
+            policies=self.policies,
+            request=request,
+            items=items,
+            contexts=contexts,
+            semantic_succeeded=semantic_result.succeeded,
+            semantic_payload_items=semantic_result.payload_items,
+            request_findings_mode=self.llm_request_findings_mode,
+            model_raw=model_raw,
+            exceptions=exceptions,
         )
         model_raw["metrics"] = llm_metrics(
             model_raw["stages"],
@@ -249,18 +198,12 @@ class Evaluator:
             ),
             semantic_analysis=semantic_result.semantic,
             items=items,
-            acl_analysis=aggregate_analyses(
-                analyses,
-                [record.verification_status for record in records],
-            ),
             audit_id=str(uuid4()),
             network_analysis=resolution_stage.resolution.analysis,
-            acl_candidate_analysis=acl_candidate_analysis,
             request_findings=request_findings,
         )
         return EvaluationResult(
             response=response,
-            acl_raw=raw_records,
             model_raw=model_raw,
             exceptions=exceptions,
             network_plan_raw=resolution_stage.raw_records,

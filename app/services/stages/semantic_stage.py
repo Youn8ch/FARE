@@ -50,12 +50,11 @@ async def run(
     semantic_effects: dict[str, str],
     request: EvaluationRequest,
     contexts: list[EvaluationItemContext],
-    extra_evidence: dict[str, dict[str, str]],
     model_raw: dict[str, Any],
     exceptions: list[str],
     deterministic_candidates: set[str],
 ) -> SemanticStageOutput:
-    payload = build_payload(request, contexts, policies, extra_evidence)
+    payload = build_payload(request, contexts, policies)
     model_raw["semantic_input"] = payload
     started = perf_counter()
     error: Exception | None = None
@@ -76,7 +75,7 @@ async def run(
         model_raw["semantic"] = semantic_raw
         semantic = guard_semantic_output(
             raw_semantic,
-            evidence_sources=evidence_sources(contexts, extra_evidence),
+            evidence_sources=evidence_sources(contexts),
             authoritative_facts=authoritative_facts(contexts),
             valid_rule_ids=policies.rule_ids,
             network_facts=network_fact_bindings(contexts),
@@ -140,7 +139,6 @@ def build_payload(
     request: EvaluationRequest,
     contexts: list[EvaluationItemContext],
     policies: PolicyBundle,
-    extra_evidence: dict[str, dict[str, str]],
 ) -> dict[str, Any]:
     return {
         "request_id": request.request_id,
@@ -166,12 +164,6 @@ def build_payload(
                     "source": segment_status(context.combination.source),
                     "destination": segment_status(context.combination.destination),
                 },
-                "acl_analysis": extra_evidence.get(context.item_id, {}).get(
-                    "acl_analysis", ""
-                ),
-                "acl_config": extra_evidence.get(context.item_id, {}).get(
-                    "acl_config", ""
-                ),
             }
             for context in contexts
         ],
@@ -181,14 +173,12 @@ def build_payload(
 
 def evidence_sources(
     contexts: list[EvaluationItemContext],
-    extra_evidence: dict[str, dict[str, str]],
 ) -> dict[str, dict[str, str]]:
     return {
         context.item_id: {
             "request_description": context.combination.request_description,
             "source_description": context.combination.source_description,
             "destination_description": context.combination.destination_description,
-            **extra_evidence.get(context.item_id, {}),
         }
         for context in contexts
     }

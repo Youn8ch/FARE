@@ -1,6 +1,6 @@
 """The single formal decision entry point (V4-P2).
 
-Every stage (network / rule / ACL / semantic) only produces Findings;
+Every stage (network / rule / semantic) only produces Findings;
 :class:`DecisionReducer` is the only component allowed to produce a
 ``合规`` / ``待定`` decision.
 
@@ -8,14 +8,15 @@ Every stage (network / rule / ACL / semantic) only produces Findings;
   direct unit tests); it never carries a trace.
 - :meth:`DecisionReducer.reduce_item` is the formal per-item adjudication
   workflow: exactly one call per item. It computes the deterministic snapshot
-  (network + rules + acl partitions) and the final decision (all partitions)
-  in the same call, and derives the full ``DecisionTrace`` from them.
+  (network + rules + catalog partitions) and the final decision (all
+  partitions) in the same call, and derives the full ``DecisionTrace`` from
+  them.
 
 Priority: network errors bind first, then formal rules, catalog fact errors,
-ACL facts, and finally semantic findings. Findings of the same priority keep
-insertion order (stable), secondary findings never override a higher-priority
-primary finding, and informational findings (``affects_decision=False``) are
-recorded but cannot change a decision.
+and finally semantic findings. Findings of the same priority keep insertion
+order (stable), secondary findings never override a higher-priority primary
+finding, and informational findings (``affects_decision=False``) are recorded
+but cannot change a decision.
 """
 
 from __future__ import annotations
@@ -26,12 +27,11 @@ from typing import Literal
 
 from app.schemas import DecisionTrace
 
-FindingSource = Literal["network", "rule", "acl", "semantic"]
+FindingSource = Literal["network", "rule", "semantic"]
 
 PRIORITY_NETWORK = 0
 PRIORITY_RULE = 10
 PRIORITY_CATALOG = 20
-PRIORITY_ACL = 30
 PRIORITY_SEMANTIC = 40
 
 
@@ -51,16 +51,14 @@ class ItemFindingSet:
     """One item's findings, partitioned by producing stage.
 
     The flat finding order mirrors the historical first-match chain:
-    network error, matched rules, catalog fact errors, ACL findings,
-    semantic findings. The deterministic snapshot is
-    ``network + rules + catalog + acl``; the final decision additionally
-    consumes ``semantic``.
+    network error, matched rules, catalog fact errors, semantic findings.
+    The deterministic snapshot is ``network + rules + catalog``; the final
+    decision additionally consumes ``semantic``.
     """
 
     network: tuple[Finding, ...] = ()
     rules: tuple[Finding, ...] = ()
     catalog: tuple[Finding, ...] = ()
-    acl: tuple[Finding, ...] = ()
     semantic: tuple[Finding, ...] = ()
 
 
@@ -151,7 +149,6 @@ class DecisionReducer:
             *finding_set.network,
             *finding_set.rules,
             *finding_set.catalog,
-            *finding_set.acl,
         )
         all_findings = (*deterministic_findings, *finding_set.semantic)
         rules = tuple(matched_rules)

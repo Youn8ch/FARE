@@ -1,5 +1,0 @@
-{
-  "fixture_version": "2026.08.0",
-  "purpose": "V3-14 ACL 未确认候选防火墙（required 模式下事实不完整）",
-  "default": {"analysis": "候选路径分析完成，未见明确防火墙记录。", "config": ""}
-}

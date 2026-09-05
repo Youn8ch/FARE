@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.schemas import AclRawResponse
-from app.services.acl_extract import AclFactExtractor
 from app.services.canonical import canonical_from_catalog
 from app.services.catalog import NetworkCatalog
 from app.services.rule_loader import PolicyBundle, Rule
@@ -22,30 +20,6 @@ def test_catalog_splits_request_at_authoritative_boundary():
 def test_single_ip_is_normalized_to_host_prefix():
     catalog = NetworkCatalog.load(Path("policies/network_catalog.yaml"))
     assert str(catalog.split_and_resolve("20.1.2.3")[0].network) == "20.1.2.3/32"
-
-
-def test_explicit_no_path_requires_explicit_text():
-    extractor = AclFactExtractor()
-    missing = extractor.extract(AclRawResponse(analysis="没有可解析设备信息", config=""))
-    explicit = extractor.extract(
-        AclRawResponse(analysis="未找到该访问组合经过的防火墙。", config="")
-    )
-    assert missing.explicit_no_path is False
-    assert explicit.explicit_no_path is True
-    assert explicit.evidence
-
-
-def test_acl_facts_are_extracted_without_claiming_live_state():
-    facts = AclFactExtractor().extract(
-        AclRawResponse(
-            analysis="候选路径经过防火墙 FW-A。",
-            config="access-list ACL-DEMO object-group SRC-GROUP port 443",
-        )
-    )
-    assert facts.firewalls == ["FW-A"]
-    assert facts.candidate_acls == ["ACL-DEMO"]
-    assert facts.address_objects == ["SRC-GROUP"]
-    assert facts.observed_ports == [443]
 
 
 def test_zone_rule_engine_is_only_enabled_by_an_explicit_test_rule():

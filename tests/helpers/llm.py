@@ -4,8 +4,6 @@ from copy import deepcopy
 from typing import Any, Literal
 
 from app.schemas import (
-    LlmAclCandidateFact,
-    LlmAclExtractionItem,
     LlmExplanationResponse,
     LlmPolicyGap,
     LlmRequestFinding,
@@ -18,7 +16,6 @@ from app.services.llm_client import LlmDependencyError
 
 FailureStage = Literal[
     "semantic",
-    "acl_candidates",
     "request_findings",
     "explanation",
 ]
@@ -79,23 +76,6 @@ def semantic_response(
     return LlmSemanticResponse.model_validate(value)
 
 
-def acl_candidate_item(**updates: Any) -> LlmAclExtractionItem:
-    value: dict[str, Any] = {
-        "item_id": "case-001",
-        "facts": [
-            LlmAclCandidateFact(
-                type="firewall",
-                value="SYNTHETIC-FW-01",
-                source="acl_analysis",
-                evidence="SYNTHETIC-FW-01",
-                confidence=0.9,
-            ).model_dump(mode="json")
-        ],
-    }
-    value.update(updates)
-    return LlmAclExtractionItem.model_validate(value)
-
-
 def request_finding(**updates: Any) -> LlmRequestFinding:
     value: dict[str, Any] = {
         "finding_id": "finding-001",
@@ -143,22 +123,18 @@ class RecordingLlmClient:
         *,
         fail_stage: FailureStage | None = None,
         semantic_response: LlmSemanticResponse | None = None,
-        acl_candidates: dict[str, LlmAclExtractionItem] | None = None,
         request_findings: LlmRequestFindingsResponse | dict[str, Any] | None = None,
         explanation_response: LlmExplanationResponse | dict[str, Any] | None = None,
     ) -> None:
         self.fail_stage = fail_stage
         self.semantic_response = semantic_response
-        self.acl_candidates = acl_candidates
         self.request_findings = request_findings
         self.explanation_response = explanation_response
         self.failed_stage: FailureStage | None = None
         self.semantic_calls = 0
-        self.acl_candidate_calls = 0
         self.request_finding_calls = 0
         self.explanation_calls = 0
         self.semantic_item_ids: list[list[str]] = []
-        self.acl_candidate_item_ids: list[list[str]] = []
         self.request_finding_item_ids: list[list[str]] = []
         self.explanation_item_ids: list[list[str]] = []
 
@@ -168,15 +144,14 @@ class RecordingLlmClient:
 
     @property
     def fixture_version(self) -> str:
-        return "recording-fixture-2026.08.0"
+        return "recording-fixture-2026.09.0"
 
     @property
     def prompt_versions(self) -> dict[str, str]:
         return {
-            "semantic": "recording-2026.08.0",
-            "acl_candidates": "recording-2026.08.0",
-            "request_findings": "recording-2026.08.0",
-            "explanation": "recording-2026.08.0",
+            "semantic": "recording-2026.09.0",
+            "request_findings": "recording-2026.09.0",
+            "explanation": "recording-2026.09.0",
         }
 
     async def analyze(
@@ -195,27 +170,6 @@ class RecordingLlmClient:
             else LlmSemanticResponse(analyzed_item_ids=item_ids)
         )
         return response, response.model_dump(mode="json")
-
-    async def extract_acl_facts(
-        self,
-        inputs: list[dict[str, str]],
-        *,
-        request_id: str | None = None,
-    ) -> dict[str, LlmAclExtractionItem]:
-        item_ids = [str(item["item_id"]) for item in inputs]
-        self.acl_candidate_calls += 1
-        self.acl_candidate_item_ids.append(item_ids)
-        if self.fail_stage == "acl_candidates":
-            self.failed_stage = "acl_candidates"
-            raise LlmDependencyError("recorded ACL candidate failure")
-        if self.acl_candidates is not None:
-            return {
-                item_id: item.model_copy(deep=True)
-                for item_id, item in self.acl_candidates.items()
-            }
-        return {
-            item_id: LlmAclExtractionItem(item_id=item_id) for item_id in item_ids
-        }
 
     async def analyze_request_findings(
         self,
