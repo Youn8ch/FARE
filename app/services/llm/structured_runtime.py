@@ -84,10 +84,21 @@ def _with_cause(
     return error
 
 
-def _classify_provider_cause(cause: BaseException | None) -> LlmDependencyError:
+def _classify_provider_cause(
+    cause: BaseException | None, *, timeout_seconds: float
+) -> LlmDependencyError:
     """Map SDK/Instructor exception causes to the FARE typed taxonomy and the
     frozen business message."""
 
+    if isinstance(cause, APITimeoutError):
+        return _with_cause(
+            LlmDependencyError(DEPENDENCY_FAILED_MESSAGE),
+            TimeoutFailure(
+                DEPENDENCY_FAILED_MESSAGE,
+                deadline_seconds=timeout_seconds,
+                attempts=0,
+            ),
+        )
     if isinstance(cause, APIStatusError):
         return _with_cause(
             LlmDependencyError(DEPENDENCY_FAILED_MESSAGE),
@@ -99,7 +110,7 @@ def _classify_provider_cause(cause: BaseException | None) -> LlmDependencyError:
                 ),
             ),
         )
-    if isinstance(cause, (APIConnectionError, APITimeoutError, httpx.HTTPError)):
+    if isinstance(cause, (APIConnectionError, httpx.HTTPError)):
         return _with_cause(
             LlmDependencyError(DEPENDENCY_FAILED_MESSAGE),
             ProviderFailure(DEPENDENCY_FAILED_MESSAGE, retryable=False),
@@ -139,6 +150,7 @@ async def complete_structured[T: BaseModel](
     last_error: Exception | None = None
     attempt_count = 0
     transport_failure: BaseException | None = None
+    transport_timeout: float = total_timeout
     started = perf_counter()
     loop = asyncio.get_running_loop()
     deadline = loop.time() + total_timeout
@@ -172,6 +184,7 @@ async def complete_structured[T: BaseModel](
                         # (frozen historical behavior) and never consume the
                         # structure budget.
                         transport_failure = cause
+                        transport_timeout = remaining
                         break
                     if attempt + 1 < attempts_allowed:
                         # Bounded re-ask: the frozen correction message
@@ -212,7 +225,9 @@ async def complete_structured[T: BaseModel](
         error=last_error,
     )
     if transport_failure is not None:
-        raise _classify_provider_cause(transport_failure) from transport_failure
+        raise _classify_provider_cause(
+            transport_failure, timeout_seconds=transport_timeout
+        )
     raise _final_error(
         last_error,
         attempts=attempt_count,

@@ -12,7 +12,10 @@ from pathlib import Path
 from typing import Any
 
 from app.schemas import LlmExplanationResponse, LlmRequestFindingsResponse, LlmSemanticResponse
-from app.services.llm.errors import LlmDependencyError
+from app.services.llm.errors import (
+    DomainValidationFailure,
+    LlmDependencyError,
+)
 from app.services.llm.mock_adapter import (
     explanation_mock_response,
     fixture_response,
@@ -179,9 +182,16 @@ class LlmClient(LlmClientProtocol):
                 evidence_sources=_request_finding_evidence_sources(inputs),
             )
         except RequestFindingGuardError as exc:
-            raise LlmDependencyError(
-                f"LLM request findings output was rejected: {exc}"
-            ) from exc
+            failure = DomainValidationFailure(
+                f"LLM request findings output was rejected: {exc}",
+                guard_code="REQUEST_FINDINGS_GUARD",
+                item_ids=[str(item.get("item_id")) for item in inputs],
+            )
+            # __cause__ stays the typed failure so audit sees the FARE
+            # taxonomy class; the guard detail is preserved in the message.
+            error = LlmDependencyError(str(failure))
+            error.__cause__ = failure
+            raise error  # noqa: B904 - __cause__ must stay the typed failure
 
     async def _complete(
         self, messages: list[dict[str, str]], schema: type, timeout: float | None = None

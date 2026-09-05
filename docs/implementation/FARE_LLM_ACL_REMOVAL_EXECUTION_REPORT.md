@@ -416,3 +416,51 @@ proxy env 不改变行为、GLM profile 与通用 profile 分开验证。
 | `pytest evals/llm/test_contract_dataset.py tests/test_real_semantic_acceptance_scoring.py -q` | **5 passed** |
 | realistic suite（mock adapter，不经 SDK） | 零差异 |
 | 实际版本 | instructor 1.16.0 / openai 2.54.0 |
+
+---
+
+## PHASE-07: Failure model, audit, and observability hardening
+
+**Commit:** `test: harden llm failure and provider compatibility contracts`（见 git log）
+
+### Audit event minimum fields (FARE-owned, per use-case call)
+
+`stage_metrics.record_llm_stage` 每条 stage 事件新增：
+`use_case`、`prompt_version`、`model`、`started_at`、`fare_error_type`
+（typed taxonomy 类名：ProviderFailure / TimeoutFailure /
+StructuredOutputFailure / DomainValidationFailure）、
+`structure_retry_count`、`transport_retry_count`（冻结为 0）、
+`token_usage`（prompt/completion/total 三规范字段）、
+`provider_request_id`、explanation 事件的 `fallback_used`。
+raw completion 与任何 secret 不进入事件（契约测试断言）。
+
+### Failure matrix (tests/test_llm_failure_matrix.py, 17 tests)
+
+按阶段路由的 mock 传输（system prompt 识别 semantic/findings/explanation），
+冻结 3×失败类型矩阵：
+
+| 失败类型 | Semantic | Request findings | Explanation |
+|---|---|---|---|
+| 429 / 500 / connect | ProviderFailure；全 item fail-close；explanation 跳过 | shadow rejected；决策不变 | ProviderFailure；模板回退 |
+| transport/deadline timeout | **TimeoutFailure**（单元级测试：单一 deadline 被 asyncio.timeout 强制） | TimeoutFailure；决策不变 | 模板回退 |
+| invalid JSON / schema violation | StructuredOutputFailure | StructuredOutputFailure | 模板回退 |
+| guard 拒绝 | SemanticGuardError（FARE 域类） | **DomainValidationFailure**（adapter 接入 typed cause） | ExplanationGuardError（FARE 域类） |
+
+另验证：成功事件的 usage/request-id 可审计且无 raw completion 泄漏、
+transport_retry_count 恒 0、并发评估的 trace 不串扰。
+
+### Guard classification wiring
+
+- `adapter.analyze_request_findings` 的 guard 拒绝现在挂
+  `DomainValidationFailure(guard_code, item_ids)` 作为 `__cause__`
+  （公开消息不变）。
+- `structured_runtime` 的 `raise ... from` 链修正为先构造 typed failure
+  再挂 `__cause__`（避免被原始 SDK 异常覆盖）。
+
+### Test results
+
+| Command | Result |
+|---|---|
+| full `pytest -q` | **572 passed**（+17 failure matrix） |
+| `ruff check . --no-cache` | **All checks passed** |
+| realistic suite RN-023/RN-024（semantic 失败/explanation 越权） | 零漂移 |
