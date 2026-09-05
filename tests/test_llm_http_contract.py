@@ -70,8 +70,12 @@ def test_http_valid_first_attempt_uses_injected_transport() -> None:
     assert len(requests) == 1
     assert requests[0].url == "https://model.invalid/v1/chat/completions"
     body = json.loads(requests[0].content)
-    assert "JSON Schema" in body["messages"][0]["content"]
-    assert "LlmSemanticResponse" in body["messages"][0]["content"]
+    # Approved SDK difference: Instructor injects the JSON schema contract in
+    # its own wording (the pre-SDK client used a FARE-written suffix).
+    assert "analyzed_item_ids" in body["messages"][0]["content"]
+    assert "Make sure to return an instance of the JSON" in body["messages"][0][
+        "content"
+    ]
     assert trace is not None
     assert trace["attempts"] == 1
 
@@ -223,7 +227,12 @@ def test_http_transport_timeout_is_not_correction_retried() -> None:
 
 
 @pytest.mark.parametrize("api_key", [None, "SENTINEL_PROVIDER_KEY"])
-def test_http_request_auth_and_deterministic_parameters(api_key: str | None) -> None:
+def test_http_request_auth_and_deterministic_parameters(
+    api_key: str | None, monkeypatch
+) -> None:
+    # no-auth must never read environment credentials: poison the env var so
+    # any implicit read would surface here.
+    monkeypatch.setenv("OPENAI_API_KEY", "ENV-SENTINEL-MUST-NOT-BE-USED")
     requests: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -243,7 +252,13 @@ def test_http_request_auth_and_deterministic_parameters(api_key: str | None) -> 
     if api_key:
         assert request.headers["Authorization"] == f"Bearer {api_key}"
     else:
-        assert "Authorization" not in request.headers
+        # Approved SDK difference: the SDK client is constructed with an
+        # explicit placeholder credential (never the environment) so no-auth
+        # profiles send a constant placeholder instead of no header.
+        assert request.headers["Authorization"] == "Bearer no-auth"
+        assert "ENV-SENTINEL-MUST-NOT-BE-USED" not in request.headers.get(
+            "Authorization", ""
+        )
 
 
 def test_bigmodel_compatible_generation_parameters_are_forwarded_without_streaming() -> None:
@@ -452,3 +467,64 @@ def test_validation_and_idempotency_shortcuts_do_not_add_llm_calls(settings) -> 
         )
         assert client.post("/v2/evaluations", json=invalid).status_code == 422
         assert (recorder.semantic_calls, recorder.explanation_calls) == (1, 1)
+
+
+def test_no_env_proxy_or_env_key_can_alter_requests(monkeypatch) -> None:
+    """Contract 12: trust_env=False — proxy environment variables must not
+    change the settings-only request path."""
+
+    monkeypatch.setenv("HTTP_PROXY", "http://proxy-sentinel.invalid")
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy-sentinel.invalid")
+    monkeypatch.setenv("ALL_PROXY", "http://proxy-sentinel.invalid")
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return _completion(json.dumps({"analyzed_item_ids": ["http-contract-001"]}))
+
+    client = _http_client(httpx.MockTransport(handler))
+    asyncio.run(client.analyze(_semantic_payload()))
+
+    assert len(requests) == 1
+    assert requests[0].url.host == "model.invalid"
+    body = json.loads(requests[0].content)
+    assert body["model"] == "test-model"
+
+
+def test_usage_and_provider_request_id_are_auditable_from_completion() -> None:
+    """Contract 11: usage and provider request id flow into the trace without
+    exposing raw sensitive content."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "id": "chatcmpl-provider-001",
+                "choices": [
+                    {"message": {"content": json.dumps({"analyzed_item_ids": ["x"]})}}
+                ],
+                "usage": {
+                    "prompt_tokens": 11,
+                    "completion_tokens": 7,
+                    "total_tokens": 18,
+                },
+            },
+        )
+
+    client = _http_client(httpx.MockTransport(handler))
+
+    async def call():
+        response, _raw = await client.analyze(_semantic_payload())
+        return response, client.consume_completion_trace()
+
+    response, trace = asyncio.run(call())
+    assert response.analyzed_item_ids == ["x"]
+    assert trace is not None
+    assert trace["usage"] == {
+        "prompt_tokens": 11,
+        "completion_tokens": 7,
+        "total_tokens": 18,
+    }
+    assert trace["provider_request_id"] == "chatcmpl-provider-001"
+    # raw completion content must not leak into the trace
+    assert "choices" not in json.dumps(trace)

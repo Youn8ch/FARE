@@ -1,20 +1,45 @@
-"""Provider transport boundary (hand-written HTTP until PHASE-06).
+"""Provider transport boundary: OpenAI SDK + Instructor.
 
-The channel owns the async HTTP client lifecycle: base URL comes only from
-FARE settings, no automatic transport retries, ``trust_env=False`` so
-environment proxies or keys can never alter the "settings-only" contract.
-The resource is closed exactly once by the runtime lifecycle owner.
+The channel owns the ``AsyncOpenAI`` construction and the lifecycle-owned
+``httpx.AsyncClient``:
+
+- ``base_url`` comes only from FARE settings;
+- ``max_retries=0`` freezes provider/transport behavior — no automatic SDK
+  retry on connection errors, 408/409/429/5xx;
+- the HTTP client is built with ``trust_env=False`` so environment proxies
+  and environment keys can never alter the settings-only contract;
+- ``api_key`` is supplied per call through ``extra_headers`` so no-auth
+  deployments never read environment credentials (the SDK client itself is
+  constructed with an explicit placeholder key, recorded as an approved,
+  harmless SDK header difference for no-auth profiles);
+- Instructor runs in the JSON-compatible mode (``Mode.JSON``) verified by the
+  provider contract spike: schema-constrained JSON generation without
+  assuming tools/JSON-Schema support from OpenAI-compatible providers.
 """
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import httpx
+import instructor
+from openai import AsyncOpenAI
+
+# FARE owns observability: instructor's internal retry logger emits raw
+# provider error bodies (which may echo secrets such as reflected keys).
+# The FARE typed errors and completion traces replace that surface entirely.
+logging.getLogger("instructor").setLevel(logging.CRITICAL)
+
+# The OpenAI SDK refuses to construct without a credential and would fall
+# back to reading OPENAI_API_KEY from the environment; this explicit
+# placeholder keeps no-auth profiles environment-free. FARE overrides the
+# Authorization header per call when a real key is configured.
+NO_AUTH_PLACEHOLDER_KEY = "no-auth"
 
 
 class ProviderChannel:
-    """Lifecycle-owned OpenAI-compatible HTTP channel."""
+    """Lifecycle-owned provider channel around ``AsyncOpenAI``."""
 
     def __init__(
         self,
@@ -33,34 +58,28 @@ class ProviderChannel:
                 transport=transport,
                 trust_env=False,
             )
+        self._sdk = AsyncOpenAI(
+            base_url=self.base_url,
+            api_key=NO_AUTH_PLACEHOLDER_KEY,
+            http_client=self._http_client,
+            max_retries=0,
+        )
+        self.structured = instructor.from_openai(self._sdk, mode=instructor.Mode.JSON)
 
     @property
     def available(self) -> bool:
         return self._http_client is not None
 
-    def headers(self, api_key: str | None) -> dict[str, str]:
-        # The credential is read per call so tests and runtime rotation can
-        # update it after construction without rebuilding the channel.
-        headers = {"Content-Type": "application/json"}
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-        return headers
+    def auth_headers(self, api_key: str | None) -> dict[str, str]:
+        """Per-call credential override; the credential is read at call time."""
 
-    async def post_chat_completions(
-        self,
-        json_body: dict[str, Any],
-        *,
-        timeout: float,
-        api_key: str | None,
-    ) -> httpx.Response:
-        assert self._http_client is not None  # noqa: S101 - guarded by available()
-        return await self._http_client.post(
-            f"{self.base_url}/chat/completions",
-            headers=self.headers(api_key),
-            json=json_body,
-            timeout=timeout,
-        )
+        if api_key:
+            return {"Authorization": f"Bearer {api_key}"}
+        return {}
 
     async def aclose(self) -> None:
         if self._http_client is not None and not self._http_client.is_closed:
             await self._http_client.aclose()
+
+    def structured_create(self) -> Any:
+        return self.structured.chat.completions.create_with_completion

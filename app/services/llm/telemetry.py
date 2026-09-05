@@ -47,6 +47,8 @@ class CompletionTraceRecorder:
         attempts: int,
         started: float,
         error: Exception | None,
+        usage: dict[str, Any] | None = None,
+        provider_request_id: str | None = None,
     ) -> None:
         trace = {
             "schema": schema.__name__,
@@ -61,6 +63,10 @@ class CompletionTraceRecorder:
                 else None
             ),
         }
+        if usage is not None:
+            trace["usage"] = usage
+        if provider_request_id is not None:
+            trace["provider_request_id"] = provider_request_id
         self._traces.set((*self._traces.get(), trace))
 
     def consume(self) -> dict[str, Any] | None:

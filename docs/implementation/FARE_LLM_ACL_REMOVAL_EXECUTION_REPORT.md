@@ -354,3 +354,65 @@ Categories:
 |---|---|
 | full `pytest -q` | **553 passed** (+2 PHASE-05 gate tests) |
 | `ruff check . --no-cache` | **All checks passed** |
+
+---
+
+## PHASE-06: openai-python + Instructor migration (provider contract parity)
+
+**Commit:** `feat: migrate llm transport to openai sdk and instructor`（见 git log）
+
+### Dependency decision (re-verified on execution day 2026-09-05)
+
+- PyPI 官方元数据：Instructor 最新 **1.16.0**（2026-08-27），依赖
+  `openai>=2.0.0,<3.0.0`；openai-python 已发布 3.8.0。
+- 因此采纳批准范围 **`instructor>=1.16,<1.17`** + **`openai>=2.0,<3.0`**；
+  实际解析版本：**instructor 1.16.0 + openai 2.54.0**（写入 pyproject）。
+- 未使用无界 latest；未引入 Agent framework/LangChain/LiteLLM 等。
+
+### Implementation
+
+- `llm/provider.py`：显式构造 `AsyncOpenAI`（base_url 仅来自 FARE 设置、
+  **max_retries=0** 冻结传输行为、自管 httpx.AsyncClient `trust_env=False`、
+  绝不读取环境凭据）+ `instructor.from_openai(..., mode=Mode.JSON)`
+  （contract spike 验证的 JSON-compatible 模式，不假设 tools/JSON-Schema）。
+- `llm/structured_runtime.py`：FARE 自管有界结构重试循环（instructor
+  `max_retries=0`），`asyncio.timeout` 单一总 deadline 覆盖每次 attempt 的
+  剩余预算；transport/API 错误（429/500/连接/超时）立即失败且不消耗结构
+  重试预算——与冻结历史行为一致；错误映射到 typed taxonomy
+  （ProviderFailure/TimeoutFailure/StructuredOutputFailure），业务异常
+  消息与旧版逐字节相同。
+- GLM/兼容参数：`do_sample`/`thinking` 经 `extra_body` 传递；
+  `response_format={"type":"json_object"}`、`stream=False`、
+  temperature/max_tokens/top_p/stop 为一等参数（contract 测试逐项冻结）。
+- usage（prompt/completion/total）与 provider request id 进入 completion
+  trace（规范三字段）；raw completion 不进 trace。
+- instructor 内部 retry logger 静音（其原始错误文本可能回显 secrets）；
+  FARE 的 typed error 与 trace 是唯一观测面。
+
+### Approved SDK differences (parity audit result)
+
+1. no-auth 场景发送固定占位 `Authorization: Bearer no-auth`（SDK 拒绝无凭据
+   构造且不接受空串；显式占位保证绝不读取环境 key，poison-env 契约测试证明）。
+2. system 消息的 JSON schema 指令由 Instructor 以其自有措辞注入
+   （契约测试改为断言 schema 字段与指令存在，而非旧后缀原文）。
+3. SDK 自有无害 header（`x-stainless-*`、`accept-encoding` 等）。
+4. 结构失败时 assistant/user correction 消息与旧实现一致（保留）。
+
+### Contract suite (expanded, 23 passed)
+
+冻结项：URL 拼接、auth（有 key/无 key/env-poison）、model/temperature/
+do_sample/stream/response_format/max_tokens/top_p/stop/thinking、extra_body、
+client 复用与恰好关闭一次、429/500 只发一次、transport timeout 只发一次、
+invalid JSON/缺字段/错 enum 的有界结构重试、单一总 deadline 共享、typed
+错误映射、usage+request id 可审计且不泄漏原文、no-auth 不读环境、
+proxy env 不改变行为、GLM profile 与通用 profile 分开验证。
+
+### Test results
+
+| Command | Result |
+|---|---|
+| full `pytest -q` | **555 passed**（+2 新契约测试） |
+| `ruff check . --no-cache` | **All checks passed** |
+| `pytest evals/llm/test_contract_dataset.py tests/test_real_semantic_acceptance_scoring.py -q` | **5 passed** |
+| realistic suite（mock adapter，不经 SDK） | 零差异 |
+| 实际版本 | instructor 1.16.0 / openai 2.54.0 |
