@@ -172,7 +172,7 @@ def test_e2e_usage_codes_alone_never_trigger_object_rule(settings: Settings) -> 
         destinations=[{"address": "16.220.16.20", "description": "生产数据库"}],
     )
     with TestClient(create_app(_mock_chain(settings))) as client:
-        response = client.post("/v1/evaluations", json=payload)
+        response = client.post("/v2/evaluations", json=payload)
     assert response.status_code == 200
     body = response.json()
     item = body["items"][0]

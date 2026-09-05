@@ -265,7 +265,7 @@ def test_p0_offline_masquerade_freeze(settings: Settings) -> None:
         request_description="生产应用 HTTPS 访问",
     )
     with TestClient(create_app(offline)) as client:
-        response = client.post("/v1/evaluations", json=payload)
+        response = client.post("/v2/evaluations", json=payload)
         body = response.json()
     assert response.status_code == 200
     assert body["decision"] == "合规"
@@ -323,7 +323,7 @@ def test_p0_offline_multi_match_freeze(settings: Settings, tmp_path: Path) -> No
         destinations=[{"address": "16.1.30.20", "description": "生产应用 B"}],
     )
     with TestClient(create_app(offline)) as client:
-        response = client.post("/v1/evaluations", json=payload)
+        response = client.post("/v2/evaluations", json=payload)
         body = response.json()
     assert response.status_code == 200
     item = body["items"][0]

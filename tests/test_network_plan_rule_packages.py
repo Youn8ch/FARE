@@ -154,7 +154,7 @@ def test_local_network_rule_requirement_group(
     with TestClient(create_app(configured)) as client:
         runtime = client.app.state.runtime
         response = client.post(
-            "/v1/evaluations", json=case.request.model_dump(mode="json")
+            "/v2/evaluations", json=case.request.model_dump(mode="json")
         )
         resolver = runtime.network_plan_resolver
         assert resolver is not None

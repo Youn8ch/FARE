@@ -196,7 +196,7 @@ def test_realistic_network_request(loaded: Loaded, settings: Settings) -> None:
     with TestClient(create_app(case_settings)) as client:
         client.app.state.runtime.evaluator.llm_client = recorder
         payload = case.request.model_dump(mode="json")
-        response = client.post("/v1/evaluations", json=payload)
+        response = client.post("/v2/evaluations", json=payload)
 
         if case.replay is not None:
             _run_replay(client, case, payload, expected, recorder, item_ids)
@@ -222,14 +222,14 @@ def _run_replay(
     recorder: RecordingLlmClient,
     item_ids: list[str],
 ) -> None:
-    first = client.post("/v1/evaluations", json=payload)
+    first = client.post("/v2/evaluations", json=payload)
     assert first.status_code == expected["http_status"]
     first_body = first.json()
     assert first_body["decision"] == expected["decision"]
     _assert_items(first_body, expected, item_ids)
 
     if case.replay.mode == "same":
-        second = client.post("/v1/evaluations", json=payload)
+        second = client.post("/v2/evaluations", json=payload)
         assert second.status_code == 200
         second_body = second.json()
         second_body.pop("audit_id", None)
@@ -240,7 +240,7 @@ def _run_replay(
         conflicted["request_description"] = (
             payload["request_description"] + " 修改后的不同输入。"
         )
-        second = client.post("/v1/evaluations", json=conflicted)
+        second = client.post("/v2/evaluations", json=conflicted)
         assert second.status_code == 409
         assert second.json()["error"]["code"] == "idempotency_conflict"
 

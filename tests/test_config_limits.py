@@ -11,11 +11,6 @@ from app.config import Settings
     ("updates", "message"),
     [
         ({"audit_log_retention_days": 0}, "AUDIT_LOG_RETENTION_DAYS"),
-        ({"acl_client_mode": "invalid"}, "ACL_CLIENT_MODE"),
-        (
-            {"acl_client_mode": "http", "acl_api_url": None},
-            "ACL_API_URL",
-        ),
         ({"llm_client_mode": "invalid"}, "LLM_CLIENT_MODE"),
         (
             {
@@ -25,7 +20,6 @@ from app.config import Settings
             },
             "LLM_BASE_URL and LLM_MODEL",
         ),
-        ({"acl_timeout_seconds": 0}, "dependency timeouts"),
         ({"llm_semantic_timeout_seconds": 0}, "dependency timeouts"),
         ({"llm_explanation_timeout_seconds": 0}, "dependency timeouts"),
         ({"llm_max_correction_retries": -1}, "LLM_MAX_CORRECTION_RETRIES"),
@@ -49,14 +43,8 @@ from app.config import Settings
         ({"network_plan_max_concurrency": 0}, "limits must be positive"),
         ({"network_plan_max_subnets_per_request": 0}, "limits must be positive"),
         ({"max_evaluation_items": 0}, "limits must be positive"),
-        ({"acl_max_concurrency": 0}, "limits must be positive"),
         ({"network_plan_cache_ttl_seconds": -1}, "must not be negative"),
         ({"network_plan_cache_max_entries": 0}, "must be positive"),
-        ({"acl_decision_mode": "invalid"}, "ACL_DECISION_MODE"),
-        (
-            {"acl_deterministic_pending_mode": "invalid"},
-            "ACL_DETERMINISTIC_PENDING_MODE",
-        ),
     ],
 )
 def test_invalid_setting_limits_are_rejected(
@@ -73,7 +61,6 @@ def test_supported_llm_correction_retry_limits_are_valid(
     replace(
         settings,
         audit_log_retention_days=1,
-        acl_timeout_seconds=0.001,
         llm_semantic_timeout_seconds=0.001,
         llm_explanation_timeout_seconds=0.001,
         llm_max_correction_retries=retry_count,

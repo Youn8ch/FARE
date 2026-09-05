@@ -10,7 +10,12 @@ from fastapi.responses import JSONResponse
 
 from app.config import DEFAULT_CONFIG_PATH, FareConfig, Settings
 from app.schemas import ErrorDetail, ErrorResponse, EvaluationRequest, EvaluationResponse
-from app.services.audit import AuditStore, redact_evaluation_response, request_hash
+from app.services.audit import (
+    AuditSchemaMismatchError,
+    AuditStore,
+    redact_evaluation_response,
+    request_hash,
+)
 from app.services.catalog import NetworkCatalog
 from app.services.evaluator import Evaluator
 from app.services.llm_client import LlmClient
@@ -55,7 +60,14 @@ class Runtime:
             ) from exc
 
         digest = request_hash(payload)
-        status, cached = await self._claim_audit(payload.request_id, digest)
+        try:
+            status, cached = await self._claim_audit(payload.request_id, digest)
+        except AuditSchemaMismatchError as exc:
+            raise EvaluationServiceError(
+                409,
+                "AUDIT_SCHEMA_MISMATCH",
+                str(exc),
+            ) from exc
         if status == "cached":
             if cached is None:
                 raise RuntimeError("cached audit claim did not include a response")
@@ -274,7 +286,7 @@ def create_app(
 
     app = FastAPI(
         title="FARE",
-        version="0.2.0",
+        version="0.3.0",
         description="Firewall Access Request Evaluator",
         lifespan=lifespan,
     )
@@ -292,7 +304,7 @@ def create_app(
         )
 
     @app.post(
-        "/v1/evaluations",
+        "/v2/evaluations",
         response_model=EvaluationResponse,
         responses={409: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
         tags=["evaluations"],
@@ -308,6 +320,25 @@ def create_app(
                 exc.message,
                 exc.details,
             )
+
+    @app.post(
+        "/v1/evaluations",
+        responses={410: {"model": ErrorResponse}},
+        tags=["evaluations"],
+    )
+    async def evaluate_v1_retired() -> JSONResponse:
+        """Retirement stub for the 0.3.x compatibility window.
+
+        The route never reaches the evaluation runtime and never restores the
+        removed schema; it only points legacy callers at /v2/evaluations. The
+        route itself is deleted in a later coordinated release.
+        """
+
+        return _error(
+            410,
+            "API_VERSION_RETIRED",
+            "/v1/evaluations was retired in 0.3.0; use /v2/evaluations",
+        )
 
     return app
 

@@ -169,7 +169,7 @@ def test_requirement_source_runs_area_matrix_with_mock_dependencies(
         for request in requests:
             network_before = len(resolver.provider.transport.calls)
             response = client.post(
-                "/v1/evaluations", json=request.model_dump(mode="json")
+                "/v2/evaluations", json=request.model_dump(mode="json")
             )
             expected = expected_by_id[request.request_id]
 

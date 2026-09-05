@@ -172,7 +172,7 @@ def test_api_cases_keep_baseline_outputs(settings: Settings) -> None:
     }
     with TestClient(create_app(_mock_chain(settings))) as client:
         responses = {
-            name: client.post("/v1/evaluations", json=payload).json()
+            name: client.post("/v2/evaluations", json=payload).json()
             for name, (payload, _, _) in cases.items()
         }
     case05 = responses["ac04-case-05-telnet"]

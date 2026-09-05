@@ -64,7 +64,7 @@ def _mock_chain(settings: Settings, **changes) -> Settings:
 
 
 def _post(client: TestClient, payload: dict):
-    response = client.post("/v1/evaluations", json=payload)
+    response = client.post("/v2/evaluations", json=payload)
     body = response.json()
     return response.status_code, body
 

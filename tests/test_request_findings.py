@@ -529,7 +529,7 @@ def test_shadow_response_audit_and_stats_are_observable(settings) -> None:
     shadow_settings = replace(settings, llm_request_findings_mode="shadow")
     with TestClient(create_app(shadow_settings)) as client:
         response = client.post(
-            "/v1/evaluations",
+            "/v2/evaluations",
             json=payload(request_id="request-findings-audit"),
         )
 

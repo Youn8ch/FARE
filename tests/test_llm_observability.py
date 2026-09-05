@@ -99,10 +99,10 @@ def test_secrets_are_redacted_from_response_audit_and_all_replays(
     )
 
     with TestClient(create_app(secret_settings)) as first_client:
-        first = first_client.post("/v1/evaluations", json=value)
-        replay = first_client.post("/v1/evaluations", json=value)
+        first = first_client.post("/v2/evaluations", json=value)
+        replay = first_client.post("/v2/evaluations", json=value)
     with TestClient(create_app(secret_settings)) as restarted_client:
-        restarted = restarted_client.post("/v1/evaluations", json=value)
+        restarted = restarted_client.post("/v2/evaluations", json=value)
 
     assert first.status_code == replay.status_code == restarted.status_code == 200
     assert first.json() == replay.json() == restarted.json()

@@ -360,7 +360,7 @@ def test_v3_23_item_limit_rejects_before_dependencies(settings: Settings) -> Non
     payload["destinations"].append({"address": "16.220.16.30", "description": "数据库 2"})
     with TestClient(create_app(limited)) as client:
         runtime = client.app.state.runtime
-        response = client.post("/v1/evaluations", json=payload)
+        response = client.post("/v2/evaluations", json=payload)
         provider_calls = list(
             runtime.network_plan_resolver.provider.transport.calls
         )
@@ -373,7 +373,7 @@ def test_v3_24_query_limit_rejects_before_provider(settings: Settings) -> None:
     limited = _mock_chain(settings, network_plan_max_subnets_per_request=1)
     with TestClient(create_app(limited)) as client:
         runtime = client.app.state.runtime
-        response = client.post("/v1/evaluations", json=_payload("v3-24"))
+        response = client.post("/v2/evaluations", json=_payload("v3-24"))
         provider_calls = list(
             runtime.network_plan_resolver.provider.transport.calls
         )
@@ -426,12 +426,12 @@ def test_v3_26_mock_and_offline_equivalent_facts(settings: Settings) -> None:
         )
         with TestClient(create_app(offline_settings)) as client:
             response = client.post(
-                "/v1/evaluations", json=_same_request("v3-26-offline")
+                "/v2/evaluations", json=_same_request("v3-26-offline")
             )
             offline_status, offline_body = response.status_code, response.json()
         with TestClient(create_app(mock_settings)) as client:
             response = client.post(
-                "/v1/evaluations", json=_same_request("v3-26-mock")
+                "/v2/evaluations", json=_same_request("v3-26-mock")
             )
             mock_status, mock_body = response.status_code, response.json()
 
@@ -543,7 +543,7 @@ def test_v3_31_offline_multi_match_frozen(settings: Settings, tmp_path: Path) ->
         destinations=[{"address": "16.1.30.20", "description": "生产应用 B"}],
     )
     with TestClient(create_app(offline)) as client:
-        response = client.post("/v1/evaluations", json=payload)
+        response = client.post("/v2/evaluations", json=payload)
         body = response.json()
     assert response.status_code == 200
     assert body["items"][0]["reason_code"] == "NETWORK_PLAN_INVALID_RESPONSE"

@@ -28,7 +28,6 @@ def _mock_settings(settings, **changes):
         settings,
         network_plan_client_mode="mock",
         network_plan_mock_file=FIXTURE,
-        acl_decision_mode="advisory",
         **changes,
     )
 
@@ -36,7 +35,7 @@ def _mock_settings(settings, **changes):
 def test_api_exposes_authoritative_facts_without_expanding_single_ip(settings) -> None:
     with TestClient(create_app(_mock_settings(settings))) as client:
         response = client.post(
-            "/v1/evaluations", json=_payload("network-plan-e2e-single")
+            "/v2/evaluations", json=_payload("network-plan-e2e-single")
         )
     assert response.status_code == 200
     body = response.json()
@@ -51,7 +50,7 @@ def test_api_exposes_authoritative_facts_without_expanding_single_ip(settings) -
 def test_network_plan_404_is_primary(settings) -> None:
     with TestClient(create_app(_mock_settings(settings))) as client:
         response = client.post(
-            "/v1/evaluations",
+            "/v2/evaluations",
             json=_payload("network-plan-e2e-not-found", source="16.201.3.10"),
         )
     item = response.json()["items"][0]
@@ -63,7 +62,7 @@ def test_query_limit_rejects_before_idempotency_claim_and_dependencies(settings)
     limited = _mock_settings(settings, network_plan_max_subnets_per_request=1)
     with TestClient(create_app(limited)) as client:
         response = client.post(
-            "/v1/evaluations", json=_payload("network-plan-query-limit")
+            "/v2/evaluations", json=_payload("network-plan-query-limit")
         )
         assert client.app.state.runtime.network_plan_resolver.provider.transport.calls == []
     assert response.status_code == 422
@@ -83,8 +82,8 @@ def test_item_limit_releases_idempotency_claim(settings) -> None:
         {"address": "16.220.16.30", "description": "数据库 2"}
     )
     with TestClient(create_app(limited)) as client:
-        first = client.post("/v1/evaluations", json=value)
-        second = client.post("/v1/evaluations", json=value)
+        first = client.post("/v2/evaluations", json=value)
+        second = client.post("/v2/evaluations", json=value)
     assert first.status_code == second.status_code == 422
     assert first.json()["error"]["code"] == "EVALUATION_ITEM_LIMIT_EXCEEDED"
     assert second.json()["error"]["code"] != "evaluation_in_progress"
@@ -104,7 +103,6 @@ def test_http_mode_rejects_missing_query_parameter(settings, tmp_path: Path) -> 
         network_plan_client_mode="http",
         network_plan_api_url="http://network-plan.invalid",
         network_plan_http_query_parameter=None,
-        acl_decision_mode="advisory",
     )
     with pytest.raises(ValueError, match="NETWORK_PLAN_HTTP_QUERY_PARAMETER"):
         with TestClient(create_app(http_settings)):

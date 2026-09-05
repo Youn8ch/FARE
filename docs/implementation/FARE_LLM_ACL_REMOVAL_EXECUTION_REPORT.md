@@ -257,3 +257,60 @@ Categories:
 - `app/config.py` 的 ACL 配置 schema 按方案留待 PHASE-04 删除（运行时已不消费）。
 - `explanation_guard.py` 的越权断言模式改写为等价的
   `live/production firewall|access control ...` 形式，保护语义不变。
+
+---
+
+## PHASE-04: Config / audit / cache compatibility / API release contract
+
+**Commit:** `feat!: acl-free config, audit epoch, and API 0.3.0`（见 git log）
+
+### Config cleanup
+
+- `app/config.py`：`_AclConfig`/`_AclMockConfig`/`_AclHttpConfig`、`Settings`
+  的全部 `acl_*` 字段与 `llm.features.acl_candidate_mode`、相关 validation 与
+  from_parsed 映射删除；schema 保持 `extra='forbid'`。
+- 6 个 config/fare*.yaml 样例删除 `acl:` 块与 `acl_candidate_mode`；全部
+  profile 加载+fingerprint 验证通过。
+- 新增 fail-closed 测试：残留 `acl:` / `acl_candidate_mode` 键的 YAML 启动即
+  ValidationError（`test_removed_capability_config_keys_fail_closed`）。
+- conftest/default-consistency/config-limits/yaml-config 套件同步收敛。
+
+### API version 0.3.0（协调式 breaking release）
+
+- `pyproject.toml` + FastAPI info version: **0.2.0 → 0.3.0**。
+- **`/v2/evaluations`** 为唯一正式评估入口（response model 无任何已删字段）。
+- **`/v1/evaluations`** 在 0.3.x 只返回 HTTP 410 + `API_VERSION_RETIRED`，
+  不触达 evaluation runtime、不写审计、不占用 request id（contract test
+  `test_v1_evaluations_retired_without_reaching_runtime`）。/v1 路由的最终
+  删除留给后续协调发布。
+- 全部现役调用方（测试 19 个文件）切换 `/v2`；OpenAPI paths 断言
+  {healthz, readyz, /v1(410), /v2(200)}。
+
+### Audit epoch & namespace（无破坏性迁移）
+
+- 新 namespace：SQLite 文件名 `fare-audit.sqlite3` → **`fare-audit-v2.sqlite3`**；
+  旧库永不被新 runtime 打开/改写，作为只读归档保留（运维可整目录归档）。
+- 记录 schema epoch：**`fare-audit/v2-no-acl`**（`AUDIT_SCHEMA_EPOCH`）——
+  每条新记录带 `schema_epoch`，`audit_metadata` 表声明 epoch。
+- 旧 JSONL 归档：`_import_file` 按 epoch 跳过（不导入、不改写磁盘文件）；
+  归档工具仍可按原始 JSON 读取（测试断言）。
+- 缓存 fail-closed：completed 行的 epoch 不匹配时 `claim()` 抛
+  `AuditSchemaMismatchError`，API 映射为 **409 `AUDIT_SCHEMA_MISMATCH`**；
+  旧 response 永远不会被当作新 response 返回。
+- 跨 epoch 同 request_id：新 namespace 独立，旧主键不会造成假冲突。
+- 脱敏覆盖保持不变（api key/token/authorization/password 等）。
+
+### Test results
+
+| Command | Result |
+|---|---|
+| full `pytest -q` | **551 passed** |
+| `ruff check . --no-cache` | **All checks passed** |
+| `pytest evals/llm/test_contract_dataset.py tests/test_real_semantic_acceptance_scoring.py -q` | **5 passed** |
+
+### Migration notes (operators)
+
+- 升级到 0.3.0 时把客户端切换到 `/v2/evaluations`；`/v1` 将收到 410。
+- 旧配置含 `acl:` 键时启动失败——删除该节即可（错误信息指出未知键）。
+- 历史审计目录整体只读归档；新 runtime 使用 `fare-audit-v2.sqlite3`，
+  不会读取或改写旧库；同 request_id 可直接重放，不受旧主键影响。

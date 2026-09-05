@@ -27,17 +27,11 @@ def test_single_yaml_configuration_maps_all_runtime_sections() -> None:
         PROJECT_ROOT / "inputs/network_requirements"
     )
     assert config.settings.network_plan_client_mode == "mock"
-    assert config.settings.acl_client_mode == "mock"
-    assert config.settings.acl_decision_mode == "advisory"
-    assert config.settings.acl_deterministic_pending_mode == "skip"
     assert config.settings.llm_client_mode == "mock"
-    assert config.settings.llm_acl_candidate_mode == "off"
     assert config.settings.llm_request_findings_mode == "off"
     assert config.requirement_source.api_url == (
         "http://127.0.0.1:9000/v1/network-requirements"
     )
-    assert config.settings.acl_api_url == "http://127.0.0.1:9002/v1/acl/analyze"
-    assert config.settings.acl_api_token == "test-acl-token"
     assert config.settings.network_plan_api_token == "test-network-plan-token"
     assert config.settings.llm_base_url == "https://open.bigmodel.cn/api/paas/v4"
     assert config.settings.llm_model == "glm-4.5-air"
@@ -149,11 +143,6 @@ def test_deployment_profiles_are_valid_and_isolated() -> None:
     assert [profile.settings.network_plan_client_mode for profile in profiles] == [
         "offline_catalog",
         "http",
-        "http",
-    ]
-    assert [profile.settings.acl_client_mode for profile in profiles] == [
-        "mock",
-        "mock",
         "http",
     ]
     assert len({profile.settings.config_fingerprint for profile in profiles}) == 3

@@ -108,7 +108,7 @@ def test_mock_and_offline_produce_identical_items_for_equivalent_facts(
 
 
 def _run(client: TestClient, payload: dict):
-    response = client.post("/v1/evaluations", json=payload)
+    response = client.post("/v2/evaluations", json=payload)
     return response.status_code, response.json()
 
 

@@ -131,7 +131,7 @@ def test_openapi_and_response_contract_carry_no_verification_fields(
     candidate-path verification fields anywhere."""
 
     spec = client.get("/openapi.json").json()
-    body = client.post("/v1/evaluations", json=_payload("invariant-openapi")).json()
+    body = client.post("/v2/evaluations", json=_payload("invariant-openapi")).json()
     serialized_spec = json.dumps(spec)
     serialized_body = json.dumps(body)
     for banned in (

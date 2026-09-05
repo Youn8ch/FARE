@@ -52,7 +52,7 @@ def test_v2_evaluation_case(loaded: LoadedCase, settings: Settings) -> None:
     with TestClient(create_app(case_settings)) as client:
         client.app.state.runtime.evaluator.llm_client = recorder
         response = client.post(
-            "/v1/evaluations",
+            "/v2/evaluations",
             json=loaded.case.request.model_dump(mode="json"),
         )
 

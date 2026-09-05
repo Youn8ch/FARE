@@ -436,19 +436,19 @@ def test_validation_and_idempotency_shortcuts_do_not_add_llm_calls(settings) -> 
         client.app.state.runtime.evaluator.llm_client = recorder
         value = payload(request_id="recording-idempotency")
 
-        assert client.post("/v1/evaluations", json=value).status_code == 200
+        assert client.post("/v2/evaluations", json=value).status_code == 200
         assert (recorder.semantic_calls, recorder.explanation_calls) == (1, 1)
 
-        assert client.post("/v1/evaluations", json=value).status_code == 200
+        assert client.post("/v2/evaluations", json=value).status_code == 200
         assert (recorder.semantic_calls, recorder.explanation_calls) == (1, 1)
 
         conflicting = {**value, "request_description": "different normalized input"}
-        assert client.post("/v1/evaluations", json=conflicting).status_code == 409
+        assert client.post("/v2/evaluations", json=conflicting).status_code == 409
         assert (recorder.semantic_calls, recorder.explanation_calls) == (1, 1)
 
         invalid = payload(
             request_id="recording-schema-error",
             ports=[{"start": 443, "end": 1}],
         )
-        assert client.post("/v1/evaluations", json=invalid).status_code == 422
+        assert client.post("/v2/evaluations", json=invalid).status_code == 422
         assert (recorder.semantic_calls, recorder.explanation_calls) == (1, 1)
