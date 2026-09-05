@@ -120,3 +120,47 @@ Categories:
 - /26 zone topology → per-profile zone binding (frozen /24 query contract); documented.
 - RN-030 legacy evidence captured the real frozen behavior: required-mode ACL
   dependency failure emits TWO findings (dependency + unresolved firewall).
+
+---
+
+## PHASE-02: ACL-free neutral item context (ACL still present)
+
+**Commit:** `refactor: introduce acl-free evaluation context`（见 git log）
+
+### Changes
+
+- `app/services/evaluation_types.py` — added frozen `EvaluationItemContext`
+  (`item_id`, `combination`, `rule_result`); carries NO ACL-named field.
+- `app/services/stages/acl_stage.py` — added `AclCompatOutcome` adapter +
+  `compat_outcomes()`: the only channel ACL material takes toward the
+  downstream stages (dies with the ACL stage in PHASE-03).
+- `app/services/stages/semantic_stage.py` — consumes `contexts` +
+  generic `extra_evidence` mapping (the ACL evidence texts ride this
+  explicit adapter parameter until removal); no `AclRecord` import.
+- `app/services/stages/reduce_stage.py` — consumes `contexts` +
+  `acl_outcomes` compat channel; no `AclRecord` import.
+- `app/services/stages/post_decision_stage.py` — consumes `contexts` +
+  `acl_outcomes` + `extra_evidence`; no `AclRecord` import.
+- `app/services/evaluator.py` — builds contexts from rule results; wires the
+  adapter outputs; stage order unchanged (plan→network→rules→acl→semantic→
+  reduce→post_decision→assemble).
+- `tests/test_evaluator_orchestration.py` — added two PHASE-02 gate tests
+  (stage modules no longer reference `AclRecord`; neutral context has no
+  ACL-named field).
+
+### Invariants verified
+
+- `PolicyBundle.match()` once per item; `DecisionReducer.reduce_item()` once
+  per item (existing orchestration tests green, unchanged).
+- post_decision order unchanged (acl candidates → request findings → explanation).
+- Business responses byte-equivalent: full suite incl. characterization,
+  invariants, main-chain acceptance, and the PHASE-01 realistic suite's
+  `legacy_expected` evidence all pass unchanged.
+
+### Test results
+
+| Command | Result |
+|---|---|
+| full `pytest -q` | **617 passed** (615 + 2 new gate tests) |
+| `ruff check . --no-cache` | **All checks passed** |
+| `rg -n 'AclRecord' app/services/stages/{semantic,reduce,post_decision}_stage.py` | **no matches** |

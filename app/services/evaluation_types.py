@@ -29,6 +29,21 @@ class RuleStageResult:
     findings: tuple[Finding, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class EvaluationItemContext:
+    """Neutral per-item context consumed by the downstream stages.
+
+    The semantic, reduce, and post-decision stages receive this contract
+    instead of any stage-specific record type. It carries no ACL-named
+    field: ACL material travels only through the ACL stage's own output
+    and its explicit compatibility adapter until the ACL stage is removed.
+    """
+
+    item_id: str
+    combination: AccessCombination
+    rule_result: RuleStageResult
+
+
 def rule_findings(matched_rules: tuple[Rule, ...]) -> tuple[Finding, ...]:
     """Findings for matched rules, in the bundle's frozen rule order."""
 

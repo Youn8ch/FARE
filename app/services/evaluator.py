@@ -22,6 +22,7 @@ from app.schemas import (
 from app.services.acl_client import AclClient
 from app.services.acl_extract import AclFactExtractor
 from app.services.decision_reducer import DecisionReducer
+from app.services.evaluation_types import EvaluationItemContext
 from app.services.llm_client import LlmClientProtocol
 from app.services.network_plan_resolver import (
     EvaluationItemLimitError,
@@ -146,6 +147,26 @@ class Evaluator:
         records = acl_output.records
         raw_records = acl_output.raw_records
         exceptions = acl_output.exceptions
+        # Neutral per-item stage contract: downstream stages never see the
+        # ACL stage's record type. The ACL stage adapts its output into the
+        # compatibility channel and the ACL evidence-text mapping below;
+        # both die together with the ACL stage.
+        contexts = [
+            EvaluationItemContext(
+                item_id=rule_result.item_id,
+                combination=rule_result.combination,
+                rule_result=rule_result,
+            )
+            for rule_result in rule_results
+        ]
+        acl_compat = acl_stage.compat_outcomes(records)
+        extra_evidence = {
+            outcome.item_id: {
+                "acl_analysis": outcome.raw_analysis,
+                "acl_config": outcome.raw_config,
+            }
+            for outcome in acl_compat
+        }
         model_raw: dict[str, Any] = {
             "metadata": llm_metadata(self.llm_client, self.policies.version),
             "stages": {},
@@ -153,7 +174,7 @@ class Evaluator:
 
         # 确定性装配：分区收集 findings，不产生 decision；reduce 阶段统一裁决。
         outcomes, analyses = reduce_stage.assemble_outcomes(
-            self.policies, self.decision_reducer, rule_results, records
+            self.policies, self.decision_reducer, contexts, acl_compat
         )
         deterministic_candidates = {
             rule.id
@@ -167,7 +188,8 @@ class Evaluator:
             policies=self.policies,
             semantic_effects=self.semantic_effects,
             request=request,
-            records=records,
+            contexts=contexts,
+            extra_evidence=extra_evidence,
             model_raw=model_raw,
             exceptions=exceptions,
             deterministic_candidates=deterministic_candidates,
@@ -177,9 +199,10 @@ class Evaluator:
         items, llm_added_pending_count = reduce_stage.reduce_items(
             self.policies,
             self.decision_reducer,
-            records,
+            contexts,
             outcomes,
             semantic_result,
+            acl_compat,
         )
 
         # Post-decision analysis (serial, D4): explanation / shadows may only
@@ -191,7 +214,9 @@ class Evaluator:
                 policies=self.policies,
                 request=request,
                 items=items,
-                records=records,
+                contexts=contexts,
+                acl_outcomes=acl_compat,
+                extra_evidence=extra_evidence,
                 semantic_succeeded=semantic_result.succeeded,
                 semantic_payload_items=semantic_result.payload_items,
                 acl_candidate_mode=self.llm_acl_candidate_mode,

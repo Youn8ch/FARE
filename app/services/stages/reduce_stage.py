@@ -16,11 +16,11 @@ from app.services.decision_reducer import (
     ItemFindingSet,
     SemanticTrace,
 )
-from app.services.evaluation_types import RuleStageResult
+from app.services.evaluation_types import EvaluationItemContext
 from app.services.finding_factory import catalog_findings, network_findings
 from app.services.item_assembler import build_item, materialize_final_item, network_item_fields
 from app.services.rule_loader import PolicyBundle
-from app.services.stages.acl_stage import AclRecord
+from app.services.stages.acl_stage import AclCompatOutcome
 from app.services.stages.semantic_stage import SemanticStageOutput
 
 
@@ -44,8 +44,8 @@ class DeterministicOutcome:
 def assemble_outcomes(
     policies: PolicyBundle,
     decision_reducer: DecisionReducer,
-    rule_results: tuple[RuleStageResult, ...],
-    records: list[AclRecord],
+    contexts: list[EvaluationItemContext],
+    acl_outcomes: list[AclCompatOutcome],
 ) -> tuple[dict[str, DeterministicOutcome], list[AclAnalysis]]:
     """Partition each item's deterministic findings without deciding.
 
@@ -54,25 +54,26 @@ def assemble_outcomes(
     """
 
     outcomes: dict[str, DeterministicOutcome] = {}
-    for rule_result, record in zip(rule_results, records, strict=True):
+    for context, acl in zip(contexts, acl_outcomes, strict=True):
+        rule_result = context.rule_result
         network_finds = tuple(network_findings(rule_result.combination))
         catalog_finds = tuple(catalog_findings(rule_result.combination))
         deterministic = [
             *network_finds,
             *rule_result.findings,
             *catalog_finds,
-            *record.acl_findings,
+            *acl.findings,
         ]
         primary = decision_reducer.primary_of(deterministic)
         item_matched = list(rule_result.matched_rules)
         no_path_rule = policies.acl_no_path_rule
         if primary is not None and primary.code == no_path_rule.id:
             item_matched.append(no_path_rule)
-        outcomes[record.item_id] = DeterministicOutcome(
+        outcomes[context.item_id] = DeterministicOutcome(
             network_findings=network_finds,
             rule_findings=rule_result.findings,
             catalog_findings=catalog_finds,
-            acl_findings=record.acl_findings,
+            acl_findings=acl.findings,
             matched_rule_ids=tuple(
                 rule.id for rule in rule_result.matched_rules
             ),
@@ -80,11 +81,11 @@ def assemble_outcomes(
         )
     analyses = [
         AclAnalysis(
-            raw_analysis=record.raw.analysis if record.raw else "",
-            raw_config=record.raw.config if record.raw else "",
-            extracted_facts=record.facts,
+            raw_analysis=acl.raw_analysis,
+            raw_config=acl.raw_config,
+            extracted_facts=acl.facts,
         )
-        for record in records
+        for acl in acl_outcomes
     ]
     return outcomes, analyses
 
@@ -92,9 +93,10 @@ def assemble_outcomes(
 def reduce_items(
     policies: PolicyBundle,
     decision_reducer: DecisionReducer,
-    records: list[AclRecord],
+    contexts: list[EvaluationItemContext],
     outcomes: dict[str, DeterministicOutcome],
     semantic: SemanticStageOutput,
+    acl_outcomes: list[AclCompatOutcome],
 ) -> tuple[list[EvaluationItem], int]:
     """Formal reduce stage: exactly one ``DecisionReducer.reduce_item()``
     per item. The deterministic snapshot and the final decision are formed
@@ -104,23 +106,23 @@ def reduce_items(
 
     result: list[EvaluationItem] = []
     deterministic_pending_count = 0
-    for record in records:
-        outcome = outcomes[record.item_id]
+    for context, acl in zip(contexts, acl_outcomes, strict=True):
+        outcome = outcomes[context.item_id]
         decision = decision_reducer.reduce_item(
             ItemFindingSet(
                 network=outcome.network_findings,
                 rules=outcome.rule_findings,
                 catalog=outcome.catalog_findings,
                 acl=outcome.acl_findings,
-                semantic=tuple(semantic.findings.get(record.item_id, ())),
+                semantic=tuple(semantic.findings.get(context.item_id, ())),
             ),
             matched_rules=outcome.matched_rule_ids,
             semantic=SemanticTrace(
                 succeeded=semantic.succeeded,
-                review_ids=tuple(semantic.review_ids.get(record.item_id, ())),
-                question_ids=tuple(semantic.question_ids.get(record.item_id, ())),
+                review_ids=tuple(semantic.review_ids.get(context.item_id, ())),
+                question_ids=tuple(semantic.question_ids.get(context.item_id, ())),
                 observation_ids=tuple(
-                    semantic.observation_ids.get(record.item_id, ())
+                    semantic.observation_ids.get(context.item_id, ())
                 ),
             ),
         )
@@ -131,9 +133,9 @@ def reduce_items(
         if decision.deterministic_decision == "待定":
             deterministic_pending_count += 1
         item = build_item(
-            item_id=record.item_id,
-            combination=record.combination,
-            facts=record.facts,
+            item_id=context.item_id,
+            combination=context.combination,
+            facts=acl.facts,
             decision=decision,
             matched=outcome.item_matched_rules,
             no_path_rule=policies.acl_no_path_rule,
@@ -142,7 +144,7 @@ def reduce_items(
         result.append(
             item.model_copy(
                 update=network_item_fields(
-                    record.combination, record.verification_status
+                    context.combination, acl.verification_status
                 )
             )
         )

@@ -19,6 +19,7 @@ from app.schemas import (
     RequestFindingsAnalysis,
 )
 from app.services.acl_candidate_merge import merge_acl_candidate
+from app.services.evaluation_types import EvaluationItemContext
 from app.services.explanation_guard import (
     ExplanationGuardError,
     guard_explanation_output,
@@ -36,7 +37,7 @@ from app.services.output_guard import (
 )
 from app.services.rule_loader import PolicyBundle
 from app.services.stage_metrics import record_llm_stage
-from app.services.stages.acl_stage import AclRecord
+from app.services.stages.acl_stage import AclCompatOutcome
 from app.services.stages.semantic_stage import evidence_sources
 
 
@@ -46,7 +47,9 @@ async def run(
     policies: PolicyBundle,
     request: EvaluationRequest,
     items: list[EvaluationItem],
-    records: list[AclRecord],
+    contexts: list[EvaluationItemContext],
+    acl_outcomes: list[AclCompatOutcome],
+    extra_evidence: dict[str, dict[str, str]],
     semantic_succeeded: bool,
     semantic_payload_items: list[dict[str, Any]],
     acl_candidate_mode: str,
@@ -58,7 +61,7 @@ async def run(
         llm_client=llm_client,
         mode=acl_candidate_mode,
         request_id=request.request_id,
-        records=records,
+        acl_outcomes=acl_outcomes,
         model_raw=model_raw,
         exceptions=exceptions,
     )
@@ -66,7 +69,8 @@ async def run(
         llm_client=llm_client,
         mode=request_findings_mode,
         request_id=request.request_id,
-        records=records,
+        contexts=contexts,
+        extra_evidence=extra_evidence,
         semantic_payload_items=semantic_payload_items,
         model_raw=model_raw,
         exceptions=exceptions,
@@ -88,7 +92,7 @@ async def _acl_candidates_shadow(
     llm_client: LlmClientProtocol,
     mode: str,
     request_id: str,
-    records: list[AclRecord],
+    acl_outcomes: list[AclCompatOutcome],
     model_raw: dict[str, Any],
     exceptions: list[str],
 ) -> AclCandidateAnalysis | None:
@@ -98,14 +102,14 @@ async def _acl_candidates_shadow(
     candidate_error: Exception | None = None
     if mode == "shadow":
         candidate_status = "passed"
-        candidate_records = list(records)
+        candidate_records = list(acl_outcomes)
         candidate_inputs = [
             {
-                "item_id": record.item_id,
-                "analysis": record.raw.analysis if record.raw else "",
-                "config": record.raw.config if record.raw else "",
+                "item_id": outcome.item_id,
+                "analysis": outcome.raw_analysis,
+                "config": outcome.raw_config,
             }
-            for record in candidate_records
+            for outcome in candidate_records
         ]
         if candidate_inputs:
             model_raw["acl_candidates_input"] = candidate_inputs
@@ -123,7 +127,7 @@ async def _acl_candidates_shadow(
                 candidates = guard_acl_candidates(
                     untrusted_candidates, candidate_inputs
                 )
-                expected_ids = {record.item_id for record in candidate_records}
+                expected_ids = {outcome.item_id for outcome in candidate_records}
                 if set(candidates) != expected_ids:
                     raise LlmDependencyError(
                         "LLM ACL candidate item set does not match shadow input"
@@ -131,11 +135,11 @@ async def _acl_candidates_shadow(
                 acl_candidate_analysis = AclCandidateAnalysis(
                     items=[
                         merge_acl_candidate(
-                            item_id=record.item_id,
-                            deterministic=record.facts,
-                            llm_candidate=candidates[record.item_id],
+                            item_id=outcome.item_id,
+                            deterministic=outcome.facts,
+                            llm_candidate=candidates[outcome.item_id],
                         )
-                        for record in candidate_records
+                        for outcome in candidate_records
                     ]
                 )
                 model_raw["acl_candidates"] = acl_candidate_analysis.model_dump(
@@ -150,11 +154,11 @@ async def _acl_candidates_shadow(
                 acl_candidate_analysis = AclCandidateAnalysis(
                     items=[
                         merge_acl_candidate(
-                            item_id=record.item_id,
-                            deterministic=record.facts,
+                            item_id=outcome.item_id,
+                            deterministic=outcome.facts,
                             rejection_reason=public_detail,
                         )
-                        for record in candidate_records
+                        for outcome in candidate_records
                     ]
                 )
                 model_raw["acl_candidates"] = {
@@ -182,7 +186,8 @@ async def _request_findings_shadow(
     llm_client: LlmClientProtocol,
     mode: str,
     request_id: str,
-    records: list[AclRecord],
+    contexts: list[EvaluationItemContext],
+    extra_evidence: dict[str, dict[str, str]],
     semantic_payload_items: list[dict[str, Any]],
     model_raw: dict[str, Any],
     exceptions: list[str],
@@ -194,7 +199,7 @@ async def _request_findings_shadow(
     if mode == "shadow":
         findings_status = "passed"
         finding_inputs = list(semantic_payload_items)
-        item_ids = [record.item_id for record in records]
+        item_ids = [context.item_id for context in contexts]
         model_raw["request_findings_input"] = {
             "request_id": request_id,
             "items": finding_inputs,
@@ -212,7 +217,7 @@ async def _request_findings_shadow(
             )
             guarded_findings = guard_request_findings(
                 untrusted_findings,
-                evidence_sources=evidence_sources(records),
+                evidence_sources=evidence_sources(contexts, extra_evidence),
             )
             request_findings = RequestFindingsAnalysis(
                 status="completed",

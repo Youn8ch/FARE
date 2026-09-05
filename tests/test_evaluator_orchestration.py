@@ -208,3 +208,34 @@ def test_stage_observer_is_not_wired_in_production_runtime(settings: Settings) -
         assert runtime.evaluator._stage_observer is None
     finally:
         asyncio.run(runtime.aclose())
+
+
+def test_stage_modules_no_longer_import_acl_record() -> None:
+    """PHASE-02 gate: semantic / reduce / post-decision consume the neutral
+    EvaluationItemContext and must not reference the ACL stage's record type.
+    """
+
+    import pathlib
+
+    stage_dir = pathlib.Path(__file__).resolve().parents[1] / (
+        "app/services/stages"
+    )
+    for name in (
+        "semantic_stage.py",
+        "reduce_stage.py",
+        "post_decision_stage.py",
+    ):
+        source = (stage_dir / name).read_text(encoding="utf-8")
+        assert "AclRecord" not in source, f"{name} still references AclRecord"
+
+
+def test_neutral_item_context_carries_no_acl_named_fields() -> None:
+    """The neutral stage contract stays ACL-free by construction."""
+
+    import dataclasses
+
+    from app.services.evaluation_types import EvaluationItemContext
+
+    field_names = {field.name for field in dataclasses.fields(EvaluationItemContext)}
+    assert {"item_id", "combination", "rule_result"} <= field_names
+    assert not any("acl" in name.lower() for name in field_names)

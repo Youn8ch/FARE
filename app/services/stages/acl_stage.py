@@ -44,6 +44,40 @@ class AclStageOutput:
     exceptions: list[str]
 
 
+@dataclass(frozen=True, slots=True)
+class AclCompatOutcome:
+    """ACL stage -> downstream compatibility adapter (dies with the ACL).
+
+    Carries exactly the ACL material the downstream stages still consume
+    while the ACL stage exists; the neutral ``EvaluationItemContext``
+    deliberately carries no ACL-named field.
+    """
+
+    item_id: str
+    findings: tuple[Finding, ...]
+    facts: ExtractedFacts
+    raw_analysis: str
+    raw_config: str
+    verification_status: str
+
+
+def compat_outcomes(records: list[AclRecord]) -> list[AclCompatOutcome]:
+    """Adapt ACL stage records into the downstream compatibility channel,
+    preserving item order."""
+
+    return [
+        AclCompatOutcome(
+            item_id=record.item_id,
+            findings=record.acl_findings,
+            facts=record.facts,
+            raw_analysis=record.raw.analysis if record.raw else "",
+            raw_config=record.raw.config if record.raw else "",
+            verification_status=record.verification_status,
+        )
+        for record in records
+    ]
+
+
 def _skipped_acl_record(
     item_id: str, combination: AccessCombination
 ) -> AclRecord:

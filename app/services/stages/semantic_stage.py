@@ -13,6 +13,7 @@ from typing import Any
 
 from app.schemas import EvaluationRequest, SemanticAnalysis
 from app.services.decision_reducer import Finding
+from app.services.evaluation_types import EvaluationItemContext
 from app.services.finding_factory import (
     apply_configured_semantic_effects,
     network_facts_of,
@@ -27,7 +28,6 @@ from app.services.output_guard import (
 )
 from app.services.rule_loader import PolicyBundle
 from app.services.stage_metrics import record_llm_stage
-from app.services.stages.acl_stage import AclRecord
 
 
 @dataclass(slots=True)
@@ -49,36 +49,37 @@ async def run(
     policies: PolicyBundle,
     semantic_effects: dict[str, str],
     request: EvaluationRequest,
-    records: list[AclRecord],
+    contexts: list[EvaluationItemContext],
+    extra_evidence: dict[str, dict[str, str]],
     model_raw: dict[str, Any],
     exceptions: list[str],
     deterministic_candidates: set[str],
 ) -> SemanticStageOutput:
-    payload = build_payload(request, records, policies)
+    payload = build_payload(request, contexts, policies, extra_evidence)
     model_raw["semantic_input"] = payload
     started = perf_counter()
     error: Exception | None = None
     findings: dict[str, list[Finding]] = {
-        record.item_id: [] for record in records
+        context.item_id: [] for context in contexts
     }
     review_ids: dict[str, list[str]] = {
-        record.item_id: [] for record in records
+        context.item_id: [] for context in contexts
     }
     question_ids: dict[str, list[str]] = {
-        record.item_id: [] for record in records
+        context.item_id: [] for context in contexts
     }
     observation_ids: dict[str, list[str]] = {
-        record.item_id: [] for record in records
+        context.item_id: [] for context in contexts
     }
     try:
         raw_semantic, semantic_raw = await llm_client.analyze(payload)
         model_raw["semantic"] = semantic_raw
         semantic = guard_semantic_output(
             raw_semantic,
-            evidence_sources=evidence_sources(records),
-            authoritative_facts=authoritative_facts(records),
+            evidence_sources=evidence_sources(contexts, extra_evidence),
+            authoritative_facts=authoritative_facts(contexts),
             valid_rule_ids=policies.rule_ids,
-            network_facts=network_fact_bindings(records),
+            network_facts=network_fact_bindings(contexts),
         )
         semantic = semantic.model_copy(
             update={
@@ -91,7 +92,7 @@ async def run(
         semantic = apply_configured_semantic_effects(semantic, semantic_effects)
         findings, review_ids, question_ids, observation_ids = (
             semantic_stage_findings(
-                [record.item_id for record in records],
+                [context.item_id for context in contexts],
                 semantic,
                 fact_conflict_effect=semantic_effects.get(
                     "fact_conflict", "review_required"
@@ -105,7 +106,7 @@ async def run(
         exceptions.append(f"LLM semantic analysis: {detail}")
         model_raw.setdefault("semantic", {"error": detail})
         semantic = failed_semantic_analysis(
-            [record.item_id for record in records], detail
+            [context.item_id for context in contexts], detail
         )
         failure_finding = Finding(
             code="LLM_SEMANTIC_ANALYSIS_FAILURE",
@@ -113,7 +114,7 @@ async def run(
             reason_type="dependency_failure",
         )
         findings = {
-            record.item_id: [failure_finding] for record in records
+            context.item_id: [failure_finding] for context in contexts
         }
         succeeded = False
     record_llm_stage(
@@ -137,58 +138,65 @@ async def run(
 
 def build_payload(
     request: EvaluationRequest,
-    records: list[AclRecord],
+    contexts: list[EvaluationItemContext],
     policies: PolicyBundle,
+    extra_evidence: dict[str, dict[str, str]],
 ) -> dict[str, Any]:
     return {
         "request_id": request.request_id,
         "request_description": request.request_description,
         "items": [
             {
-                "item_id": record.item_id,
+                "item_id": context.item_id,
                 "access": {
-                    "source": record.combination.source_text,
-                    "destination": record.combination.destination_text,
-                    "protocol": record.combination.protocol,
-                    "port": record.combination.port.model_dump(mode="json"),
+                    "source": context.combination.source_text,
+                    "destination": context.combination.destination_text,
+                    "protocol": context.combination.protocol,
+                    "port": context.combination.port.model_dump(mode="json"),
                 },
-                "source_description": record.combination.source_description,
-                "destination_description": record.combination.destination_description,
-                "request_description": record.combination.request_description,
-                "authoritative_facts": _authoritative_fact(record),
-                "source_network_facts": network_facts_of(record.combination.source),
+                "source_description": context.combination.source_description,
+                "destination_description": context.combination.destination_description,
+                "request_description": context.combination.request_description,
+                "authoritative_facts": _authoritative_fact(context),
+                "source_network_facts": network_facts_of(context.combination.source),
                 "destination_network_facts": network_facts_of(
-                    record.combination.destination
+                    context.combination.destination
                 ),
                 "network_plan_status": {
-                    "source": segment_status(record.combination.source),
-                    "destination": segment_status(record.combination.destination),
+                    "source": segment_status(context.combination.source),
+                    "destination": segment_status(context.combination.destination),
                 },
-                "acl_analysis": record.raw.analysis if record.raw else "",
-                "acl_config": record.raw.config if record.raw else "",
+                "acl_analysis": extra_evidence.get(context.item_id, {}).get(
+                    "acl_analysis", ""
+                ),
+                "acl_config": extra_evidence.get(context.item_id, {}).get(
+                    "acl_config", ""
+                ),
             }
-            for record in records
+            for context in contexts
         ],
         "rules": [rule.semantic_summary() for rule in policies.rules],
     }
 
 
-def evidence_sources(records: list[AclRecord]) -> dict[str, dict[str, str]]:
+def evidence_sources(
+    contexts: list[EvaluationItemContext],
+    extra_evidence: dict[str, dict[str, str]],
+) -> dict[str, dict[str, str]]:
     return {
-        record.item_id: {
-            "request_description": record.combination.request_description,
-            "source_description": record.combination.source_description,
-            "destination_description": record.combination.destination_description,
-            "acl_analysis": record.raw.analysis if record.raw else "",
-            "acl_config": record.raw.config if record.raw else "",
+        context.item_id: {
+            "request_description": context.combination.request_description,
+            "source_description": context.combination.source_description,
+            "destination_description": context.combination.destination_description,
+            **extra_evidence.get(context.item_id, {}),
         }
-        for record in records
+        for context in contexts
     }
 
 
-def _authoritative_fact(record: AclRecord) -> dict[str, str]:
-    source = record.combination.source
-    destination = record.combination.destination
+def _authoritative_fact(context: EvaluationItemContext) -> dict[str, str]:
+    source = context.combination.source
+    destination = context.combination.destination
     facts: dict[str, str] = {}
     if source.zone is not None:
         facts.update(
@@ -211,15 +219,17 @@ def _authoritative_fact(record: AclRecord) -> dict[str, str]:
     return facts
 
 
-def authoritative_facts(records: list[AclRecord]) -> dict[str, dict[str, str]]:
-    return {record.item_id: _authoritative_fact(record) for record in records}
+def authoritative_facts(
+    contexts: list[EvaluationItemContext],
+) -> dict[str, dict[str, str]]:
+    return {context.item_id: _authoritative_fact(context) for context in contexts}
 
 
 def network_fact_bindings(
-    records: list[AclRecord],
+    contexts: list[EvaluationItemContext],
 ) -> dict[str, dict[str, dict[str, dict[str, str | None]]]]:
     return {
-        record.item_id: {
+        context.item_id: {
             role: {
                 fact.fact_id: {
                     field_name: getattr(fact, field_name)
@@ -237,9 +247,9 @@ def network_fact_bindings(
                 for fact in getattr(segment, "network_facts", ())
             }
             for role, segment in (
-                ("source", record.combination.source),
-                ("destination", record.combination.destination),
+                ("source", context.combination.source),
+                ("destination", context.combination.destination),
             )
         }
-        for record in records
+        for context in contexts
     }
