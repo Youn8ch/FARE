@@ -8,7 +8,6 @@ from pydantic import (
     ConfigDict,
     Field,
     field_validator,
-    model_serializer,
     model_validator,
 )
 
@@ -248,13 +247,22 @@ class EvaluationItem(StrictModel):
     reason: str
     recommendation: str
     explanation_source: Literal["llm", "template"] = "template"
-    llm_explanation: str | None = Field(default=None, max_length=4000)
-    llm_recommendation: str | None = Field(default=None, max_length=4000)
+    # ``exclude_if`` is Pydantic's public schema-preserving omission contract:
+    # disabled optional fields stay out of serialized JSON while the
+    # validation *and* serialization JSON schemas remain complete for OpenAPI.
+    llm_explanation: str | None = Field(
+        default=None, max_length=4000, exclude_if=lambda value: value is None
+    )
+    llm_recommendation: str | None = Field(
+        default=None, max_length=4000, exclude_if=lambda value: value is None
+    )
     source_network_fact_ids: list[str] = Field(default_factory=list)
     destination_network_fact_ids: list[str] = Field(default_factory=list)
     source_network_fact_status: NetworkFactStatus = "not_applicable"
     destination_network_fact_status: NetworkFactStatus = "not_applicable"
-    decision_trace: DecisionTrace | None = None
+    decision_trace: DecisionTrace | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
     @model_validator(mode="after")
     def pending_requires_reason(self) -> EvaluationItem:
@@ -263,17 +271,6 @@ class EvaluationItem(StrictModel):
         if self.decision == "合规" and (self.reason_type or self.reason_code):
             raise ValueError("compliant items cannot contain pending reason fields")
         return self
-
-    @model_serializer(mode="wrap")
-    def omit_empty_llm_text(self, handler: Any) -> dict[str, Any]:
-        serialized = handler(self)
-        if self.llm_explanation is None:
-            serialized.pop("llm_explanation", None)
-        if self.llm_recommendation is None:
-            serialized.pop("llm_recommendation", None)
-        if self.decision_trace is None:
-            serialized.pop("decision_trace", None)
-        return serialized
 
 
 class ModelInfo(StrictModel):
@@ -588,30 +585,20 @@ class EvaluationResponse(StrictModel):
     semantic_analysis: SemanticAnalysis
     items: list[EvaluationItem]
     audit_id: str
-    network_analysis: NetworkAnalysis | None = None
-    request_findings: RequestFindingsAnalysis | None = None
-
-    @model_serializer(mode="wrap")
-    def omit_disabled_shadow_stages(self, handler: Any) -> dict[str, Any]:
-        serialized = handler(self)
-        if self.request_findings is None:
-            serialized.pop("request_findings", None)
-        if self.network_analysis is None:
-            serialized.pop("network_analysis", None)
-        return serialized
+    network_analysis: NetworkAnalysis | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    request_findings: RequestFindingsAnalysis | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
 
 class ErrorDetail(StrictModel):
     code: str
     message: str
-    details: dict[str, int] | None = None
-
-    @model_serializer(mode="wrap")
-    def omit_empty_details(self, handler: Any) -> dict[str, Any]:
-        serialized = handler(self)
-        if self.details is None:
-            serialized.pop("details", None)
-        return serialized
+    details: dict[str, int] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
 
 class ErrorResponse(StrictModel):

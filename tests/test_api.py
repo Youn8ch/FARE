@@ -241,3 +241,129 @@ def test_openapi_declares_v2_entry_and_retired_v1(client):
         spec["paths"]["/v1/evaluations"]["post"]["responses"]["410"] is not None
     )
     assert spec["info"]["version"] == "0.3.0"
+
+
+_RESPONSE_PROPERTIES = {
+    "request_id",
+    "config_id",
+    "environment",
+    "config_fingerprint",
+    "decision",
+    "policy_version",
+    "model",
+    "semantic_analysis",
+    "items",
+    "audit_id",
+    "network_analysis",
+    "request_findings",
+}
+_RESPONSE_REQUIRED = {
+    "request_id",
+    "decision",
+    "policy_version",
+    "model",
+    "semantic_analysis",
+    "items",
+    "audit_id",
+}
+_ITEM_PROPERTIES = {
+    "item_id",
+    "access",
+    "decision",
+    "reason_type",
+    "reason_code",
+    "matched_rules",
+    "decision_findings",
+    "evidence",
+    "reason",
+    "recommendation",
+    "explanation_source",
+    "llm_explanation",
+    "llm_recommendation",
+    "source_network_fact_ids",
+    "destination_network_fact_ids",
+    "source_network_fact_status",
+    "destination_network_fact_status",
+    "decision_trace",
+}
+_ITEM_REQUIRED = {"item_id", "access", "decision", "reason", "recommendation"}
+_ACL_COMPONENTS = {
+    "AclAnalysis",
+    "AclCandidateAnalysis",
+    "AclCandidateComparison",
+    "LlmAclCandidateFact",
+    "LlmAclExtractionItem",
+}
+_ACL_FIELDS = {
+    "acl_analysis",
+    "acl_candidate_analysis",
+    "acl_verification_status",
+    "acl_no_path",
+}
+
+
+def test_openapi_v2_response_schemas_are_complete(client):
+    """The hardening gate: /v2 response schemas are real, generator-ready
+    contracts — exact target properties, correct required sets, and no ACL
+    residue — not the degraded 0-property shells of the 0.2.0 baseline."""
+
+    spec = client.get("/openapi.json").json()
+    components = spec["components"]["schemas"]
+
+    assert set(components["EvaluationResponse"]["properties"]) == (
+        _RESPONSE_PROPERTIES
+    )
+    assert set(components["EvaluationResponse"]["required"]) == _RESPONSE_REQUIRED
+    assert set(components["EvaluationItem"]["properties"]) == _ITEM_PROPERTIES
+    assert set(components["EvaluationItem"]["required"]) == _ITEM_REQUIRED
+    # The serialization schema FastAPI publishes for responses must be the
+    # complete model, not the dict[str, Any] collapse of a wrap serializer.
+    assert components["EvaluationResponse"]["properties"]
+    assert components["EvaluationItem"]["properties"]
+
+    success_ref = spec["paths"]["/v2/evaluations"]["post"]["responses"]["200"][
+        "content"
+    ]["application/json"]["schema"]
+    assert success_ref == {
+        "$ref": "#/components/schemas/EvaluationResponse"
+    }
+
+    v1_responses = spec["paths"]["/v1/evaluations"]["post"]["responses"]
+    assert set(v1_responses) == {"410"}
+    assert v1_responses["410"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/ErrorResponse"
+    }
+
+    assert not (_ACL_COMPONENTS & set(components))
+    serialized_components = json.dumps(components)
+    for banned in _ACL_FIELDS:
+        assert banned not in serialized_components, banned
+
+
+def test_openapi_current_artifact_matches_runtime_spec(client):
+    artifact_path = (
+        Path(__file__).resolve().parent.parent
+        / "docs/implementation/openapi-current-v0.3.0.json"
+    )
+    assert json.loads(artifact_path.read_text(encoding="utf-8")) == (
+        client.get("/openapi.json").json()
+    )
+
+
+def test_v2_response_body_omits_disabled_optional_fields(client):
+    """The JSON contract is unchanged: disabled optional fields stay out of
+    the serialized body even though the OpenAPI schema now declares them."""
+
+    body = client.post("/v2/evaluations", json=payload(request_id="openapi-omit")).json()
+    assert "request_findings" not in body
+    assert set(body) <= _RESPONSE_PROPERTIES
+    item = body["items"][0]
+    assert set(item) <= _ITEM_PROPERTIES
+    if item["llm_explanation"] is None:
+        assert "llm_explanation" not in item
+
+
+def test_v1_error_body_omits_empty_error_details(client):
+    response = client.post("/v1/evaluations", json=payload(request_id="err-detail"))
+    assert response.status_code == 410
+    assert "details" not in response.json()["error"]

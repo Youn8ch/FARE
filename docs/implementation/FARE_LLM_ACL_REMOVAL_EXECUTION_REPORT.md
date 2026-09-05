@@ -613,9 +613,11 @@ git revert 4ec2bda   # PHASE-00（仅执行报告与留档）
 4. ~~**no-auth 占位头**~~（已修复，见 Approved SDK differences 第 1 条与
    hardening 提交）：no-auth 请求不再携带任何 Authorization 头，严格 parity
    已恢复并由 3×2 参数化契约测试冻结。
-5. **fastapi 0.141 OpenAPI 合成怪癖**：带 wrap serializer 的模型在
-   /openapi.json 中生成退化空 properties（0.2.0 基线即如此，与本次变更无关）；
-   字段级契约以 pydantic 模型 schema 与响应体契约测试为准。
+5. ~~**fastapi 0.141 OpenAPI 合成怪癖**~~（已修复，见 hardening 提交
+   `fix: publish complete v2 response schemas`）：wrap serializer 导致的空
+   properties 已由字段级 `exclude_if` 取代；`/v2` 的 `EvaluationResponse`
+   （12 字段）与 `EvaluationItem`（18 字段）在 OpenAPI 中均为完整 schema，
+   required 集合正确，运行时 `/openapi.json` 与 artifact 一致性有测试冻结。
 6. **instructor 内部模块路径**（`instructor.v2.core.errors`）为第三方私有
    结构——运行时未依赖其类型（按 `__cause__` 分类），仅测试 spike 引用过；
    升级 instructor 时需重跑 provider contract 套件。

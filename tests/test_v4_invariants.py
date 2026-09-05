@@ -261,3 +261,41 @@ def test_llm_error_messages_do_not_embed_provider_payloads(settings) -> None:
     )
     assert timeout.deadline_seconds == 10.0
     assert timeout.attempts == 2
+
+
+def test_response_model_serialization_schemas_are_complete() -> None:
+    """Hardening invariant: the wrap-serializer era is gone. Validation and
+    serialization JSON schemas are both complete, so FastAPI publishes real
+    response contracts instead of empty dict[str, Any] shells; no removed ACL
+    field may re-enter either schema."""
+
+    from app.schemas import EvaluationItem, EvaluationResponse
+
+    for model in (EvaluationResponse, EvaluationItem):
+        validation = model.model_json_schema()
+        serialization = model.model_json_schema(mode="serialization")
+        assert serialization.get("properties"), model.__name__
+        assert validation == serialization, model.__name__
+    serialized = json.dumps(
+        [
+            EvaluationResponse.model_json_schema(mode="serialization"),
+            EvaluationItem.model_json_schema(mode="serialization"),
+        ]
+    )
+    for banned in (
+        "acl_analysis",
+        "acl_candidate_analysis",
+        "acl_verification_status",
+        "acl_no_path",
+    ):
+        assert banned not in serialized, banned
+
+
+def test_schemas_do_not_use_schema_degrading_serializers() -> None:
+    """A ``@model_serializer(mode="wrap")`` annotated to return
+    ``dict[str, Any]`` collapses the serialization schema to an empty object
+    (the 0.2.0 OpenAPI defect). This invariant keeps that pattern out of the
+    public response models."""
+
+    source = _read("schemas.py")
+    assert "model_serializer" not in source

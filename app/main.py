@@ -323,7 +323,13 @@ def create_app(
 
     @app.post(
         "/v1/evaluations",
-        responses={410: {"model": ErrorResponse}},
+        status_code=410,
+        responses={
+            410: {
+                "model": ErrorResponse,
+                "description": "Gone — this API version was retired in 0.3.0",
+            }
+        },
         tags=["evaluations"],
     )
     async def evaluate_v1_retired() -> JSONResponse:

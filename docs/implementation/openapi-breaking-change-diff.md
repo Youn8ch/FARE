@@ -2,9 +2,13 @@
 
 > 生成方式：`app.openapi()` 路径级 diff + 基线提交（45805c6）`app/schemas.py`
 > 与当前 `app/schemas.py` 的 `model_json_schema()` 字段级对比。
-> （说明：本环境 fastapi 0.141 对带 wrap serializer 的模型在 OpenAPI 合成中
-> 生成退化的空 properties——该怪癖在 0.2.0 基线即存在，与本次变更无关；
-> 因此字段级 diff 以 pydantic 模型 schema 为准。）
+> （硬化修正：0.3.0 交付时曾存在 wrap serializer 导致 `/v2` 响应模型在
+> OpenAPI 中退化为空 properties 的缺陷——0.2.0 基线即如此。该缺陷已在
+> hardening 分支以 Pydantic 公开的字段级 `exclude_if` 机制修复，
+> `openapi-current-v0.3.0.json` 已重新生成，`EvaluationResponse`（12 字段）
+> 与 `EvaluationItem`（18 字段）均为完整 schema；“以 Pydantic schema 代替
+> OpenAPI”的旧豁免不再适用。运行时 `/openapi.json` 与 artifact 一致性由
+> `test_openapi_current_artifact_matches_runtime_spec` 冻结。）
 
 ## 1. 版本
 
