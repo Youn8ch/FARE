@@ -3,11 +3,11 @@
 One frozen dataset (``realistic_network_requests.v1.json``) drives two
 contracts:
 
-* ``legacy`` — the ACL-present runtime; used only for migration evidence.
-* ``acl_free`` — the target contract; the final acceptance gate.
+* ``legacy`` — the pre-0.3.0 runtime; used only for migration evidence.
+* ``acl_free`` — the 0.3.0 target contract; the final acceptance gate.
 
-``ACTIVE_CONTRACT`` flips to ``acl_free`` in the ACL-removal phase; from that
-commit on, ``legacy_expected`` is no longer asserted anywhere.
+``ACTIVE_CONTRACT`` was flipped to ``acl_free`` in the removal commit; since
+that commit ``legacy_expected`` is no longer asserted anywhere.
 """
 
 from __future__ import annotations

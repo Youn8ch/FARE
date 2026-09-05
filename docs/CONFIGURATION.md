@@ -3,7 +3,7 @@
 > 本文档描述 YAML schema 的完整字段与模式切换方法。仓库内跟踪的 `config/*.yaml`
 > 一律不携带真实 `llm.http.api_key`；真实密钥放在未入库的 `config/fare.local.yaml`。
 > 开发/测试默认（`config/fare.yaml` 与测试 conftest）为全 mock：
-> `network_plan.mode=mock`（绑定版本化 fixture）、`acl.decision_mode=advisory`、
+> `network_plan.mode=mock`（绑定版本化 fixture）、
 > `llm.mode=mock`、shadow 特性 `off`；`offline_catalog` 与 `required` 必须显式指定。
 
 ## 1. 配置文件和原则
@@ -135,7 +135,7 @@ policy:
   directory: ../policies
 ```
 
-## 6. 网段规划、ACL 和大模型
+## 6. 网段规划和大模型
 
 网段规划 API：
 
@@ -150,24 +150,9 @@ network_plan:
       token: test-network-plan-token
 ```
 
-ACL API：
-
-```yaml
-acl:
-  mode: http
-  decision_mode: required
-  deterministic_pending_mode: skip
-  http:
-    url: http://127.0.0.1:9002/v1/acl/analyze
-    auth:
-      type: bearer
-      token: test-acl-token
-```
-
-ACL HTTP Adapter 仍会在正式请求/响应契约提供前故障闭合；配置 URL 不代表已启用真实 ACL
-调用。Mock 测试使用 `acl.mode: mock`。`deterministic_pending_mode=skip` 会跳过已经由正式
-规则确定为待定的 item 的 ACL 调用；`analyze` 保留完整 ACL 分析。未命中规则的 item 在
-两种模式下都会执行 ACL。
+0.3.0 起不再存在任何候选路径/拟配置分析配置（原 `acl:` 节与
+`llm.features.acl_candidate_mode` 已删除）；配置 schema 保持 `extra='forbid'`，
+残留键会在启动时明确报错。
 
 大模型 API：
 

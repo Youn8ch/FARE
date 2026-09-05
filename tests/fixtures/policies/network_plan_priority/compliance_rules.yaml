@@ -1,4 +1,4 @@
-# ACL-PATH-001 占位规则已随 ACL 能力完整移除（2026-09）。
+# 候选路径占位规则已随 0.3.0 能力移除（2026-09）。
 rules:
 - id: PORT-TEST-TELNET-001
   name: 测试规则禁止 Telnet

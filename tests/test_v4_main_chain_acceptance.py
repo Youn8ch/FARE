@@ -2,9 +2,10 @@
 
 Every case runs on simulated dependencies only (mock providers / recording
 LLM) with precise assertions on decisions, reason codes, findings, decision
-traces, and dependency call counts. The ACL chain cases (V3-09..V3-14) were
-retired with the ACL capability; their migration evidence now lives in the
-realistic network request suite (RN-029..RN-035).
+traces, and dependency call counts. The removed candidate-verification
+chain cases (V3-09..V3-14) were retired with the 0.3.0 capability removal;
+their migration evidence now lives in the realistic network request suite
+(RN-029..RN-035).
 """
 
 from __future__ import annotations
@@ -552,7 +553,7 @@ def test_v3_31_offline_multi_match_frozen(settings: Settings, tmp_path: Path) ->
 def test_v3_32_exceptions_and_stage_metrics_order_frozen(settings: Settings) -> None:
     result, calls = _evaluate(settings, _payload("v3-32"))
     # shadow off：metrics 键顺序 = semantic, request_findings, explanation
-    # （off 占位）；ACL 阶段移除后不再有 acl_candidates 键
+    # （off 占位）；0.3.0 起不再有已移除影子阶段的键
     assert list(result.model_raw["stages"]) == [
         "semantic",
         "request_findings",

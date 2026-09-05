@@ -20,8 +20,6 @@ Canonical      CanonicalNetworkFact / CanonicalAddressSegment
 rules          RuleStage：PolicyBundle.match 每 item 恰好一次（只读 canonical 字段）
     │          → rule Findings（不产生 decision）
     ▼
-acl            ACL Stage：gating 消费 RuleStageResult；每个可评估组合至多
-    │          1 次 ACL 调用（网络事实失败/确定性待定可跳过）→ ACL findings
     ▼
 semantic       Semantic Stage（批量 1 次）→ 语义 findings（冲突/缺口/失败）
     │
@@ -29,12 +27,12 @@ semantic       Semantic Stage（批量 1 次）→ 语义 findings（冲突/缺�
 reduce         DecisionReducer（唯一裁决入口，见 docs/DECISION_MODEL.md）
     │
     ▼
-post_decision  串行（D4）：Explanation / ACL Candidate Shadow / Request Findings Shadow
+post_decision  串行（D4）：Request Findings Shadow → Explanation
     │          Explanation 语义成功后 1 批次，失败仅模板回退。
     │          post_decision 不参与正式业务裁决，不得修改 decision / reason /
     │          primary finding / decision_findings。
     ▼
-assemble       EvaluationResponse（request 级聚合 + ACL 分析聚合）
+assemble       EvaluationResponse（request 级聚合）
     │
     ▼
 AuditStore（SQLite 权威幂等 + JSONL 归档）
@@ -82,16 +80,14 @@ AuditStore（SQLite 权威幂等 + JSONL 归档）
 | `app/services/network_plan_resolver.py` | 唯一 Resolver：/24 查询、并发、分段聚合（不接触目录） |
 | `app/services/splitter.py` | 组合拆分（canonical 段） |
 | `app/services/rule_loader.py` | 规则包加载与匹配（canonical 输入） |
-| `app/services/evaluation_types.py` | 阶段间 frozen 契约（RuleStageResult / AclStageResult） |
+| `app/services/evaluation_types.py` | 阶段间 frozen 契约（RuleStageResult / EvaluationItemContext） |
 | `app/services/stages/rule_stage.py` | 规则阶段：PolicyBundle.match 每 item 恰好一次 |
-| `app/services/stages/acl_stage.py` | ACL 阶段：gating 消费规则结果；ACL findings 归属 |
 | `app/services/stages/semantic_stage.py` | 语义阶段：只产出 findings/问题/观察 |
 | `app/services/stages/reduce_stage.py` | 确定性装配 + 每 item 恰好一次 reduce_item |
 | `app/services/stages/post_decision_stage.py` | 裁决后（串行）：解释 + 两个 shadow，无裁决权 |
 | `app/services/finding_factory.py` | Finding 构造与文案映射 |
 | `app/services/item_assembler.py` | item 装配（快照渲染 + trace/decision_findings） |
 | `app/services/request_decision.py` | request 级聚合（任一待定 → 待定） |
-| `app/services/response_assembler.py` | ACL 分析聚合 |
 | `app/services/stage_metrics.py` | LLM 阶段 metrics（仅观测） |
 | `app/services/evaluator.py` | 纯编排：阶段顺序与错误传播 |
 | `app/services/decision_reducer.py` | 唯一裁决入口（reduce_item 正式工作流） |

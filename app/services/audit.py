@@ -20,8 +20,8 @@ ClaimStatus = Literal["owner", "cached", "in_progress", "conflict"]
 # so a pre-0.3.0 database (fare-audit.sqlite3) is never read or rewritten and
 # stays behind as a read-only archive.
 _DATABASE_NAME = "fare-audit-v2.sqlite3"
-# Record schema epoch: records written before the ACL removal carry the
-# removed response contract and must never be replayed as current responses.
+# Record schema epoch: pre-0.3.0 records carry the removed response
+# contract and must never be replayed as current responses.
 AUDIT_SCHEMA_EPOCH = "fare-audit/v2-no-acl"
 
 

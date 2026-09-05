@@ -134,8 +134,8 @@ class CaseSuite(StrictModel):
 
 # ---------------------------------------------------------------------------
 # Realistic network request suite (realistic.v1, PHASE-01 migration baseline).
-# One dataset drives both the legacy (ACL present) evidence contract and the
-# ACL-free target contract; the active contract is chosen by the runner.
+# One dataset drives both the legacy (pre-0.3.0) evidence contract and the
+# 0.3.0 target contract; the active contract is chosen by the runner.
 # ---------------------------------------------------------------------------
 
 RealisticSemanticEffect = Literal[
@@ -237,18 +237,18 @@ class _RealisticExpectedCore(StrictModel):
 
 
 class RealisticLegacyExpected(_RealisticExpectedCore):
-    """Legacy behavior evidence captured before the ACL removal commit.
+    """Legacy behavior evidence captured before the 0.3.0 removal commit.
 
     Retained verbatim as frozen migration evidence; the runner never asserts
-    it after the flip to the ACL-free contract.
+    it after the flip to the 0.3.0 contract.
     """
 
 
 class RealisticTargetExpected(_RealisticExpectedCore):
-    """ACL-free target contract; the final acceptance gate.
+    """0.3.0 target contract; the final acceptance gate.
 
-    Deliberately declares no ACL field: extra='forbid' makes any ACL
-    expectation unrepresentable in the target contract.
+    Deliberately declares none of the removed fields: extra='forbid' makes
+    any removed-field expectation unrepresentable in the target contract.
     """
 
 

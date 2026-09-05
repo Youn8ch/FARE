@@ -464,3 +464,153 @@ transport_retry_count 恒 0、并发评估的 trace 不串扰。
 | full `pytest -q` | **572 passed**（+17 failure matrix） |
 | `ruff check . --no-cache` | **All checks passed** |
 | realistic suite RN-023/RN-024（semantic 失败/explanation 越权） | 零漂移 |
+
+
+---
+
+## PHASE-08: Full-repo cleanup, docs, and final acceptance
+
+**Commit:** `docs: finalize acl-free llm architecture`（见 git log）
+
+### 现役文档更新
+
+- `README.md`：新增 **0.3.0 迁移说明**（能力移除、/v2 入口、配置键删除、
+  审计 epoch、SDK+Instructor）；正文移除全部已删能力描述；示例切到 `/v2`；
+  profile 表与 dev 默认值同步；测试节改指 realistic 套件。
+- `docs/CONFIGURATION.md`：第 6 节重写（删除 `acl:` 配置节文档，注明残留键
+  fail-closed）。
+- `docs/DECISION_MODEL.md`：FindingSource/优先级/确定性快照收敛为
+  network|rule|semantic；删除已删 finding 表行与调用门控节。
+- `docs/ARCHITECTURE.md`：主链顺序、模块表、post_decision 顺序同步。
+- `docs/TESTING.md`：套件清单与阶段顺序同步（core 10 例 + realistic 35 例）。
+- `docs/INTEGRATION.md`、`tests/README.md`：profile 表、外部依赖表述同步。
+- `docs/history/*.md` 与 `docs/ACCEPTANCE-REPORT*.md`：文件头加入历史标注
+  （能力已移除、不代表现状），未改动历史正文。
+
+### 评测资产清洗
+
+- `evals/llm/test_real_model.py`：移除已删证据源键。
+- `evals/llm/datasets/provisional/cases.json`：删除 2 个已删能力用例
+  （acl_candidate 类），3 个用例的证据源改写为 `request_description`（quote
+  保持逐字可定位），新增 2 个等效合成用例维持 ≥20 门禁；id 重命名。
+- `evals/llm/test_contract_dataset.py`：stage 清单移除已删阶段。
+
+### 测试资产清理
+
+- 删除未使用的 v1 套件 `tests/cases/evaluations/core.json`（27 处命中，无引用）。
+- `tests/fixtures/policies/**` 与 `policies/compliance_rules.yaml` 头注去词化。
+- guard 测试 fixture（semantic_guard / network_plan_llm_guard）证据源改写。
+
+### ACL 清零扫描
+
+结果：**现役生产代码、配置、策略、现状文档命中 0**。
+剩余 61 行命中全部为已批准用途（负向门禁断言、迁移说明、新 epoch 常量），
+逐类核验记录见 `docs/implementation/phase08-acl-scan-final.md`。
+迁移取证工件（realistic 数据集、矩阵文档、执行报告、OpenAPI 基线/差异）按
+方案允许保留已删字段名。
+
+### OpenAPI breaking-change diff
+
+见 `docs/implementation/openapi-breaking-change-diff.md`：
+版本 0.2.0→0.3.0；`+POST /v2/evaluations`；`/v1` 收敛为 410；
+`EvaluationItem` −`acl_verification_status`；`EvaluationResponse`
+−`acl_analysis`/`acl_candidate_analysis`；`DecisionFinding.source` −`'acl'`；
+`ReasonType` −`'acl_no_path'`；删除 11 个 schema 组件。
+（注：本环境 fastapi 0.141 对带 wrap serializer 的模型在 OpenAPI 合成中生成
+退化空 properties——0.2.0 基线即如此，与本次变更无关；字段级 diff 以
+pydantic 模型 schema 为准。）
+
+### 最终测试矩阵（执行日 2026-09-05）
+
+| 组 | 命令 | 结果 |
+|---|---|---|
+| A | `ruff check . --no-cache` | All checks passed |
+| A | `pytest -q`（全量） | **572 passed** |
+| B | invariants + orchestration + reducer + findings_output | 32 passed |
+| C | llm http contract + pipeline + failure matrix + guards + business effects + observability + request findings | 148 passed |
+| D | realistic network suite（acl_free 契约） | 38 passed（35/35 场景） |
+| E | 显式 eval（contract dataset + semantic scoring） | 5 passed |
+| F | API/CLI/runner 一致性（api + area relations + final acceptance + architecture baseline） | 68 passed |
+| G | lifecycle + limits + audit（并发/幂等/epoch 隔离） | 20 passed |
+
+幂等重放不增加 network/LLM 调用、limit shortcut 不触发 LLM、OpenAPI 路径契约
+由 `test_openapi_declares_v2_entry_and_retired_v1` 与 invariants 负向门禁固定。
+
+
+---
+
+## 最终状态（Definition of Done）
+
+```text
+engineering_complete: true
+committed: true
+tests_passed: true（全量 572 passed；realistic 35/35；显式 eval 5 passed；ruff 全绿）
+acl_active_references: 0（现役代码/配置/策略/现状文档；61 行剩余命中均为已批准的
+                        负向门禁/迁移说明/新 epoch 常量，见 phase08-acl-scan-final.md）
+realistic_cases_passed: 35/35
+provider_parity_passed: true（23 项 provider contract 全绿；差异仅 3 类已审核
+                        SDK 无害差异 + 契约测试按批准差异更新）
+push_authorized: false（除非用户另行授权）
+pr_created: false
+merge_authorized: false
+```
+
+### 提交清单（9 个阶段提交，各自可独立 `git revert`）
+
+| 阶段 | SHA | 标题 |
+|---|---|---|
+| PHASE-00 | `4ec2bda` | test: freeze acl-removal migration baseline |
+| PHASE-01 | `8ec5f74` | test: add realistic network request scenarios |
+| PHASE-02 | `3abc941` | refactor: introduce acl-free evaluation context |
+| PHASE-03 | `933faf8` | feat!: remove acl assessment capability（breaking） |
+| PHASE-04 | `17704d2` | feat!: acl-free config, audit epoch, and API 0.3.0（breaking） |
+| PHASE-05 | `ea978b9` | refactor: split fare llm contracts and adapters |
+| PHASE-06 | `5d20f7e` | feat: migrate llm transport to openai sdk and instructor |
+| PHASE-07 | `55d9002` | test: harden llm failure and provider compatibility contracts |
+| PHASE-08 | 本提交 | docs: finalize acl-free llm architecture |
+
+基线 `45805c6` → 本分支 HEAD：**206 个文件变更（41 新增 / 23 删除 / 141 修改 /
+1 重命名），+18100 / −6944**。完整清单 `git diff --name-status 45805c6..HEAD`。
+
+### 实际依赖版本
+
+- instructor **1.16.0**（范围 `>=1.16,<1.17`）
+- openai **2.54.0**（范围 `>=2.0,<3.0`）
+- 执行日（2026-09-05）PyPI 核对：Instructor 最新 1.16.0 依赖 `openai>=2.0,<3`；
+  openai-python 3.x 已发布故不可无界安装——与方案预判一致。
+
+### 回退步骤（阶段级 git revert，逆序）
+
+```text
+git revert <PHASE-08-SHA>   # PHASE-08（文档/评测资产；可独立回退）
+git revert 55d9002   # PHASE-07（观测性增强；若错误映射改动改变行为须连同测试）
+git revert 5d20f7e   # PHASE-06（回退到 PHASE-5 手写 adapter；不得恢复 ACL）
+git revert ea978b9   # PHASE-05（回退模块拆分）
+git revert 17704d2   # PHASE-04（回退 API 0.3.0/审计 epoch；审计 namespace 回退
+                     #  = 重新指向旧库；历史归档不可删除）
+git revert 933faf8   # PHASE-03（整体回退 ACL 删除；不得只恢复响应字段）
+git revert 3abc941   # PHASE-02（回退中立 context）
+git revert 8ec5f74   # PHASE-01（仅新增测试资产，可独立回退）
+git revert 4ec2bda   # PHASE-00（仅执行报告与留档）
+```
+
+注意：PHASE-04 的审计 namespace 回退与代码回退独立——回退应用后把
+`audit.directory` 指回旧目录即可；`fare-audit-v2.sqlite3` 与历史归档都保留。
+
+### 未关闭风险
+
+1. **API breaking change**：旧调用方在 0.3.x 收到 410；`/v1` 路由最终删除
+   留给后续协调发布（方案明确不属于本任务）。
+2. **配置迁移**：含 `acl:` 键的存量配置启动即失败，需运维手工删除配置节
+   （错误信息指向未知键）。
+3. **审计 epoch**：跨 epoch 重放返回 409 `AUDIT_SCHEMA_MISMATCH`；需运维在
+   升级时归档旧审计目录（新 runtime 已物理隔离旧库文件，不强制，但推荐）。
+4. **no-auth 占位头**：无凭据 profile 会发送 `Authorization: Bearer no-auth`
+   （SDK 拒绝无凭据构造且不接受空串）；对忽略认证头的 provider 无影响，已作为
+   批准的 SDK 差异记录并有 poison-env 契约测试保护（绝不读取环境凭据）。
+5. **fastapi 0.141 OpenAPI 合成怪癖**：带 wrap serializer 的模型在
+   /openapi.json 中生成退化空 properties（0.2.0 基线即如此，与本次变更无关）；
+   字段级契约以 pydantic 模型 schema 与响应体契约测试为准。
+6. **instructor 内部模块路径**（`instructor.v2.core.errors`）为第三方私有
+   结构——运行时未依赖其类型（按 `__cause__` 分类），仅测试 spike 引用过；
+   升级 instructor 时需重跑 provider contract 套件。

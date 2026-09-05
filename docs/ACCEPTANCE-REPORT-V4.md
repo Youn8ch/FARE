@@ -1,5 +1,8 @@
 # FARE 主链二次收口验收报告（V4）
 
+> [!NOTE]
+> 历史文档（0.3.0 之前）：本文描述的候选路径/拟配置分析能力已在 0.3.0 完整移除，仅供历史追溯，不代表现状。现状见 README.md 与 docs/ARCHITECTURE.md。
+
 > 基线：`a70ea45`（AC-09 FINAL_SHA）　分支：`codex/fare-main-chain-v4`
 > 计划：`FARE-主链二次收口修复与后续优化计划-V4.md`
 > 基线冻结记录：`docs/v3-baseline.md`（含 D1 反转记录与 §6 预注册变更清单）

@@ -28,7 +28,7 @@ from tests.test_evaluator_orchestration import (
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-# ACL 移除后的真实阶段顺序（breaking change，见执行报告批准差异）
+# 0.3.0 起的真实阶段顺序（breaking change，见执行报告批准差异）
 BASELINE_STAGES = [
     "plan",
     "network",

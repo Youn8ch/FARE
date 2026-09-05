@@ -51,8 +51,6 @@ def test_real_model_quality_requires_all_approval_gates() -> None:
                     "destination_description": item.sources.get(
                         "destination_description", ""
                     ),
-                    "acl_analysis": item.sources.get("acl_analysis", ""),
-                    "acl_config": item.sources.get("acl_config", ""),
                     "authoritative_facts": {},
                 }
                 for item in case.items
