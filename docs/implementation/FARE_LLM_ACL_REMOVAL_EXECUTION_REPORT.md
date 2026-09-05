@@ -613,17 +613,19 @@ merge_authorized: false
 `hatchling` 在 `pyproject.toml` 中硬锁为 `1.32.0`。
 
 clean build/install 流程与证据（2026-09-06，Python 3.13.7 / pip 25.2 构建、
-pip 26.2.1 安装环境）：
+pip 26.2.1 安装环境；最终以 hardening 分支 HEAD 树重建的 artifact 为准）：
 
 ```text
 1. 全新临时 venv（非仓库 .venv）内构建：
    python -m pip wheel . --no-deps -w <tmp>/dist
    → fare-0.3.0-py3-none-any.whl
-2. wheel sha256:
-   e97259caf87d9211e706af3b1741f2cf0b3cf2ec221c004a4360f7d000d60cf2
-   （isolation 构建与 pinned-hatchling 无 isolation 构建产出哈希一致）
-3. wheel 内容仅含 app/ + fare-0.3.0.dist-info（44 项）：
-   无 tests/evals/config/policies/audit_logs/本地 secrets。
+2. wheel sha256（hardening HEAD 最终重建，含 facade 删除后的 app/ 树）:
+   8e43a736cde60ce217522e9e677954ca598cc8a8fd86b610fb100698b3581414
+   （isolation 构建与 pinned-hatchling 无 isolation 构建产出哈希一致；
+    H-03 中间产物 e97259ca… 由 facade 删除前的树构建，已被最终产物取代）
+3. wheel 内容仅含 app/ + fare-0.3.0.dist-info：
+   无 tests/evals/config/policies/audit_logs/本地 secrets
+   （含已删除的 llm_client.py facade——wheel 内不存在该模块）。
 4. 另一全新临时 venv 按 constraints 从 wheel 安装：
    python -m pip install <wheel> -c constraints.txt
    → fare==0.3.0, instructor==1.16.0, openai==2.54.0,
