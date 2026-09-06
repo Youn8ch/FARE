@@ -102,7 +102,18 @@ jobs:
           mkdir -p "$WHEEL_DIR"
 
           python -m pip wheel . --no-deps -w "$WHEEL_DIR"
-          WHEEL_PATH="$(ls "$WHEEL_DIR"/fare-0.3.0-*.whl)"
+          mapfile -t WHEEL_PATHS < <(
+            find "$WHEEL_DIR" -maxdepth 1 -type f \
+              -name 'fare-0.3.0-*.whl' -print
+          )
+          if (( ${#WHEEL_PATHS[@]} != 1 )); then
+            echo "expected exactly one FARE wheel, found ${#WHEEL_PATHS[@]}" >&2
+            if (( ${#WHEEL_PATHS[@]} > 0 )); then
+              printf 'candidate: %s\n' "${WHEEL_PATHS[@]}" >&2
+            fi
+            exit 1
+          fi
+          WHEEL_PATH="${WHEEL_PATHS[0]}"
           echo "wheel: $WHEEL_PATH"
 
           python -m venv "$VENV_DIR"
@@ -146,7 +157,8 @@ jobs:
               if name in forbidden_paths:
                   problems.append(f"legacy llm_client facade packaged: {name}")
               lowered = name.lower()
-              if lowered != "fare-0.3.0.dist-info/METADATA" and any(
+              is_dist_metadata = lowered.endswith(".dist-info/metadata")
+              if not is_dist_metadata and any(
                   sig in lowered for sig in credential_signatures
               ):
                   problems.append(f"potential credential file: {name}")
