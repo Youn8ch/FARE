@@ -1,0 +1,171 @@
+name: FARE CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - codex/fare-main-chain-v4
+  push:
+    branches:
+      - main
+      - codex/fare-main-chain-v4
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  validation:
+    name: validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Python 3.13.7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: 3.13.7
+
+      - name: Install package with CI constraints
+        run: |
+          python -m pip install --upgrade "pip==25.2"
+          python -m pip install -c constraints-ci.txt -e ".[dev]"
+          python -m pip check
+
+      - name: Verify pinned versions
+        run: |
+          python - <<'EOF'
+          import importlib.metadata as metadata
+          import sys
+
+          expected = {
+              "fare": "0.3.0",
+              "instructor": "1.16.0",
+              "openai": "2.54.0",
+              "pytest": "8.4.2",
+              "ruff": "0.16.4",
+          }
+          actual_python = ".".join(str(part) for part in sys.version_info[:3])
+          failures = []
+          if actual_python != "3.13.7":
+              failures.append(f"python == 3.13.7 (got {actual_python})")
+          for dist_name, expected_version in expected.items():
+              actual_version = metadata.version(dist_name)
+              if actual_version != expected_version:
+                  failures.append(
+                      f"{dist_name} == {expected_version} (got {actual_version})"
+                  )
+          if failures:
+              print("FAIL: version pin mismatch:")
+              for failure in failures:
+                  print(f"  {failure}")
+              sys.exit(1)
+          print("ok: python == 3.13.7")
+          for dist_name, expected_version in expected.items():
+              print(f"ok: {dist_name} == {expected_version}")
+          EOF
+
+      # All pytest invocations below run strictly serially (no xdist, no
+      # background jobs) because they share the .pytest_tmp basetemp.
+      - name: Ruff check
+        run: python -m ruff check . --no-cache
+
+      - name: Full test suite
+        run: python -m pytest -q -p no:cacheprovider
+
+      - name: Explicit eval contract and semantic acceptance scoring tests
+        run: >-
+          python -m pytest evals/llm/test_contract_dataset.py
+          tests/test_real_semantic_acceptance_scoring.py -q -p no:cacheprovider
+
+      - name: Realistic network request suite
+        run: python -m pytest tests/test_realistic_network_requests.py -q -p no:cacheprovider
+
+      - name: ACL removal scan
+        run: python scripts/acl_scan.py
+
+      - name: Clean-wheel gate (build, fresh venv install, smoke, content check)
+        run: |
+          set -euo pipefail
+          WHEEL_DIR="$RUNNER_TEMP/fare-wheel"
+          VENV_DIR="$RUNNER_TEMP/fare-wheel-venv"
+          mkdir -p "$WHEEL_DIR"
+
+          python -m pip wheel . --no-deps -w "$WHEEL_DIR"
+          mapfile -t WHEEL_PATHS < <(
+            find "$WHEEL_DIR" -maxdepth 1 -type f \
+              -name 'fare-0.3.0-*.whl' -print
+          )
+          if (( ${#WHEEL_PATHS[@]} != 1 )); then
+            echo "expected exactly one FARE wheel, found ${#WHEEL_PATHS[@]}" >&2
+            if (( ${#WHEEL_PATHS[@]} > 0 )); then
+              printf 'candidate: %s\n' "${WHEEL_PATHS[@]}" >&2
+            fi
+            exit 1
+          fi
+          WHEEL_PATH="${WHEEL_PATHS[0]}"
+          echo "wheel: $WHEEL_PATH"
+
+          python -m venv "$VENV_DIR"
+          "$VENV_DIR/bin/python" -m pip install --upgrade "pip==25.2"
+          "$VENV_DIR/bin/python" -m pip install -c constraints.txt "$WHEEL_PATH"
+          "$VENV_DIR/bin/python" -m pip check
+          "$VENV_DIR/bin/python" scripts/wheel_smoke_check.py
+
+          echo "wheel SHA256:"
+          sha256sum "$WHEEL_PATH"
+
+          python - "$WHEEL_PATH" <<'EOF'
+          import sys
+          import zipfile
+
+          wheel_path = sys.argv[1]
+          names = zipfile.ZipFile(wheel_path).namelist()
+          forbidden_top_dirs = {"tests", "evals", "config", "policies", "audit_logs"}
+          forbidden_substrings = ("__pycache__",)
+          forbidden_paths = (
+              "app/services/llm_client.py",
+              "app/llm_client.py",
+          )
+          credential_signatures = (
+              ".env",
+              ".pem",
+              ".key",
+              ".p12",
+              ".pfx",
+              "credential",
+              "secret",
+              "api_key",
+          )
+          problems = []
+          for name in names:
+              top_dir = name.split("/")[0]
+              if top_dir in forbidden_top_dirs:
+                  problems.append(f"forbidden top-level dir: {name}")
+              if any(sig in name for sig in forbidden_substrings):
+                  problems.append(f"forbidden content: {name}")
+              if name in forbidden_paths:
+                  problems.append(f"legacy llm_client facade packaged: {name}")
+              lowered = name.lower()
+              is_dist_metadata = lowered.endswith(".dist-info/metadata")
+              if not is_dist_metadata and any(
+                  sig in lowered for sig in credential_signatures
+              ):
+                  problems.append(f"potential credential file: {name}")
+          if problems:
+              print("FAIL: clean-wheel content check:")
+              for problem in problems:
+                  print(f"  {problem}")
+              sys.exit(1)
+          print(f"ok: wheel content clean ({len(names)} files)")
+          EOF

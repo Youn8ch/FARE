@@ -8,6 +8,47 @@
 默认套件禁止非 loopback 网络连接；`testpaths = ["tests"]` 不收集真实模型评测
 目录（evals）。基线矩阵与双轨收口记录见 `docs/architecture-baseline.md`。
 
+## CI 门禁（release gating）
+
+最终合入 main 的 PR 必须通过 CI workflow
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml)（name: FARE CI）。
+
+- 触发：`pull_request` 与 `push` 到 `main` / `codex/fare-main-chain-v4`，
+  另有 `workflow_dispatch`。不使用 `pull_request_target`、不使用 secrets、
+  仅授予 `contents: read`。
+- 运行环境：`ubuntu-latest`，Python **3.13.7**（setup-python 锁定精确版本），
+  timeout 30 分钟，concurrency 取消过时运行。
+- pytest 一律**串行**执行（无 xdist、无后台并行），因为各套件共享
+  `--basetemp=.pytest_tmp`。
+- 依赖安装：`pip install -c constraints-ci.txt -e ".[dev]"`。生产依赖版本由
+  [constraints.txt](../constraints.txt) 锁定；[constraints-ci.txt](../constraints-ci.txt)
+  在其之上仅追加 CI 验证所用的 `pytest==8.4.2` / `ruff==0.16.4` 两个 pin，
+  不改变任何生产依赖版本。
+- CI 步骤（严格按序串行执行）：ruff 全量检查 → 全量测试套件 → 显式 eval
+  契约与语义验收评分测试（`evals/llm/test_contract_dataset.py` +
+  `tests/test_real_semantic_acceptance_scoring.py`）→ realistic 网络请求套件
+  （`tests/test_realistic_network_requests.py`）→ ACL 移除扫描
+  （`scripts/acl_scan.py`）→ clean-wheel 门禁。
+- clean-wheel 门禁在 `$RUNNER_TEMP` 中构建 fare 0.3.0 wheel、创建全新 venv
+  按 `constraints.txt` 安装、执行 `pip check` 与
+  `scripts/wheel_smoke_check.py`，并检查 wheel 不包含 tests/evals/config/
+  policies/audit_logs/`__pycache__`、旧 `llm_client` facade 或凭据文件；
+  所有临时产物只写入 `$RUNNER_TEMP`。
+- CI 不访问任何真实外部服务：全量套件与 realistic 套件均为离线/mock，
+  真实模型评测目录（evals）只在无真实网络门禁的合成契约数据上运行。
+
+本地复现（与 CI 相同顺序，串行）：
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -c constraints-ci.txt -e ".[dev]"
+.\.venv\Scripts\python.exe -m pip check
+.\.venv\Scripts\python.exe -m ruff check . --no-cache
+.\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider
+.\.venv\Scripts\python.exe -m pytest evals\llm\test_contract_dataset.py tests\test_real_semantic_acceptance_scoring.py -q -p no:cacheprovider
+.\.venv\Scripts\python.exe -m pytest tests\test_realistic_network_requests.py -q -p no:cacheprovider
+.\.venv\Scripts\python.exe scripts\acl_scan.py
+```
+
 ## 分层
 
 | 层 | 位置 | 说明 |
