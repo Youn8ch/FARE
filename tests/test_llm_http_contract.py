@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from app.main import build_runtime, create_app
 from app.schemas import EvaluationRequest
-from app.services.llm_client import LlmClient, LlmClientProtocol, LlmDependencyError
+from app.services.llm import LlmClient, LlmClientProtocol, LlmDependencyError
 from tests.conftest import payload
 from tests.helpers.llm import RecordingLlmClient
 
@@ -70,8 +70,12 @@ def test_http_valid_first_attempt_uses_injected_transport() -> None:
     assert len(requests) == 1
     assert requests[0].url == "https://model.invalid/v1/chat/completions"
     body = json.loads(requests[0].content)
-    assert "JSON Schema" in body["messages"][0]["content"]
-    assert "LlmSemanticResponse" in body["messages"][0]["content"]
+    # Approved SDK difference: Instructor injects the JSON schema contract in
+    # its own wording (the pre-SDK client used a FARE-written suffix).
+    assert "analyzed_item_ids" in body["messages"][0]["content"]
+    assert "Make sure to return an instance of the JSON" in body["messages"][0][
+        "content"
+    ]
     assert trace is not None
     assert trace["attempts"] == 1
 
@@ -222,17 +226,72 @@ def test_http_transport_timeout_is_not_correction_retried() -> None:
     assert len(requests) == 1
 
 
+_NO_AUTH_ENV_SENTINEL = "ENV-SENTINEL-MUST-NOT-BE-USED"
+
+
+def _explanation_response_body() -> dict[str, Any]:
+    return {
+        "items": [
+            {
+                "item_id": "http-contract-001",
+                "explanation": "allowed by policy",
+                "recommendation": "no change",
+                "referenced_rule_ids": [],
+            }
+        ]
+    }
+
+
+def _request_findings_inputs() -> list[dict[str, Any]]:
+    return [
+        {
+            "item_id": "http-contract-001",
+            "request_description": "open a maintenance path",
+            "source_description": "ops bastion",
+            "destination_description": "db segment",
+            "access": {
+                "source": "bastion",
+                "destination": "db",
+                "protocol": "tcp",
+                "port": {"start": 3306, "end": 3306},
+            },
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    ("use_case", "response_body"),
+    [
+        ("semantic", {"analyzed_item_ids": ["http-contract-001"]}),
+        ("explanation", _explanation_response_body()),
+        ("request_findings", {"analyzed_item_ids": ["http-contract-001"]}),
+    ],
+)
 @pytest.mark.parametrize("api_key", [None, "SENTINEL_PROVIDER_KEY"])
-def test_http_request_auth_and_deterministic_parameters(api_key: str | None) -> None:
+def test_http_request_auth_and_deterministic_parameters(
+    use_case: str, response_body: dict[str, Any], api_key: str | None, monkeypatch
+) -> None:
+    # no-auth must never read environment credentials: poison the env var so
+    # any implicit read would surface here.
+    monkeypatch.setenv("OPENAI_API_KEY", _NO_AUTH_ENV_SENTINEL)
     requests: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        return _completion(json.dumps({"analyzed_item_ids": ["http-contract-001"]}))
+        return _completion(json.dumps(response_body))
 
     client = _http_client(httpx.MockTransport(handler))
     client.api_key = api_key
-    asyncio.run(client.analyze(_semantic_payload()))
+    if use_case == "semantic":
+        asyncio.run(client.analyze(_semantic_payload()))
+    elif use_case == "explanation":
+        asyncio.run(client.explain({"request_id": "http-contract", "items": []}))
+    else:
+        asyncio.run(
+            client.analyze_request_findings(
+                _request_findings_inputs(), request_id="http-contract"
+            )
+        )
 
     request = requests[0]
     body = json.loads(request.content)
@@ -243,7 +302,12 @@ def test_http_request_auth_and_deterministic_parameters(api_key: str | None) -> 
     if api_key:
         assert request.headers["Authorization"] == f"Bearer {api_key}"
     else:
+        # Frozen contract restored: a no-auth profile sends no Authorization
+        # header at all (the SDK's public omit mechanism), and the internal
+        # SDK placeholder never reaches request, headers, body, or trace.
         assert "Authorization" not in request.headers
+        assert "no-auth" not in request.content.decode()
+        assert _NO_AUTH_ENV_SENTINEL not in request.content.decode()
 
 
 def test_bigmodel_compatible_generation_parameters_are_forwarded_without_streaming() -> None:
@@ -436,19 +500,80 @@ def test_validation_and_idempotency_shortcuts_do_not_add_llm_calls(settings) -> 
         client.app.state.runtime.evaluator.llm_client = recorder
         value = payload(request_id="recording-idempotency")
 
-        assert client.post("/v1/evaluations", json=value).status_code == 200
+        assert client.post("/v2/evaluations", json=value).status_code == 200
         assert (recorder.semantic_calls, recorder.explanation_calls) == (1, 1)
 
-        assert client.post("/v1/evaluations", json=value).status_code == 200
+        assert client.post("/v2/evaluations", json=value).status_code == 200
         assert (recorder.semantic_calls, recorder.explanation_calls) == (1, 1)
 
         conflicting = {**value, "request_description": "different normalized input"}
-        assert client.post("/v1/evaluations", json=conflicting).status_code == 409
+        assert client.post("/v2/evaluations", json=conflicting).status_code == 409
         assert (recorder.semantic_calls, recorder.explanation_calls) == (1, 1)
 
         invalid = payload(
             request_id="recording-schema-error",
             ports=[{"start": 443, "end": 1}],
         )
-        assert client.post("/v1/evaluations", json=invalid).status_code == 422
+        assert client.post("/v2/evaluations", json=invalid).status_code == 422
         assert (recorder.semantic_calls, recorder.explanation_calls) == (1, 1)
+
+
+def test_no_env_proxy_or_env_key_can_alter_requests(monkeypatch) -> None:
+    """Contract 12: trust_env=False — proxy environment variables must not
+    change the settings-only request path."""
+
+    monkeypatch.setenv("HTTP_PROXY", "http://proxy-sentinel.invalid")
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy-sentinel.invalid")
+    monkeypatch.setenv("ALL_PROXY", "http://proxy-sentinel.invalid")
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return _completion(json.dumps({"analyzed_item_ids": ["http-contract-001"]}))
+
+    client = _http_client(httpx.MockTransport(handler))
+    asyncio.run(client.analyze(_semantic_payload()))
+
+    assert len(requests) == 1
+    assert requests[0].url.host == "model.invalid"
+    body = json.loads(requests[0].content)
+    assert body["model"] == "test-model"
+
+
+def test_usage_and_provider_request_id_are_auditable_from_completion() -> None:
+    """Contract 11: usage and provider request id flow into the trace without
+    exposing raw sensitive content."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "id": "chatcmpl-provider-001",
+                "choices": [
+                    {"message": {"content": json.dumps({"analyzed_item_ids": ["x"]})}}
+                ],
+                "usage": {
+                    "prompt_tokens": 11,
+                    "completion_tokens": 7,
+                    "total_tokens": 18,
+                },
+            },
+        )
+
+    client = _http_client(httpx.MockTransport(handler))
+
+    async def call():
+        response, _raw = await client.analyze(_semantic_payload())
+        return response, client.consume_completion_trace()
+
+    response, trace = asyncio.run(call())
+    assert response.analyzed_item_ids == ["x"]
+    assert trace is not None
+    assert trace["usage"] == {
+        "prompt_tokens": 11,
+        "completion_tokens": 7,
+        "total_tokens": 18,
+    }
+    assert trace["provider_request_id"] == "chatcmpl-provider-001"
+    # raw completion content must not leak into the trace
+    assert "choices" not in json.dumps(trace)

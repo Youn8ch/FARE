@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.llm_client import LlmClient
+from app.services.llm import LlmClient
 from evals.llm.case_schema import load_manifest, load_suite
 
 pytestmark = pytest.mark.llm_eval
@@ -51,8 +51,6 @@ def test_real_model_quality_requires_all_approval_gates() -> None:
                     "destination_description": item.sources.get(
                         "destination_description", ""
                     ),
-                    "acl_analysis": item.sources.get("acl_analysis", ""),
-                    "acl_config": item.sources.get("acl_config", ""),
                     "authoritative_facts": {},
                 }
                 for item in case.items

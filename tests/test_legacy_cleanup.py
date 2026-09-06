@@ -60,10 +60,10 @@ def test_static03_no_resolver_none_compatibility_branch() -> None:
     assert "raise RuntimeError" in evaluator
 
 
-def test_llm_review_dead_code_is_removed() -> None:
-    client = _read("services/llm_client.py")
-    assert "async def review(" not in client
-    assert "LlmReviewResponse" not in client
+def test_llm_review_dead_code_and_facade_are_removed() -> None:
+    # The interim app.services.llm_client facade is deleted outright: the
+    # package under services/llm/ is the only LLM boundary.
+    assert not (APP_ROOT / "services" / "llm_client.py").exists()
     schemas = _read("schemas.py")
     assert "LlmReviewResponse" not in schemas
     assert "LlmReviewItem" not in schemas
@@ -85,5 +85,9 @@ def test_resolved_segment_shim_properties_are_removed() -> None:
     )
     for shim in shims:
         assert shim not in resolver
-    # legacy_entry 字段保留：offline 兼容 Provider 的显式目录事实通道
-    assert "legacy_entry: NetworkEntry | None" in resolver
+    # V4-P3：legacy_entry 第二事实通道已删除，显式目录分类走 typed provider
+    # 通道（app/services/network_fact_provider.py）。
+    assert "legacy_entry" not in resolver
+    assert "offline_catalog" not in resolver
+    assert "NetworkCatalog" not in resolver
+    assert "NetworkEntry" not in resolver

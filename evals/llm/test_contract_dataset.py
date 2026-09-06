@@ -27,7 +27,6 @@ def test_provisional_dataset_contract_and_offline_metrics() -> None:
         "fact_conflict",
         "policy_gap",
         "prompt_injection",
-        "acl_candidate",
         "request_findings",
         "explanation",
     }

@@ -50,11 +50,6 @@ def configuration_summary(config: FareConfig) -> dict[str, object]:
         "config_path": str(config.path),
         "requirement_source_mode": config.requirement_source.mode,
         "network_plan_mode": config.settings.network_plan_client_mode,
-        "acl_mode": config.settings.acl_client_mode,
-        "acl_decision_mode": config.settings.acl_decision_mode,
-        "acl_deterministic_pending_mode": (
-            config.settings.acl_deterministic_pending_mode
-        ),
         "llm_mode": config.settings.llm_client_mode,
         "policy_directory": str(config.settings.policy_dir),
         "audit_directory": str(config.settings.audit_log_dir),

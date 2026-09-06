@@ -1,0 +1,11 @@
+{
+  "fixture_version": "v4-matrix-2026.08.0",
+  "purpose": "V3-03 网段规划依赖失败（源 /24 传输错误，目的正常）",
+  "responses": {
+    "16.201.1.0/24": {"transport_error": "connection_error"},
+    "16.220.16.0/24": {
+      "http_status": 200,
+      "body": {"code": 200, "msg": "success", "success": true, "data": {"area": "核心生产区", "areaId": "核心生产区", "regionName": "核心生产区", "platformName": "生产", "network": "16.220.16.0/24", "gateway": null, "subnet": "16.220.16.0/24", "vlanId": null, "usageCode": "database", "description": "DB"}}
+    }
+  }
+}

@@ -16,7 +16,38 @@ from uuid import uuid4
 from app.schemas import EvaluationRequest, EvaluationResponse
 
 ClaimStatus = Literal["owner", "cached", "in_progress", "conflict"]
-_DATABASE_NAME = "fare-audit.sqlite3"
+# Versioned audit namespace: the 0.3.0 runtime opens only this database file,
+# so a pre-0.3.0 database (fare-audit.sqlite3) is never read or rewritten and
+# stays behind as a read-only archive.
+_DATABASE_NAME = "fare-audit-v2.sqlite3"
+# Record schema epoch: pre-0.3.0 records carry the removed response
+# contract and must never be replayed as current responses.
+AUDIT_SCHEMA_EPOCH = "fare-audit/v2-no-acl"
+
+
+class AuditSchemaMismatchError(RuntimeError):
+    """A stored audit row was written under a different record schema epoch."""
+
+
+def _require_record_epoch(request_id: str, audit_record_json: str | None) -> None:
+    """Fail closed when a cached row was not written by the current epoch."""
+
+    if audit_record_json is None:
+        raise AuditSchemaMismatchError(
+            f"audit row for request {request_id!r} has no record payload"
+        )
+    try:
+        record = json.loads(audit_record_json)
+    except json.JSONDecodeError as exc:
+        raise AuditSchemaMismatchError(
+            f"audit row for request {request_id!r} is not readable JSON"
+        ) from exc
+    epoch = record.get("schema_epoch") if isinstance(record, dict) else None
+    if epoch != AUDIT_SCHEMA_EPOCH:
+        raise AuditSchemaMismatchError(
+            f"audit row for request {request_id!r} was written under schema "
+            f"epoch {epoch!r}; the live runtime uses {AUDIT_SCHEMA_EPOCH!r}"
+        )
 _CLAIM_LEASE = timedelta(hours=1)
 _SQLITE_TIMEOUT_SECONDS = 30.0
 SECRET_PATTERN = re.compile(
@@ -126,6 +157,14 @@ class AuditStore:
                 )
                 """
             )
+            connection.execute(
+                """
+                INSERT INTO audit_metadata (key, value)
+                VALUES ('schema_epoch', ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                """,
+                (AUDIT_SCHEMA_EPOCH,),
+            )
 
         cutoff = datetime.now(UTC).date() - timedelta(days=self.retention_days - 1)
         cutoff_timestamp = datetime.combine(cutoff, datetime.min.time(), tzinfo=UTC).isoformat()
@@ -177,6 +216,10 @@ class AuditStore:
                     continue
                 try:
                     record = json.loads(line)
+                    if record.get("schema_epoch") != AUDIT_SCHEMA_EPOCH:
+                        # Historical archive: never imported into the live
+                        # cache and never rewritten on disk.
+                        continue
                     response = redact_evaluation_response(
                         EvaluationResponse.model_validate(record["final_response"])
                     )
@@ -245,7 +288,8 @@ class AuditStore:
             try:
                 row = connection.execute(
                     """
-                    SELECT input_hash, state, response_json, owner_token, updated_at
+                    SELECT input_hash, state, response_json, audit_record_json,
+                           owner_token, updated_at
                     FROM audit_requests
                     WHERE config_fingerprint = ? AND request_id = ?
                     """,
@@ -319,6 +363,7 @@ class AuditStore:
                     raise ValueError(
                         f"invalid audit state for request {request_id!r}: {row['state']!r}"
                     )
+                _require_record_epoch(request_id, row["audit_record_json"])
                 response = EvaluationResponse.model_validate_json(row["response_json"])
                 connection.commit()
                 return "cached", response
@@ -333,13 +378,13 @@ class AuditStore:
         request: EvaluationRequest,
         input_hash: str,
         response: EvaluationResponse,
-        acl_raw: list[dict[str, Any]],
         model_raw: Any = None,
         exceptions: list[str] | None = None,
         network_plan_raw: list[dict[str, object]] | None = None,
     ) -> None:
         evaluated_at = datetime.now(UTC)
         record = {
+            "schema_epoch": AUDIT_SCHEMA_EPOCH,
             "audit_id": response.audit_id,
             "request_id": request.request_id,
             "input_hash": input_hash,
@@ -350,7 +395,6 @@ class AuditStore:
             "policy_version": response.policy_version,
             "model": response.model.model_dump(mode="json"),
             "normalized_input": redact_value(canonical_request(request)),
-            "acl_raw": redact_value(acl_raw),
             "network_plan_raw": redact_value(network_plan_raw or []),
             "model_raw": redact_value(model_raw),
             "final_response": redact_value(response.model_dump(mode="json")),

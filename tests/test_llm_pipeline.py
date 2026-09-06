@@ -113,7 +113,6 @@ def test_one_way_decision_matrix(
     assert item.decision_trace.final_decision == item.decision
     assert recorder.semantic_calls == 1
     assert recorder.explanation_calls == explanation_calls
-    assert recorder.acl_candidate_calls == 0
     assert recorder.request_finding_calls == 0
 
 
@@ -122,7 +121,6 @@ def test_all_shadow_stages_are_single_batch_and_do_not_upgrade_pending(settings)
     runtime = build_runtime(
         replace(
             settings,
-            llm_acl_candidate_mode="shadow",
             llm_request_findings_mode="shadow",
         )
     )
@@ -148,9 +146,7 @@ def test_all_shadow_stages_are_single_batch_and_do_not_upgrade_pending(settings)
     assert all(item.decision == "待定" for item in result.response.items)
     assert all(item.reason_code == "PORT-001" for item in result.response.items)
     assert recorder.semantic_calls == 1
-    assert recorder.acl_candidate_calls == 1
     assert recorder.request_finding_calls == 1
     assert recorder.explanation_calls == 1
-    assert recorder.semantic_item_ids[0] == recorder.acl_candidate_item_ids[0]
     assert recorder.semantic_item_ids[0] == recorder.request_finding_item_ids[0]
     assert recorder.semantic_item_ids[0] == recorder.explanation_item_ids[0]

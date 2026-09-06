@@ -113,13 +113,12 @@ def test_runtime_close_attempts_every_resource_after_failure() -> None:
                 raise RuntimeError(f"{self.name} close failed")
 
     llm = Resource("llm", fail=True)
-    acl = Resource("acl")
     network = Resource("network")
-    evaluator = SimpleNamespace(llm_client=llm, acl_client=acl)
-    resolver = SimpleNamespace(client=network)
+    evaluator = SimpleNamespace(llm_client=llm)
+    resolver = SimpleNamespace(provider=network)
     runtime = _runtime(evaluator=evaluator, audit=object(), resolver=resolver)
 
     with pytest.raises(RuntimeError, match="llm close failed"):
         asyncio.run(runtime.aclose())
 
-    assert closed == ["llm", "acl", "network"]
+    assert closed == ["llm", "network"]

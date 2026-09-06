@@ -10,12 +10,20 @@ from fastapi.responses import JSONResponse
 
 from app.config import DEFAULT_CONFIG_PATH, FareConfig, Settings
 from app.schemas import ErrorDetail, ErrorResponse, EvaluationRequest, EvaluationResponse
-from app.services.acl_client import HttpAclClient, MockAclClient
-from app.services.acl_extract import AclFactExtractor
-from app.services.audit import AuditStore, redact_evaluation_response, request_hash
+from app.services.audit import (
+    AuditSchemaMismatchError,
+    AuditStore,
+    redact_evaluation_response,
+    request_hash,
+)
 from app.services.catalog import NetworkCatalog
 from app.services.evaluator import Evaluator
-from app.services.llm_client import LlmClient
+from app.services.llm import LlmClient
+from app.services.network_fact_provider import (
+    HttpNetworkFactProvider,
+    MockNetworkFactProvider,
+    OfflineCatalogNetworkFactProvider,
+)
 from app.services.network_plan_client import (
     HttpNetworkPlanClient,
     MockNetworkPlanClient,
@@ -52,7 +60,14 @@ class Runtime:
             ) from exc
 
         digest = request_hash(payload)
-        status, cached = await self._claim_audit(payload.request_id, digest)
+        try:
+            status, cached = await self._claim_audit(payload.request_id, digest)
+        except AuditSchemaMismatchError as exc:
+            raise EvaluationServiceError(
+                409,
+                "AUDIT_SCHEMA_MISMATCH",
+                str(exc),
+            ) from exc
         if status == "cached":
             if cached is None:
                 raise RuntimeError("cached audit claim did not include a response")
@@ -84,7 +99,6 @@ class Runtime:
                     request=payload,
                     input_hash=digest,
                     response=result.response,
-                    acl_raw=result.acl_raw,
                     model_raw=result.model_raw,
                     exceptions=result.exceptions,
                     network_plan_raw=result.network_plan_raw,
@@ -131,8 +145,7 @@ class Runtime:
     async def aclose(self) -> None:
         resources = [
             self.evaluator.llm_client,
-            self.evaluator.acl_client,
-            self.network_plan_resolver.client,
+            self.network_plan_resolver.provider,
         ]
         seen: set[int] = set()
         errors: list[BaseException] = []
@@ -186,14 +199,6 @@ def build_runtime(settings: Settings) -> Runtime:
         config_fingerprint=settings.config_fingerprint,
     )
     audit.initialize()
-    if settings.acl_client_mode == "mock":
-        acl_client = MockAclClient(settings.acl_mock_file)
-    else:
-        acl_client = HttpAclClient(
-            settings.acl_api_url or "",
-            settings.acl_timeout_seconds,
-            token=settings.acl_api_token,
-        )
     llm_client = LlmClient(
         mode=settings.llm_client_mode,
         base_url=settings.llm_base_url,
@@ -210,45 +215,45 @@ def build_runtime(settings: Settings) -> Runtime:
         thinking=settings.llm_thinking,
     )
     # Every provider mode goes through the same resolver main path; the
-    # offline catalog acts as an explicit compatibility provider.
+    # offline catalog acts as an explicit compatibility provider whose
+    # explicit classification travels the typed provider-fact channel.
     if settings.network_plan_client_mode == "mock":
-        network_plan_client = MockNetworkPlanClient(settings.network_plan_mock_file)
+        transport = MockNetworkPlanClient(settings.network_plan_mock_file)
     elif settings.network_plan_client_mode == "http":
-        network_plan_client = HttpNetworkPlanClient(
+        transport = HttpNetworkPlanClient(
             settings.network_plan_api_url or "",
             settings.network_plan_timeout_seconds,
             query_parameter=settings.network_plan_http_query_parameter,
             token=settings.network_plan_api_token,
         )
     else:
-        network_plan_client = OfflineCatalogNetworkPlanClient(catalog)
+        transport = OfflineCatalogNetworkPlanClient(catalog)
     if settings.network_plan_cache_ttl_seconds > 0:
-        network_plan_client = TtlNetworkPlanClient(
-            network_plan_client,
+        transport = TtlNetworkPlanClient(
+            transport,
             settings.network_plan_cache_ttl_seconds,
             settings.network_plan_cache_max_entries,
         )
+    if settings.network_plan_client_mode == "mock":
+        provider = MockNetworkFactProvider(transport)
+    elif settings.network_plan_client_mode == "http":
+        provider = HttpNetworkFactProvider(transport)
+    else:
+        provider = OfflineCatalogNetworkFactProvider(transport, catalog)
     network_plan_resolver = NetworkPlanResolver(
-        network_plan_client,
+        provider,
         max_subnets=settings.network_plan_max_subnets_per_request,
         max_concurrency=settings.network_plan_max_concurrency,
         lookup_timeout=settings.network_plan_timeout_seconds,
         batch_timeout=settings.network_plan_batch_timeout_seconds,
-        offline_catalog=catalog,
     )
     evaluator = Evaluator(
         policies=policies,
-        acl_client=acl_client,
-        extractor=AclFactExtractor(),
         llm_client=llm_client,
-        llm_acl_candidate_mode=settings.llm_acl_candidate_mode,
         llm_request_findings_mode=settings.llm_request_findings_mode,
         semantic_effects=settings.semantic_effects,
         network_plan_resolver=network_plan_resolver,
         max_evaluation_items=settings.max_evaluation_items,
-        acl_max_concurrency=settings.acl_max_concurrency,
-        acl_decision_mode=settings.acl_decision_mode,
-        acl_deterministic_pending_mode=settings.acl_deterministic_pending_mode,
         config_id=settings.config_id,
         environment=settings.environment,
         config_fingerprint=settings.config_fingerprint,
@@ -281,7 +286,7 @@ def create_app(
 
     app = FastAPI(
         title="FARE",
-        version="0.2.0",
+        version="0.3.0",
         description="Firewall Access Request Evaluator",
         lifespan=lifespan,
     )
@@ -299,7 +304,7 @@ def create_app(
         )
 
     @app.post(
-        "/v1/evaluations",
+        "/v2/evaluations",
         response_model=EvaluationResponse,
         responses={409: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
         tags=["evaluations"],
@@ -315,6 +320,31 @@ def create_app(
                 exc.message,
                 exc.details,
             )
+
+    @app.post(
+        "/v1/evaluations",
+        status_code=410,
+        responses={
+            410: {
+                "model": ErrorResponse,
+                "description": "Gone — this API version was retired in 0.3.0",
+            }
+        },
+        tags=["evaluations"],
+    )
+    async def evaluate_v1_retired() -> JSONResponse:
+        """Retirement stub for the 0.3.x compatibility window.
+
+        The route never reaches the evaluation runtime and never restores the
+        removed schema; it only points legacy callers at /v2/evaluations. The
+        route itself is deleted in a later coordinated release.
+        """
+
+        return _error(
+            410,
+            "API_VERSION_RETIRED",
+            "/v1/evaluations was retired in 0.3.0; use /v2/evaluations",
+        )
 
     return app
 

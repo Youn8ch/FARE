@@ -18,7 +18,11 @@ FORBIDDEN_ASSERTION_PATTERNS = (
         r"\b(?:already approved|approval granted|route is reachable|nat is configured)\b",
         re.I,
     ),
-    re.compile(r"\b(?:live|production) acl.{0,20}(?:allows|permits|is active)\b", re.I),
+    re.compile(
+        r"\b(?:live|production)\s+(?:firewall|access control).{0,20}"
+        r"(?:allows|permits|is active)\b",
+        re.I,
+    ),
 )
 PENDING_CONFLICT_PATTERNS = (
     re.compile(r"结论.{0,4}(?:为|是)?合规"),

@@ -1,0 +1,46 @@
+{
+  "fixture_version": "2026.09.0",
+  "purpose": "realistic 权威响应自相矛盾：返回 subnet 与查询 /24 不一致 -> NETWORK_PLAN_SUBNET_MISMATCH",
+  "responses": {
+    "192.0.2.0/24": {
+      "http_status": 200,
+      "body": {
+        "code": 200,
+        "msg": "success",
+        "data": {
+          "area": "office",
+          "areaId": "office",
+          "regionName": "office",
+          "platformName": "office-clients",
+          "network": "192.0.2.0/24",
+          "gateway": null,
+          "subnet": "192.0.2.0/24",
+          "vlanId": null,
+          "usageCode": "ENDPOINT",
+          "description": "OFFICE-CLIENTS"
+        },
+        "success": true
+      }
+    },
+    "198.51.100.0/24": {
+      "http_status": 200,
+      "body": {
+        "code": 200,
+        "msg": "success",
+        "data": {
+          "area": "production",
+          "areaId": "production",
+          "regionName": "production",
+          "platformName": "production-db",
+          "network": "203.0.113.0/24",
+          "gateway": null,
+          "subnet": "203.0.113.0/24",
+          "vlanId": null,
+          "usageCode": "PROD_DATABASE",
+          "description": "PROD-DB"
+        },
+        "success": true
+      }
+    }
+  }
+}

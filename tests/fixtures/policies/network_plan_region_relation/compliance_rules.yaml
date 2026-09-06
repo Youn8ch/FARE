@@ -1,27 +1,21 @@
+# 候选路径占位规则已随 0.3.0 能力移除（2026-09）。
 rules:
-  - id: REGION-KUNPENG-CORE-DB-001
-    name: 鲲鹏应用 Region 到核心数据库 Region 访问复核
-    description: 验证相同 area 下 regionName 精确匹配
-    category: zone_relation
-    decision: 待定
-    reason_type: policy_violation
-    when:
-      source_region_name: 鳌峰生产区（科创鲲鹏应用）
-      destination_region_name: 核心生产数据库区
-    semantic_keywords: [鲲鹏应用, 核心数据库, Region]
-    evidence_requirements: [source_region_name, destination_region_name]
-    reason_template: 鲲鹏应用 Region 到核心数据库 Region 的访问需要复核。
-    recommendation: 核实跨 Region 访问必要性。
-    remediation_template: 按 Region 拆分申请并补充审批依据。
-  - id: ACL-PATH-001
-    name: 未找到途径防火墙
-    description: 必需系统规则
-    category: least_privilege
-    decision: 待定
-    reason_type: acl_no_path
-    when: {explicit_no_path: true}
-    semantic_keywords: [无路径]
-    evidence_requirements: [acl_explicit_no_path]
-    reason_template: 未找到候选防火墙。
-    recommendation: 人工复核。
-    remediation_template: 人工复核。
+- id: REGION-KUNPENG-CORE-DB-001
+  name: 鲲鹏应用 Region 到核心数据库 Region 访问复核
+  description: 验证相同 area 下 regionName 精确匹配
+  category: zone_relation
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    source_region_name: 鳌峰生产区（科创鲲鹏应用）
+    destination_region_name: 核心生产数据库区
+  semantic_keywords:
+  - 鲲鹏应用
+  - 核心数据库
+  - Region
+  evidence_requirements:
+  - source_region_name
+  - destination_region_name
+  reason_template: 鲲鹏应用 Region 到核心数据库 Region 的访问需要复核。
+  recommendation: 核实跨 Region 访问必要性。
+  remediation_template: 按 Region 拆分申请并补充审批依据。

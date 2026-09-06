@@ -1,0 +1,22 @@
+version: "2026.09.0"
+# 主画像目录（mock 传输体按 /24 查询粒度应答；目录条目与主画像 fixture 对齐，
+# 仅供 offline 兼容链路与组合计数使用。全部地址为 RFC 5737 文档保留段。）
+networks:
+  - id: RN-OFFICE-CLIENTS
+    cidr: 192.0.2.0/24
+    zone: office
+    environment: office
+    object_type: endpoint
+    labels: [office-client]
+  - id: RN-PROD-DB
+    cidr: 198.51.100.0/24
+    zone: production
+    environment: production
+    object_type: database
+    labels: [production-db]
+  - id: RN-PUBLIC-GATEWAY
+    cidr: 203.0.113.0/24
+    zone: dmz
+    environment: dmz
+    object_type: gateway
+    labels: [public-gateway]

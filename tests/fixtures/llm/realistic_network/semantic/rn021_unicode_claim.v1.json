@@ -1,0 +1,21 @@
+{
+  "fixture_version": "2026.09.0",
+  "purpose": "RN-021 中英文与特殊字符混合描述的结构化声明与逐字证据",
+  "semantic": {
+    "analyzed_item_ids": [
+      "@item:1"
+    ],
+    "claims": [
+      {
+        "claim_id": "rn021-claim-1",
+        "scope": "@item:1",
+        "claim_type": "access_purpose",
+        "field": "access_purpose",
+        "value": "混合业务访问",
+        "source": "request_description",
+        "evidence": "混合描述 mixed 描述",
+        "confidence": 0.8
+      }
+    ]
+  }
+}

@@ -5,20 +5,142 @@
     {
       "id": "llm_explanation_falls_back_to_template_v2",
       "category": "explanation",
-      "dependencies": {"acl_fixture": null, "policy_dir": null},
-      "feature_flags": {"llm_acl_candidate_mode": "off", "llm_request_findings_mode": "off"},
-      "request": {"request_id": "v2-llm-explanation-fallback", "sources": [{"address": "16.1.30.10", "description": "生产应用 A"}], "destinations": [{"address": "16.1.30.20", "description": "生产应用 B"}], "protocol": "tcp", "ports": [{"start": 443, "end": 443}], "request_description": "LLM 解释回退测试"},
-      "llm": {"profile": "fixture", "semantic_fixture": null, "acl_candidate_fixture": null, "request_finding_fixture": null, "explanation_fixture": "explanation/fallback.v2.json"},
-      "expected": {"http_status": 200, "decision": "合规", "items": [{"index": 1, "access": {"source": "16.1.30.10/32", "destination": "16.1.30.20/32", "protocol": "tcp", "port": {"start": 443, "end": 443}}, "decision": "合规", "reason_type": null, "reason_code": null, "matched_rule_ids": []}], "llm_calls": {"semantic": 1, "acl_candidates": 0, "request_findings": 0, "explanation": 1}, "llm_text": {"presence": "absent", "fallback": true}}
+      "dependencies": {
+        "policy_dir": null
+      },
+      "feature_flags": {
+        "llm_request_findings_mode": "off"
+      },
+      "request": {
+        "request_id": "v2-llm-explanation-fallback",
+        "sources": [
+          {
+            "address": "16.1.30.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "LLM 解释回退测试"
+      },
+      "llm": {
+        "profile": "fixture",
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": "explanation/fallback.v2.json"
+      },
+      "expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "16.1.30.10/32",
+              "destination": "16.1.30.20/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": []
+          }
+        ],
+        "llm_calls": {
+          "semantic": 1,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "absent",
+          "fallback": true
+        }
+      }
     },
     {
       "id": "llm_explanation_valid_v2",
       "category": "explanation",
-      "dependencies": {"acl_fixture": null, "policy_dir": null},
-      "feature_flags": {"llm_acl_candidate_mode": "off", "llm_request_findings_mode": "off"},
-      "request": {"request_id": "v2-llm-explanation-valid", "sources": [{"address": "16.1.30.10", "description": "生产应用 A"}], "destinations": [{"address": "16.1.30.20", "description": "生产应用 B"}], "protocol": "tcp", "ports": [{"start": 443, "end": 443}], "request_description": "LLM 独立解释字段测试"},
-      "llm": {"profile": "fixture", "semantic_fixture": null, "acl_candidate_fixture": null, "request_finding_fixture": null, "explanation_fixture": "explanation/valid.v2.json"},
-      "expected": {"http_status": 200, "decision": "合规", "items": [{"index": 1, "access": {"source": "16.1.30.10/32", "destination": "16.1.30.20/32", "protocol": "tcp", "port": {"start": 443, "end": 443}}, "decision": "合规", "reason_type": null, "reason_code": null, "matched_rule_ids": []}], "llm_calls": {"semantic": 1, "acl_candidates": 0, "request_findings": 0, "explanation": 1}, "llm_text": {"presence": "present", "fallback": false}}
+      "dependencies": {
+        "policy_dir": null
+      },
+      "feature_flags": {
+        "llm_request_findings_mode": "off"
+      },
+      "request": {
+        "request_id": "v2-llm-explanation-valid",
+        "sources": [
+          {
+            "address": "16.1.30.10",
+            "description": "生产应用 A"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.1.30.20",
+            "description": "生产应用 B"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
+        "request_description": "LLM 独立解释字段测试"
+      },
+      "llm": {
+        "profile": "fixture",
+        "semantic_fixture": null,
+        "request_finding_fixture": null,
+        "explanation_fixture": "explanation/valid.v2.json"
+      },
+      "expected": {
+        "http_status": 200,
+        "decision": "合规",
+        "items": [
+          {
+            "index": 1,
+            "access": {
+              "source": "16.1.30.10/32",
+              "destination": "16.1.30.20/32",
+              "protocol": "tcp",
+              "port": {
+                "start": 443,
+                "end": 443
+              }
+            },
+            "decision": "合规",
+            "reason_type": null,
+            "reason_code": null,
+            "matched_rule_ids": []
+          }
+        ],
+        "llm_calls": {
+          "semantic": 1,
+          "request_findings": 0,
+          "explanation": 1
+        },
+        "llm_text": {
+          "presence": "present",
+          "fallback": false
+        }
+      }
     }
   ]
 }

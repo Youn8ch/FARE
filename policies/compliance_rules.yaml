@@ -1,95 +1,98 @@
-# OBJECT-001（object_relation，办公终端不得访问生产数据库）自 2026.08.0 起
-# 暂时禁用：canonical 事实链上不存在正式的 usageCode->object_type 映射，
-# 该规则的显式 object_type 事实仅来自 offline 兼容目录，不具备主路径事实来源
-# （FARE-架构收口修复计划 AC-03 7.4）。取得正式数据字典后，在具备显式
-# mapping 事实来源的前提下恢复启用；规则正文保留在
-# tests/fixtures/policies/network_plan_object_relation/ 供回归。
+# 候选路径占位规则已随 0.3.0 能力移除（2026-09）。
 rules:
-  - id: PORT-001
-    name: 禁止 Telnet
-    description: 禁止使用已正式列管的明文管理协议
-    category: special_port
-    decision: 待定
-    reason_type: policy_violation
-    when:
-      protocol: tcp
-      ports: [23]
-    semantic_keywords: [Telnet, 明文管理, 远程管理]
-    evidence_requirements: [protocol, destination_port]
-    reason_template: Telnet 属于组织禁止的明文管理协议。
-    recommendation: 改用受管控的 SSH 或进入例外审批。
-    remediation_template: 改用受管控的加密管理协议或进入正式例外审批。
-
-  - id: LEAST-ANY-001
-    name: 禁止 any 地址
-    description: 源或目的使用 any 会造成无边界开放
-    category: least_privilege
-    decision: 待定
-    reason_type: policy_violation
-    when:
-      check: any_address
-    semantic_keywords: [any, 全来源, 全目的]
-    evidence_requirements: [source_address, destination_address]
-    reason_template: 源或目的地址使用 any，不符合最小开放原则。
-    recommendation: 将地址范围缩小为实际需要的 IP 或 CIDR。
-    remediation_template: 将地址范围缩小为实际需要的 IP 或 CIDR。
-
-  - id: LEAST-CIDR-001
-    name: 禁止过大地址范围
-    description: 地址范围不得超过规则包批准的前缀阈值
-    category: least_privilege
-    decision: 待定
-    reason_type: policy_violation
-    when:
-      check: prefix_too_broad
-      min_ipv4_prefix: 16
-      min_ipv6_prefix: 48
-    semantic_keywords: [地址范围, 网段过大, 最小权限]
-    evidence_requirements: [source_address, destination_address]
-    reason_template: 申请地址范围超过规则包批准的最小前缀阈值。
-    recommendation: 缩小地址范围或拆分申请并说明必要性。
-    remediation_template: 缩小地址范围或按业务场景拆分申请。
-
-  - id: LEAST-PORT-001
-    name: 禁止过大端口范围
-    description: 端口范围不得超过规则包批准的数量阈值
-    category: least_privilege
-    decision: 待定
-    reason_type: policy_violation
-    when:
-      check: port_span
-      max_ports: 100
-    semantic_keywords: [全端口, 端口范围, 最小权限]
-    evidence_requirements: [protocol, destination_port]
-    reason_template: 申请端口范围超过规则包批准的阈值。
-    recommendation: 仅保留实际需要的离散端口或更小范围。
-    remediation_template: 仅保留实际需要的离散端口或更小范围。
-
-  - id: LEAST-COMBINATION-001
-    name: 限制单申请访问组合数量
-    description: 限制多源、多目的与多端口形成的笛卡尔组合数量
-    category: least_privilege
-    decision: 待定
-    reason_type: policy_violation
-    when:
-      check: combination_count
-      max_combinations: 64
-    semantic_keywords: [多源, 多目的, 组合过多, 拆分申请]
-    evidence_requirements: [combination_count]
-    reason_template: 多源、多目的和多端口形成的访问组合数量过多。
-    recommendation: 按业务场景和网络区域拆分申请。
-    remediation_template: 按业务场景和网络区域拆分申请。
-
-  - id: ACL-PATH-001
-    name: 未找到途径防火墙
-    description: ACL API 明确表达没有途径防火墙时进行人工复核
-    category: least_privilege
-    decision: 待定
-    reason_type: acl_no_path
-    when:
-      explicit_no_path: true
-    semantic_keywords: [未找到防火墙, 无路径, 候选路径]
-    evidence_requirements: [acl_explicit_no_path]
-    reason_template: ACL API 明确表示未找到该访问组合经过的防火墙。
-    recommendation: 核实网络目录、候选路径和申请地址后提交人工复核。
-    remediation_template: 核实网络目录、候选路径和申请地址后提交人工复核。
+- id: PORT-001
+  name: 禁止 Telnet
+  description: 禁止使用已正式列管的明文管理协议
+  category: special_port
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    protocol: tcp
+    ports:
+    - 23
+  semantic_keywords:
+  - Telnet
+  - 明文管理
+  - 远程管理
+  evidence_requirements:
+  - protocol
+  - destination_port
+  reason_template: Telnet 属于组织禁止的明文管理协议。
+  recommendation: 改用受管控的 SSH 或进入例外审批。
+  remediation_template: 改用受管控的加密管理协议或进入正式例外审批。
+- id: LEAST-ANY-001
+  name: 禁止 any 地址
+  description: 源或目的使用 any 会造成无边界开放
+  category: least_privilege
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    check: any_address
+  semantic_keywords:
+  - any
+  - 全来源
+  - 全目的
+  evidence_requirements:
+  - source_address
+  - destination_address
+  reason_template: 源或目的地址使用 any，不符合最小开放原则。
+  recommendation: 将地址范围缩小为实际需要的 IP 或 CIDR。
+  remediation_template: 将地址范围缩小为实际需要的 IP 或 CIDR。
+- id: LEAST-CIDR-001
+  name: 禁止过大地址范围
+  description: 地址范围不得超过规则包批准的前缀阈值
+  category: least_privilege
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    check: prefix_too_broad
+    min_ipv4_prefix: 16
+    min_ipv6_prefix: 48
+  semantic_keywords:
+  - 地址范围
+  - 网段过大
+  - 最小权限
+  evidence_requirements:
+  - source_address
+  - destination_address
+  reason_template: 申请地址范围超过规则包批准的最小前缀阈值。
+  recommendation: 缩小地址范围或拆分申请并说明必要性。
+  remediation_template: 缩小地址范围或按业务场景拆分申请。
+- id: LEAST-PORT-001
+  name: 禁止过大端口范围
+  description: 端口范围不得超过规则包批准的数量阈值
+  category: least_privilege
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    check: port_span
+    max_ports: 100
+  semantic_keywords:
+  - 全端口
+  - 端口范围
+  - 最小权限
+  evidence_requirements:
+  - protocol
+  - destination_port
+  reason_template: 申请端口范围超过规则包批准的阈值。
+  recommendation: 仅保留实际需要的离散端口或更小范围。
+  remediation_template: 仅保留实际需要的离散端口或更小范围。
+- id: LEAST-COMBINATION-001
+  name: 限制单申请访问组合数量
+  description: 限制多源、多目的与多端口形成的笛卡尔组合数量
+  category: least_privilege
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    check: combination_count
+    max_combinations: 64
+  semantic_keywords:
+  - 多源
+  - 多目的
+  - 组合过多
+  - 拆分申请
+  evidence_requirements:
+  - combination_count
+  reason_template: 多源、多目的和多端口形成的访问组合数量过多。
+  recommendation: 按业务场景和网络区域拆分申请。
+  remediation_template: 按业务场景和网络区域拆分申请。

@@ -4,6 +4,7 @@ import asyncio
 from pathlib import Path
 
 from app.schemas import EvaluationRequest
+from app.services.network_fact_provider import MockNetworkFactProvider
 from app.services.network_plan_client import MockNetworkPlanClient
 from app.services.network_plan_resolver import NetworkPlanResolver
 
@@ -24,7 +25,7 @@ def _request(source: str) -> EvaluationRequest:
 
 def _resolver(client: MockNetworkPlanClient) -> NetworkPlanResolver:
     return NetworkPlanResolver(
-        client,
+        MockNetworkFactProvider(client),
         max_subnets=64,
         max_concurrency=2,
         lookup_timeout=1,

@@ -15,7 +15,6 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.main import create_app
 from app.services.decision_reducer import (
-    PRIORITY_ACL,
     PRIORITY_NETWORK,
     PRIORITY_RULE,
     PRIORITY_SEMANTIC,
@@ -35,10 +34,6 @@ def _rule(code: str, reason_type: str = "policy_violation") -> Finding:
     return Finding(code=code, source="rule", reason_type=reason_type, priority=PRIORITY_RULE)
 
 
-def _acl(code: str, reason_type: str) -> Finding:
-    return Finding(code=code, source="acl", reason_type=reason_type, priority=PRIORITY_ACL)
-
-
 def _semantic(code: str, reason_type: str, *, affects: bool = True) -> Finding:
     return Finding(
         code=code,
@@ -49,11 +44,10 @@ def _semantic(code: str, reason_type: str, *, affects: bool = True) -> Finding:
     )
 
 
-def test_f01_network_wins_over_rule_acl_semantic() -> None:
+def test_f01_network_wins_over_rule_semantic() -> None:
     findings = [
         _network("NETWORK_PLAN_NOT_FOUND", "fact_incomplete"),
         _rule("PORT-001"),
-        _acl("ACL-PATH-001", "acl_no_path"),
         _semantic("SEMANTIC_FACT_CONFLICT", "fact_conflict"),
     ]
     result = DecisionReducer().reduce(findings)
@@ -65,15 +59,13 @@ def test_f01_network_wins_over_rule_acl_semantic() -> None:
     assert {finding.code for finding in result.findings} >= {
         "NETWORK_PLAN_NOT_FOUND",
         "PORT-001",
-        "ACL-PATH-001",
         "SEMANTIC_FACT_CONFLICT",
     }
 
 
-def test_f02_rule_wins_over_acl_semantic() -> None:
+def test_f02_rule_wins_over_semantic() -> None:
     findings = [
         _rule("PORT-001"),
-        _acl("ACL-PATH-001", "acl_no_path"),
         _semantic("SEMANTIC_FACT_CONFLICT", "fact_conflict"),
     ]
     result = DecisionReducer().reduce(findings)
@@ -81,18 +73,6 @@ def test_f02_rule_wins_over_acl_semantic() -> None:
     assert result.primary_finding is not None
     assert result.primary_finding.code == "PORT-001"
     assert result.reason_type == "policy_violation"
-
-
-def test_f03_acl_wins_over_semantic() -> None:
-    findings = [
-        _acl("ACL-PATH-001", "acl_no_path"),
-        _semantic("SEMANTIC_FACT_CONFLICT", "fact_conflict"),
-    ]
-    result = DecisionReducer().reduce(findings)
-    assert result.decision == "待定"
-    assert result.primary_finding is not None
-    assert result.primary_finding.code == "ACL-PATH-001"
-    assert result.reason_type == "acl_no_path"
 
 
 def test_f04_semantic_conflict_downgrades_compliant() -> None:
@@ -119,7 +99,6 @@ def test_secondary_findings_never_override_higher_priority_primary() -> None:
     # 乱序输入：优先级仍由阶段决定，与插入顺序无关
     findings = [
         _semantic("SEMANTIC_FACT_CONFLICT", "fact_conflict"),
-        _acl("ACL-PATH-001", "acl_no_path"),
         _rule("PORT-001"),
         _network("NETWORK_PLAN_NOT_FOUND", "fact_incomplete"),
     ]
@@ -193,7 +172,7 @@ def test_api_cases_keep_baseline_outputs(settings: Settings) -> None:
     }
     with TestClient(create_app(_mock_chain(settings))) as client:
         responses = {
-            name: client.post("/v1/evaluations", json=payload).json()
+            name: client.post("/v2/evaluations", json=payload).json()
             for name, (payload, _, _) in cases.items()
         }
     case05 = responses["ac04-case-05-telnet"]

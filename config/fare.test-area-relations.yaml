@@ -1,15 +1,12 @@
 schema_version: fare-config/v1
 config_id: fare-test-area-relations
 environment: test
-
 server:
   host: 127.0.0.1
   port: 8000
   max_concurrent_evaluations: 4
-
 policy:
   directory: ../tests/fixtures/policies/network_plan_area_relation_matrix
-
 requirement_source:
   mode: local
   execution:
@@ -18,7 +15,7 @@ requirement_source:
     poll_interval_seconds: 30
   local:
     directory: ../tests/cases/network_requirements
-    pattern: "area_relation_*.batch.json"
+    pattern: area_relation_*.batch.json
     recursive: false
   api:
     url: http://127.0.0.1:9000/v1/network-requirements
@@ -27,7 +24,6 @@ requirement_source:
     auth:
       type: none
   output_file: ../run_results/area_relation_results.json
-
 network_plan:
   mode: mock
   mock:
@@ -43,21 +39,6 @@ network_plan:
   cache:
     ttl_seconds: 0
     max_entries: 1024
-
-acl:
-  mode: mock
-  decision_mode: advisory
-  # 区域关系矩阵需要对每个组合保留 ACL 验证，用于完整契约回归。
-  deterministic_pending_mode: analyze
-  max_concurrency: 8
-  mock:
-    fixture: null
-  http:
-    url: null
-    timeout_seconds: 10
-    auth:
-      type: none
-
 llm:
   mode: mock
   mock:
@@ -76,13 +57,10 @@ llm:
     stop: null
     thinking: disabled
   features:
-    acl_candidate_mode: "off"
-    request_findings_mode: "off"
-
+    request_findings_mode: 'off'
 evaluation:
   max_items: 4
   network_plan_max_subnets: 4
-
 audit:
   directory: ../audit_logs/area_relation_tests
   retention_days: 30

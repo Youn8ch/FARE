@@ -8,7 +8,6 @@ from pydantic import (
     ConfigDict,
     Field,
     field_validator,
-    model_serializer,
     model_validator,
 )
 
@@ -17,7 +16,6 @@ ReasonType = Literal[
     "policy_violation",
     "fact_incomplete",
     "fact_conflict",
-    "acl_no_path",
     "dependency_failure",
     "risk_uncertain",
 ]
@@ -221,6 +219,22 @@ class DecisionTrace(StrictModel):
     final_reason_code: str | None = None
 
 
+class DecisionFinding(StrictModel):
+    """One adjudication finding exposed on the item (V4-P4, additive).
+
+    Mirrors the reducer's ``Finding`` in frozen insertion order; the internal
+    priority is not exposed. ``is_primary`` marks the single finding that
+    determined ``reason_code`` / ``reason_type``.
+    """
+
+    code: str
+    source: Literal["network", "rule", "semantic"]
+    reason_type: ReasonType | None = None
+    affects_decision: bool = True
+    detail: str | None = None
+    is_primary: bool = False
+
+
 class EvaluationItem(StrictModel):
     item_id: str
     access: Access
@@ -228,20 +242,27 @@ class EvaluationItem(StrictModel):
     reason_type: ReasonType | None = None
     reason_code: str | None = None
     matched_rules: list[MatchedRule] = Field(default_factory=list)
+    decision_findings: list[DecisionFinding] = Field(default_factory=list)
     evidence: list[str] = Field(default_factory=list)
     reason: str
     recommendation: str
     explanation_source: Literal["llm", "template"] = "template"
-    llm_explanation: str | None = Field(default=None, max_length=4000)
-    llm_recommendation: str | None = Field(default=None, max_length=4000)
+    # ``exclude_if`` is Pydantic's public schema-preserving omission contract:
+    # disabled optional fields stay out of serialized JSON while the
+    # validation *and* serialization JSON schemas remain complete for OpenAPI.
+    llm_explanation: str | None = Field(
+        default=None, max_length=4000, exclude_if=lambda value: value is None
+    )
+    llm_recommendation: str | None = Field(
+        default=None, max_length=4000, exclude_if=lambda value: value is None
+    )
     source_network_fact_ids: list[str] = Field(default_factory=list)
     destination_network_fact_ids: list[str] = Field(default_factory=list)
     source_network_fact_status: NetworkFactStatus = "not_applicable"
     destination_network_fact_status: NetworkFactStatus = "not_applicable"
-    acl_verification_status: Literal[
-        "verified", "unverified", "review_required", "skipped"
-    ] = "unverified"
-    decision_trace: DecisionTrace | None = None
+    decision_trace: DecisionTrace | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
     @model_validator(mode="after")
     def pending_requires_reason(self) -> EvaluationItem:
@@ -250,154 +271,6 @@ class EvaluationItem(StrictModel):
         if self.decision == "合规" and (self.reason_type or self.reason_code):
             raise ValueError("compliant items cannot contain pending reason fields")
         return self
-
-    @model_serializer(mode="wrap")
-    def omit_empty_llm_text(self, handler: Any) -> dict[str, Any]:
-        serialized = handler(self)
-        if self.llm_explanation is None:
-            serialized.pop("llm_explanation", None)
-        if self.llm_recommendation is None:
-            serialized.pop("llm_recommendation", None)
-        if self.decision_trace is None:
-            serialized.pop("decision_trace", None)
-        return serialized
-
-
-class ExtractedFacts(StrictModel):
-    firewalls: list[str] = Field(default_factory=list)
-    explicit_no_path: bool = False
-    candidate_acls: list[str] = Field(default_factory=list)
-    address_objects: list[str] = Field(default_factory=list)
-    observed_ports: list[int] = Field(default_factory=list)
-    evidence: list[str] = Field(default_factory=list)
-    ambiguous: bool = False
-
-
-class AclAnalysis(StrictModel):
-    classification: Literal["候选路径与拟新增策略分析，非现网 ACL 状态"] = (
-        "候选路径与拟新增策略分析，非现网 ACL 状态"
-    )
-    raw_analysis: str
-    raw_config: str
-    extracted_facts: ExtractedFacts
-    verification_summary: dict[
-        Literal["verified", "unverified", "review_required", "skipped"], int
-    ] = Field(default_factory=dict)
-
-
-AclCandidateFactType = Literal[
-    "firewall",
-    "candidate_acl",
-    "address_object",
-    "observed_port",
-]
-AclCandidateEvidenceSource = Literal["acl_analysis", "acl_config"]
-AclCandidateMergeStatus = Literal[
-    "agree",
-    "llm_only",
-    "deterministic_only",
-    "conflict",
-    "empty",
-    "rejected",
-]
-
-
-class LlmAclCandidateFact(StrictModel):
-    type: AclCandidateFactType
-    value: str | int
-    source: AclCandidateEvidenceSource
-    evidence: str = Field(min_length=1, max_length=4000)
-    confidence: float = Field(ge=0, le=1)
-
-    @field_validator("value", mode="before")
-    @classmethod
-    def reject_boolean_value(cls, value: Any) -> Any:
-        if isinstance(value, bool):
-            raise ValueError("ACL candidate fact value must not be boolean")
-        return value
-
-    @field_validator("evidence")
-    @classmethod
-    def strip_evidence(cls, value: str) -> str:
-        value = value.strip()
-        if not value:
-            raise ValueError("ACL candidate evidence must not be blank")
-        return value
-
-    @model_validator(mode="after")
-    def validate_value_type(self) -> LlmAclCandidateFact:
-        if self.type == "observed_port":
-            if (
-                not isinstance(self.value, int)
-                or isinstance(self.value, bool)
-                or not 0 <= self.value <= 65535
-            ):
-                raise ValueError("observed_port value must be an integer from 0 to 65535")
-            return self
-        if not isinstance(self.value, str) or not self.value.strip():
-            raise ValueError(f"{self.type} value must be a non-blank string")
-        self.value = self.value.strip()
-        return self
-
-
-class LlmAclExtractionItem(StrictModel):
-    item_id: str = Field(min_length=1, max_length=300)
-    facts: list[LlmAclCandidateFact] = Field(default_factory=list)
-    firewalls: list[str] = Field(default_factory=list)
-    candidate_acls: list[str] = Field(default_factory=list)
-    address_objects: list[str] = Field(default_factory=list)
-    observed_ports: list[int] = Field(default_factory=list)
-    evidence: list[str] = Field(default_factory=list)
-
-    @field_validator("firewalls", "candidate_acls", "address_objects")
-    @classmethod
-    def validate_flat_string_facts(cls, values: list[str]) -> list[str]:
-        normalized = [value.strip() for value in values]
-        if any(not value for value in normalized):
-            raise ValueError("flat ACL candidate values must not be blank")
-        return normalized
-
-    @field_validator("observed_ports", mode="before")
-    @classmethod
-    def reject_boolean_ports(cls, values: Any) -> Any:
-        if isinstance(values, list) and any(isinstance(value, bool) for value in values):
-            raise ValueError("observed ports must be integers, not booleans")
-        return values
-
-    @field_validator("observed_ports")
-    @classmethod
-    def validate_flat_ports(cls, values: list[int]) -> list[int]:
-        if any(not 0 <= value <= 65535 for value in values):
-            raise ValueError("observed ports must be from 0 to 65535")
-        return values
-
-    @field_validator("evidence")
-    @classmethod
-    def validate_flat_evidence(cls, values: list[str]) -> list[str]:
-        normalized = [value.strip() for value in values]
-        if any(not value for value in normalized):
-            raise ValueError("ACL candidate evidence must not be blank")
-        return normalized
-
-
-class LlmAclExtractionResponse(StrictModel):
-    items: list[LlmAclExtractionItem]
-
-
-class AclCandidateComparison(StrictModel):
-    item_id: str
-    status: AclCandidateMergeStatus
-    deterministic: ExtractedFacts
-    llm_candidate: LlmAclExtractionItem
-    rejection_reason: str | None = None
-
-
-class AclCandidateAnalysis(StrictModel):
-    mode: Literal["shadow"] = "shadow"
-    classification: Literal["LLM 候选事实影子分析，不作为合规依据"] = (
-        "LLM 候选事实影子分析，不作为合规依据"
-    )
-    items: list[AclCandidateComparison] = Field(default_factory=list)
 
 
 class ModelInfo(StrictModel):
@@ -426,8 +299,6 @@ SemanticEvidenceSource = Literal[
     "request_description",
     "source_description",
     "destination_description",
-    "acl_analysis",
-    "acl_config",
     "network_plan_fact",
 ]
 RequestFindingType = Literal[
@@ -457,8 +328,6 @@ VerbatimEvidenceSource = Literal[
     "request_description",
     "source_description",
     "destination_description",
-    "acl_analysis",
-    "acl_config",
 ]
 
 
@@ -715,45 +584,25 @@ class EvaluationResponse(StrictModel):
     model: ModelInfo
     semantic_analysis: SemanticAnalysis
     items: list[EvaluationItem]
-    acl_analysis: AclAnalysis
     audit_id: str
-    network_analysis: NetworkAnalysis | None = None
-    acl_candidate_analysis: AclCandidateAnalysis | None = None
-    request_findings: RequestFindingsAnalysis | None = None
-
-    @model_serializer(mode="wrap")
-    def omit_disabled_shadow_stages(self, handler: Any) -> dict[str, Any]:
-        serialized = handler(self)
-        if self.acl_candidate_analysis is None:
-            serialized.pop("acl_candidate_analysis", None)
-        if self.request_findings is None:
-            serialized.pop("request_findings", None)
-        if self.network_analysis is None:
-            serialized.pop("network_analysis", None)
-        return serialized
+    network_analysis: NetworkAnalysis | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    request_findings: RequestFindingsAnalysis | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
 
 class ErrorDetail(StrictModel):
     code: str
     message: str
-    details: dict[str, int] | None = None
-
-    @model_serializer(mode="wrap")
-    def omit_empty_details(self, handler: Any) -> dict[str, Any]:
-        serialized = handler(self)
-        if self.details is None:
-            serialized.pop("details", None)
-        return serialized
+    details: dict[str, int] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
 
 class ErrorResponse(StrictModel):
     error: ErrorDetail
-
-
-class AclRawResponse(StrictModel):
-    analysis: str = ""
-    config: str = ""
-    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class LlmSemanticClaim(_SemanticClaimBase):

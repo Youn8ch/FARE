@@ -7,12 +7,12 @@ from pathlib import Path
 import httpx
 import pytest
 
+from app.services.network_fact_provider import validate_network_plan_response
 from app.services.network_plan_client import (
     HttpNetworkPlanClient,
     MockNetworkPlanClient,
     TtlNetworkPlanClient,
 )
-from app.services.network_plan_resolver import validate_network_plan_response
 
 FIXTURE = Path("tests/fixtures/network_plan/multi_region.v1.json")
 

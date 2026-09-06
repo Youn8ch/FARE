@@ -8,35 +8,98 @@
       "id": "prefix-23-positive",
       "request": {
         "request_id": "group-prefix-23-positive",
-        "sources": [{"address": "16.201.0.0/23", "description": "聚合应用网段"}],
-        "destinations": [{"address": "16.220.16.20", "description": "数据库"}],
-        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "sources": [
+          {
+            "address": "16.201.0.0/23",
+            "description": "聚合应用网段"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.220.16.20",
+            "description": "数据库"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
         "request_description": "/23 宽于规则阈值"
       },
       "expected": {
-        "decision": "待定", "lookup_count": 3, "acl_call_count": 1,
-        "accesses": [{"source": "16.201.0.0/23", "destination": "16.220.16.20/32"}],
-        "reason_codes": ["PREFIX-MIN-24-001"],
-        "matched_rule_ids": [["PREFIX-MIN-24-001"]],
-        "source_statuses": ["complete"], "destination_statuses": ["complete"],
-        "acl_statuses": ["verified"]
+        "decision": "待定",
+        "lookup_count": 3,
+        "accesses": [
+          {
+            "source": "16.201.0.0/23",
+            "destination": "16.220.16.20/32"
+          }
+        ],
+        "reason_codes": [
+          "PREFIX-MIN-24-001"
+        ],
+        "matched_rule_ids": [
+          [
+            "PREFIX-MIN-24-001"
+          ]
+        ],
+        "source_statuses": [
+          "complete"
+        ],
+        "destination_statuses": [
+          "complete"
+        ]
       }
     },
     {
       "id": "prefix-24-boundary-negative",
       "request": {
         "request_id": "group-prefix-24-negative",
-        "sources": [{"address": "16.201.0.0/24", "description": "应用网段"}],
-        "destinations": [{"address": "16.220.16.20", "description": "数据库"}],
-        "protocol": "tcp", "ports": [{"start": 443, "end": 443}],
+        "sources": [
+          {
+            "address": "16.201.0.0/24",
+            "description": "应用网段"
+          }
+        ],
+        "destinations": [
+          {
+            "address": "16.220.16.20",
+            "description": "数据库"
+          }
+        ],
+        "protocol": "tcp",
+        "ports": [
+          {
+            "start": 443,
+            "end": 443
+          }
+        ],
         "request_description": "/24 等于规则阈值"
       },
       "expected": {
-        "decision": "合规", "lookup_count": 2, "acl_call_count": 1,
-        "accesses": [{"source": "16.201.0.0/24", "destination": "16.220.16.20/32"}],
-        "reason_codes": [null], "matched_rule_ids": [[]],
-        "source_statuses": ["complete"], "destination_statuses": ["complete"],
-        "acl_statuses": ["verified"]
+        "decision": "合规",
+        "lookup_count": 2,
+        "accesses": [
+          {
+            "source": "16.201.0.0/24",
+            "destination": "16.220.16.20/32"
+          }
+        ],
+        "reason_codes": [
+          null
+        ],
+        "matched_rule_ids": [
+          []
+        ],
+        "source_statuses": [
+          "complete"
+        ],
+        "destination_statuses": [
+          "complete"
+        ]
       }
     }
   ]

@@ -1,0 +1,30 @@
+{
+  "fixture_version": "2026.09.0",
+  "purpose": "realistic 网段规划认证失败：401 -> NETWORK_PLAN_AUTH_FAILURE",
+  "responses": {
+    "192.0.2.0/24": {
+      "http_status": 200,
+      "body": {
+        "code": 200,
+        "msg": "success",
+        "data": {
+          "area": "office",
+          "areaId": "office",
+          "regionName": "office",
+          "platformName": "office-clients",
+          "network": "192.0.2.0/24",
+          "gateway": null,
+          "subnet": "192.0.2.0/24",
+          "vlanId": null,
+          "usageCode": "ENDPOINT",
+          "description": "OFFICE-CLIENTS"
+        },
+        "success": true
+      }
+    },
+    "198.51.100.0/24": {
+      "http_status": 401,
+      "body": null
+    }
+  }
+}

@@ -6,20 +6,18 @@
 4. config/fare.yaml dev profile + README startup command
 
 Dev/test target values: network_plan.mode=mock (versioned fixture),
-acl.mode=mock, acl.decision_mode=advisory, llm.mode=mock,
-llm.features.acl_candidate_mode=off, llm.features.request_findings_mode=off.
-offline_catalog and acl.decision_mode=required only exist when explicitly
-declared.
+llm.mode=mock, llm.features.request_findings_mode=off. offline_catalog only
+exists when explicitly declared.
 """
 
 from __future__ import annotations
 
-from dataclasses import replace
 from pathlib import Path
 
 import pytest
 import yaml
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from app.config import FareConfig, Settings
 from app.main import build_runtime, create_app
@@ -32,10 +30,6 @@ REQUIRED_SETTINGS = dict(
     policy_dir=PROJECT_ROOT / "policies",
     audit_log_dir=Path("unused"),
     audit_log_retention_days=30,
-    acl_client_mode="mock",
-    acl_mock_file=None,
-    acl_api_url=None,
-    acl_timeout_seconds=10.0,
     llm_client_mode="mock",
     llm_base_url=None,
     llm_model=None,
@@ -51,20 +45,14 @@ REQUIRED_SETTINGS = dict(
 def _modes(settings: Settings) -> dict[str, object]:
     return {
         "network_plan": settings.network_plan_client_mode,
-        "acl": settings.acl_client_mode,
-        "acl_decision": settings.acl_decision_mode,
         "llm": settings.llm_client_mode,
-        "acl_candidate_feature": settings.llm_acl_candidate_mode,
         "request_findings_feature": settings.llm_request_findings_mode,
     }
 
 
 DEV_DEFAULTS = {
     "network_plan": "mock",
-    "acl": "mock",
-    "acl_decision": "advisory",
     "llm": "mock",
-    "acl_candidate_feature": "off",
     "request_findings_feature": "off",
 }
 
@@ -90,19 +78,13 @@ def test_entry2_yaml_schema_defaults_match_dev_defaults(tmp_path: Path) -> None:
     }
     raw["llm"].pop("http", None)
     raw["llm"].pop("features", None)
-    raw["acl"].pop("decision_mode", None)
-    raw["acl"].pop("deterministic_pending_mode", None)
     config_path = tmp_path / "minimal.yaml"
     config_path.write_text(yaml.safe_dump(raw, allow_unicode=True), encoding="utf-8")
 
     config = FareConfig.load(config_path)
-    assert config.settings.acl_decision_mode == "advisory"
-    assert config.settings.acl_deterministic_pending_mode == "analyze"
-    assert config.settings.llm_acl_candidate_mode == "off"
     assert config.settings.llm_request_findings_mode == "off"
     # schema-level required keys keep every profile explicit about its modes
     assert config.settings.network_plan_client_mode == "mock"
-    assert config.settings.acl_client_mode == "mock"
     assert config.settings.llm_client_mode == "mock"
 
 
@@ -116,9 +98,6 @@ def test_entry3_conftest_fixture_declares_every_mode_key(settings) -> None:
     source = inspect.getsource(conftest_settings_fixture)
     for key in (
         "network_plan_client_mode",
-        "acl_decision_mode",
-        "acl_deterministic_pending_mode",
-        "llm_acl_candidate_mode",
         "llm_request_findings_mode",
     ):
         assert key in source, f"conftest fixture must declare {key} explicitly"
@@ -149,7 +128,7 @@ def test_dev_profile_starts_and_serves_documented_request(settings) -> None:
     with TestClient(create_app(settings)) as client:
         assert client.app.state.runtime.network_plan_resolver is not None
         response = client.post(
-            "/v1/evaluations",
+            "/v2/evaluations",
             json={
                 "request_id": "ac07-dev-default",
                 "sources": [{"address": "16.1.30.10", "description": "生产应用"}],
@@ -174,21 +153,41 @@ def test_dev_profile_starts_and_serves_documented_request(settings) -> None:
     ],
 )
 def test_every_profile_declares_modes_explicitly(profile: str) -> None:
-    """offline_catalog 与 required 不允许成为隐式默认：每个 profile 显式声明。"""
+    """offline_catalog 不允许成为隐式默认：每个 profile 显式声明。"""
 
     raw = yaml.safe_load((PROJECT_ROOT / profile).read_text(encoding="utf-8"))
     assert raw["network_plan"]["mode"] in {"mock", "http", "offline_catalog"}
-    assert raw["acl"]["mode"] in {"mock", "http"}
-    assert raw["acl"]["decision_mode"] in {"advisory", "required"}
     assert raw["llm"]["mode"] in {"mock", "http"}
     features = raw["llm"].get("features", {})
-    assert features.get("acl_candidate_mode", "off") in {"off", "shadow"}
     assert features.get("request_findings_mode", "off") in {"off", "shadow"}
+    # 已移除能力的配置键不允许在任何现役 profile 中出现
+    assert "acl" not in raw
+    assert "acl_candidate_mode" not in features
 
 
-def test_required_mode_is_never_implicit(settings) -> None:
-    """conftest fixture（dev 默认）是 advisory；required 只能显式 replace。"""
+def test_removed_capability_config_keys_fail_closed(tmp_path: Path) -> None:
+    """配置 schema extra='forbid'：残留的已移除配置键必须显式启动失败。"""
 
-    assert settings.acl_decision_mode == "advisory"
-    explicit = replace(settings, acl_decision_mode="required")
-    assert explicit.acl_decision_mode == "required"
+    raw = yaml.safe_load(FARE_YAML.read_text(encoding="utf-8"))
+    raw["config_id"] = "fare-legacy-keys"
+    raw["policy"]["directory"] = str(PROJECT_ROOT / "policies")
+    raw["audit"]["directory"] = str(tmp_path / "audit")
+    raw["requirement_source"] = {
+        "mode": "local",
+        "local": {
+            "directory": str(PROJECT_ROOT / "inputs/network_requirements"),
+            "pattern": "*.json",
+        },
+        "output_file": str(tmp_path / "out.json"),
+    }
+    raw["acl"] = {"mode": "mock"}
+    raw["llm"].setdefault("features", {})["acl_candidate_mode"] = "off"
+    config_path = tmp_path / "legacy.yaml"
+    config_path.write_text(yaml.safe_dump(raw, allow_unicode=True), encoding="utf-8")
+
+    from pytest import raises
+
+    with raises(ValidationError) as excinfo:
+        FareConfig.load(config_path)
+    message = str(excinfo.value)
+    assert "acl" in message

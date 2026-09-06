@@ -1,15 +1,12 @@
 schema_version: fare-config/v1
 config_id: fare-local-test
 environment: test
-
 server:
   host: 0.0.0.0
   port: 8000
   max_concurrent_evaluations: 4
-
 policy:
   directory: ../policies
-
 requirement_source:
   mode: local
   execution:
@@ -18,7 +15,7 @@ requirement_source:
     poll_interval_seconds: 30
   local:
     directory: ../inputs/network_requirements
-    pattern: "*.json"
+    pattern: '*.json'
     recursive: false
   api:
     url: http://127.0.0.1:9000/v1/network-requirements
@@ -28,7 +25,6 @@ requirement_source:
       type: bearer
       token: test-requirement-token
   output_file: ../run_results/network_requirement_results.json
-
 network_plan:
   mode: mock
   mock:
@@ -45,21 +41,6 @@ network_plan:
   cache:
     ttl_seconds: 0
     max_entries: 1024
-
-acl:
-  mode: mock
-  decision_mode: advisory
-  deterministic_pending_mode: skip
-  max_concurrency: 8
-  mock:
-    fixture: null
-  http:
-    url: http://127.0.0.1:9002/v1/acl/analyze
-    timeout_seconds: 10
-    auth:
-      type: bearer
-      token: test-acl-token
-
 llm:
   mode: mock
   mock:
@@ -78,9 +59,7 @@ llm:
     stop: null
     thinking: disabled
   features:
-    acl_candidate_mode: "off"
-    request_findings_mode: "off"
-
+    request_findings_mode: 'off'
 evaluation:
   max_items: 256
   network_plan_max_subnets: 64
@@ -92,7 +71,6 @@ evaluation:
     mixed_business_context: review_required
     approval_scope_mismatch: review_required
     unclassified_privileged_access: observe_only
-
 audit:
   directory: ../audit_logs
   retention_days: 30

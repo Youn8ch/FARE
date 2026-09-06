@@ -1,0 +1,46 @@
+{
+  "fixture_version": "2026.09.0",
+  "purpose": "realistic 网段规划响应损坏：合法外形的坏 data -> invalid_response",
+  "responses": {
+    "192.0.2.0/24": {
+      "http_status": 200,
+      "body": {
+        "code": 200,
+        "msg": "success",
+        "data": {
+          "area": "office",
+          "areaId": "office",
+          "regionName": "office",
+          "platformName": "office-clients",
+          "network": "192.0.2.0/24",
+          "gateway": null,
+          "subnet": "192.0.2.0/24",
+          "vlanId": null,
+          "usageCode": "ENDPOINT",
+          "description": "OFFICE-CLIENTS"
+        },
+        "success": true
+      }
+    },
+    "198.51.100.0/24": {
+      "http_status": 200,
+      "body": {
+        "code": 200,
+        "msg": "success",
+        "data": {
+          "area": "production",
+          "areaId": "production",
+          "regionName": "production",
+          "platformName": "production",
+          "network": "not-a-cidr",
+          "gateway": null,
+          "subnet": "198.51.100.0/24",
+          "vlanId": null,
+          "usageCode": null,
+          "description": "BROKEN"
+        },
+        "success": true
+      }
+    }
+  }
+}

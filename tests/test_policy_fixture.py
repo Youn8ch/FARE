@@ -39,8 +39,7 @@ def test_zone_relation_fixture_is_a_complete_loadable_policy_bundle() -> None:
     catalog, policies = _load_bundle(ZONE_POLICY_DIR)
 
     assert policies.version == catalog.version == "test.zone-relation.1"
-    assert policies.rule_ids == {"ZONE-TEST-001", "ACL-PATH-001"}
-    assert policies.acl_no_path_rule.reason_type == "acl_no_path"
+    assert policies.rule_ids == {"ZONE-TEST-001"}
 
 
 def test_zone_relation_fixture_matches_only_the_configured_direction() -> None:

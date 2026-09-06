@@ -1,25 +1,20 @@
+# 候选路径占位规则已随 0.3.0 能力移除（2026-09）。
 rules:
-  - id: COMBINATION-MAX-2-001
-    name: 单申请最多两个业务组合
-    description: 使用测试阈值验证两个允许、四个命中的边界
-    category: least_privilege
-    decision: 待定
-    reason_type: policy_violation
-    when: {check: combination_count, max_combinations: 2}
-    semantic_keywords: [组合数量, 多源, 多目的]
-    evidence_requirements: [combination_count]
-    reason_template: 单申请访问组合数量超过两个。
-    recommendation: 按业务场景拆分申请。
-    remediation_template: 按来源、目的或用途拆分申请。
-  - id: ACL-PATH-001
-    name: 未找到途径防火墙
-    description: 必需系统规则
-    category: least_privilege
-    decision: 待定
-    reason_type: acl_no_path
-    when: {explicit_no_path: true}
-    semantic_keywords: [无路径]
-    evidence_requirements: [acl_explicit_no_path]
-    reason_template: 未找到候选防火墙。
-    recommendation: 人工复核。
-    remediation_template: 人工复核。
+- id: COMBINATION-MAX-2-001
+  name: 单申请最多两个业务组合
+  description: 使用测试阈值验证两个允许、四个命中的边界
+  category: least_privilege
+  decision: 待定
+  reason_type: policy_violation
+  when:
+    check: combination_count
+    max_combinations: 2
+  semantic_keywords:
+  - 组合数量
+  - 多源
+  - 多目的
+  evidence_requirements:
+  - combination_count
+  reason_template: 单申请访问组合数量超过两个。
+  recommendation: 按业务场景拆分申请。
+  remediation_template: 按来源、目的或用途拆分申请。

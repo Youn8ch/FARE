@@ -76,7 +76,6 @@ def _keys(item: dict) -> dict:
         "destination_network_fact_status": item["destination_network_fact_status"],
         "source_network_fact_ids": item["source_network_fact_ids"],
         "destination_network_fact_ids": item["destination_network_fact_ids"],
-        "acl_verification_status": item["acl_verification_status"],
         "semantic_effect": item["decision_trace"]["semantic_effect"],
         "final_decision": item["decision_trace"]["final_decision"],
     }
@@ -94,12 +93,12 @@ def test_mock_and_offline_produce_identical_items_for_equivalent_facts(
         offline_status, offline_body = _run(client, _same_request("ac02-equiv-offline"))
         offline_runtime = client.app.state.runtime
         offline_calls = list(
-            offline_runtime.network_plan_resolver.client.calls
+            offline_runtime.network_plan_resolver.provider.transport.calls
         )
     with TestClient(create_app(mock_settings)) as client:
         mock_status, mock_body = _run(client, _same_request("ac02-equiv-mock"))
         mock_runtime = client.app.state.runtime
-        mock_calls = list(mock_runtime.network_plan_resolver.client.calls)
+        mock_calls = list(mock_runtime.network_plan_resolver.provider.transport.calls)
 
     assert offline_status == mock_status == 200
     assert offline_body["decision"] == mock_body["decision"]
@@ -109,7 +108,7 @@ def test_mock_and_offline_produce_identical_items_for_equivalent_facts(
 
 
 def _run(client: TestClient, payload: dict):
-    response = client.post("/v1/evaluations", json=payload)
+    response = client.post("/v2/evaluations", json=payload)
     return response.status_code, response.json()
 
 
@@ -124,7 +123,7 @@ def test_query_limit_applies_to_offline_catalog_mode(settings: Settings) -> None
         runtime = client.app.state.runtime
         status, body = _run(client, payload)
         repeat_status, repeat_body = _run(client, payload)
-        calls = list(runtime.network_plan_resolver.client.calls)
+        calls = list(runtime.network_plan_resolver.provider.transport.calls)
     assert status == repeat_status == 422
     assert body["error"]["code"] == "NETWORK_PLAN_QUERY_LIMIT_EXCEEDED"
     assert body["error"]["details"] == {"actual": 2, "limit": 1}
@@ -167,8 +166,8 @@ def test_all_provider_modes_build_a_runtime_resolver(settings: Settings) -> None
     try:
         assert offline_runtime.network_plan_resolver is not None
         assert (
-            offline_runtime.network_plan_resolver.client.__class__.__name__
-            == "OfflineCatalogNetworkPlanClient"
+            offline_runtime.network_plan_resolver.provider.__class__.__name__
+            == "OfflineCatalogNetworkFactProvider"
         )
     finally:
         asyncio.run(close(offline_runtime))
@@ -177,8 +176,8 @@ def test_all_provider_modes_build_a_runtime_resolver(settings: Settings) -> None
     try:
         assert mock_runtime.network_plan_resolver is not None
         assert (
-            mock_runtime.network_plan_resolver.client.__class__.__name__
-            == "MockNetworkPlanClient"
+            mock_runtime.network_plan_resolver.provider.__class__.__name__
+            == "MockNetworkFactProvider"
         )
     finally:
         asyncio.run(close(mock_runtime))
@@ -193,8 +192,8 @@ def test_all_provider_modes_build_a_runtime_resolver(settings: Settings) -> None
     try:
         assert http_runtime.network_plan_resolver is not None
         assert (
-            http_runtime.network_plan_resolver.client.__class__.__name__
-            == "HttpNetworkPlanClient"
+            http_runtime.network_plan_resolver.provider.__class__.__name__
+            == "HttpNetworkFactProvider"
         )
     finally:
         asyncio.run(close(http_runtime))

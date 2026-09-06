@@ -1,5 +1,8 @@
 # FARE 架构收口最终验收报告（AC-09）
 
+> [!NOTE]
+> 历史文档（0.3.0 之前）：本文描述的候选路径/拟配置分析能力已在 0.3.0 完整移除，仅供历史追溯，不代表现状。现状见 README.md 与 docs/ARCHITECTURE.md。
+
 > 执行日期：2026-08-30
 > 执行依据：`docs/history/FARE-架构收口修复计划-V2.md`（V2.1 校准版）
 > 验收命令：`pytest -p no:cacheprovider -q`、`ruff check . --no-cache`、

@@ -25,6 +25,7 @@ from app.services.canonical import (
     canonical_from_resolved,
 )
 from app.services.catalog import NetworkCatalog
+from app.services.network_fact_provider import MockNetworkFactProvider
 from app.services.network_plan_client import MockNetworkPlanClient
 from app.services.network_plan_resolver import NetworkPlanResolver
 from app.services.splitter import split_resolved_request
@@ -55,7 +56,9 @@ def _plan_fact(**overrides) -> NetworkPlanFact:
 def _canonical_combinations(settings: Settings, payload: dict):
     request = EvaluationRequest.model_validate(payload)
     resolver = NetworkPlanResolver(
-        MockNetworkPlanClient(settings.network_plan_mock_file),
+        MockNetworkFactProvider(
+            MockNetworkPlanClient(settings.network_plan_mock_file)
+        ),
         max_subnets=settings.network_plan_max_subnets_per_request,
         max_concurrency=settings.network_plan_max_concurrency,
         lookup_timeout=settings.network_plan_timeout_seconds,
@@ -274,7 +277,7 @@ def test_resolved_conversion_preserves_provider_metadata(settings: Settings) -> 
 
 def test_case01_api_baseline_unchanged(settings: Settings) -> None:
     with TestClient(create_app(_mock_chain(settings))) as client:
-        response = client.post("/v1/evaluations", json=_payload("ac01-api-case-01"))
+        response = client.post("/v2/evaluations", json=_payload("ac01-api-case-01"))
     assert response.status_code == 200
     body = response.json()
     item = body["items"][0]

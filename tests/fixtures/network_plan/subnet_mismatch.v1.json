@@ -1,0 +1,14 @@
+{
+  "fixture_version": "v4-matrix-2026.08.0",
+  "purpose": "V3-04 网段规划返回 /24 与查询不一致（SUBNET_MISMATCH）",
+  "responses": {
+    "16.201.1.0/24": {
+      "http_status": 200,
+      "body": {"code": 200, "msg": "success", "success": true, "data": {"area": "A", "areaId": "A", "regionName": "A", "platformName": "P", "network": "16.201.0.0/16", "gateway": null, "subnet": "16.201.9.0/24", "vlanId": null, "usageCode": null, "description": "MISMATCH"}}
+    },
+    "16.220.16.0/24": {
+      "http_status": 200,
+      "body": {"code": 200, "msg": "success", "success": true, "data": {"area": "核心生产区", "areaId": "核心生产区", "regionName": "核心生产区", "platformName": "生产", "network": "16.220.16.0/24", "gateway": null, "subnet": "16.220.16.0/24", "vlanId": null, "usageCode": "database", "description": "DB"}}
+    }
+  }
+}

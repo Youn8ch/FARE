@@ -1,0 +1,57 @@
+{
+  "fixture_version": "2026.09.0",
+  "purpose": "RN-004 合作方临时访问缺少到期回收语义，verified 规则缺口触发 review_required 降级",
+  "semantic": {
+    "analyzed_item_ids": [
+      "@item:1"
+    ],
+    "claims": [
+      {
+        "claim_id": "rn004-claim-1",
+        "scope": "@item:1",
+        "claim_type": "temporary_access",
+        "field": "temporary_access",
+        "value": "temporary",
+        "source": "request_description",
+        "evidence": "临时联调",
+        "confidence": 0.9
+      },
+      {
+        "claim_id": "rn004-claim-2",
+        "scope": "@item:1",
+        "claim_type": "requested_duration",
+        "field": "requested_duration",
+        "value": "2 weeks",
+        "source": "request_description",
+        "evidence": "周期 2 周",
+        "confidence": 0.9
+      }
+    ],
+    "policy_gaps": [
+      {
+        "gap_id": "rn004-gap-1",
+        "scope": "@item:1",
+        "gap_type": "temporary_permanent_conflict",
+        "description": "合作方临时联调访问未说明到期回收方式。",
+        "evidence": [
+          {
+            "item_id": "@item:1",
+            "source": "request_description",
+            "quote": "临时联调"
+          },
+          {
+            "item_id": "@item:1",
+            "source": "request_description",
+            "quote": "周期 2 周"
+          }
+        ],
+        "affected_fields": [
+          "temporary_access",
+          "requested_duration"
+        ],
+        "question_for_requester": "请确认临时访问的到期时间与回收方式。",
+        "suggested_effect": "review_required"
+      }
+    ]
+  }
+}

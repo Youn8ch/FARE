@@ -64,8 +64,6 @@ def _guard(output: LlmSemanticResponse):
                 "request_description": "申请用途与生产数据库用途矛盾",
                 "source_description": "应用",
                 "destination_description": "数据库",
-                "acl_analysis": "",
-                "acl_config": "",
             }
         },
         authoritative_facts={ITEM: {}},
