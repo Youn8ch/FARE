@@ -46,7 +46,7 @@ dev profile）保持一致：`network_plan.mode=mock`、`llm.mode=mock`、shadow
 
 - 相同 `request_id` + 相同规范化输入 → 返回首次响应（同 `audit_id`）；
 - 处理中重放 → `409 evaluation_in_progress`；不同输入 → `409 idempotency_conflict`；
-- SQLite（`fare-audit.sqlite3`）维护权威幂等状态，JSONL 按日滚动归档；
+- SQLite（`fare-audit-v2.sqlite3`，schema epoch `fare-audit/v2-no-acl`）维护权威幂等状态，JSONL 按日滚动归档；0.3.0 之前的 `fare-audit.sqlite3` 为只读历史归档，不再是当前写入目标；
 - 审计记录网段规划原文/校验、semantic、request findings、
   explanation 各阶段状态、耗时、失败类型与纠错次数，输入与原文统一脱敏。
 

@@ -99,3 +99,79 @@ def test_scan_of_current_tree_passes() -> None:
     # The one legitimate active-code hit is the versioned audit epoch.
     assert 'app/services/audit.py' in result.stdout
     assert 'AUDIT_SCHEMA_EPOCH = "fare-audit/v2-no-acl"' in result.stdout
+
+
+def test_scan_roots_cover_examples_inputs_and_run_results() -> None:
+    allowlist = acl_scan.load_allowlist()
+    for root in ("examples", "inputs", "run_results"):
+        assert root in allowlist["scan_roots"], root
+
+
+def test_new_acl_tokens_in_widened_roots_are_rejected() -> None:
+    for path, line in (
+        ("examples/new_mock.json", '"acl_analysis": {"classification": "x"}'),
+        ("inputs/network_requirements/new_req.json", "legacy acl candidate feed"),
+        ("run_results/new_canary_20300101T000000Z.json", '"acl_verification_status"'),
+        ("examples/deep/sub/new_mock.json", '"AclCandidateAnalysis"'),
+    ):
+        category, reason = _classify(path, line)
+        assert category is None, (path, category)
+        assert reason is not None and "not covered" in reason, (path, reason)
+
+
+def test_widened_roots_have_no_broad_glob_allowlist() -> None:
+    allowlist = acl_scan.load_allowlist()
+    forbidden = ("examples/**", "examples/*", "inputs/**", "inputs/*",
+                 "run_results/**", "run_results/*")
+    for category in allowlist["categories"]:
+        for pattern in category["paths"]:
+            assert pattern not in forbidden, pattern
+    for pattern in allowlist["active_code"]["paths"]:
+        assert pattern not in forbidden, pattern
+
+
+def test_legacy_run_archives_are_enumerated_exactly() -> None:
+    allowlist = acl_scan.load_allowlist()
+    archive = next(
+        category
+        for category in allowlist["categories"]
+        if category["id"] == "legacy_run_archive"
+    )
+    assert archive["paths"], "legacy_run_archive must enumerate real files"
+    for pattern in archive["paths"]:
+        assert not any(ch in pattern for ch in "*?["), pattern
+        category, _ = _classify(pattern, '"acl_verification_status": "verified"')
+        assert category == "legacy_run_archive", pattern
+
+
+def test_missing_scan_root_is_safely_ignored(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(acl_scan, "PROJECT_ROOT", tmp_path)
+    for root in ("examples", "inputs", "run_results"):
+        (tmp_path / root).mkdir()
+    (tmp_path / "examples" / "planted.json").write_text(
+        '"acl_analysis": {}', encoding="utf-8"
+    )
+    (tmp_path / "inputs" / "planted.json").write_text(
+        "acl_verification_status", encoding="utf-8"
+    )
+    (tmp_path / "run_results" / "planted.json").write_text(
+        "AclCandidateAnalysis", encoding="utf-8"
+    )
+
+    allowlist = acl_scan.load_allowlist()
+    assert "this_root_does_not_exist" not in allowlist["scan_roots"]
+    allowlist = dict(allowlist)
+    allowlist["scan_roots"] = [
+        "examples", "inputs", "run_results", "this_root_does_not_exist/nested",
+    ]
+
+    files = acl_scan.iter_scanned_files(allowlist["scan_roots"])
+    assert len(files) == 3  # the missing root is skipped without raising
+
+    hits, violations = acl_scan.scan(allowlist)
+    assert hits == []
+    assert {violation["path"] for violation in violations} == {
+        "examples/planted.json",
+        "inputs/planted.json",
+        "run_results/planted.json",
+    }

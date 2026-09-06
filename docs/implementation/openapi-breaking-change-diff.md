@@ -31,12 +31,20 @@
 | `DecisionFinding.source` | Literal 收敛：移除 `'acl'`（现 `network \| rule \| semantic`） |
 | `ReasonType` | 移除 `'acl_no_path'` |
 
-## 4. 删除的 schema 组件（11 个）
+## 4. 删除的 schema 组件（迁移影响面共 11 个）
 
-`AclAnalysis`、`AclCandidateAnalysis`、`AclCandidateComparison`、
-`AclCandidateEvidenceSource`、`AclCandidateFactType`、`AclCandidateMergeStatus`、
-`AclRawResponse`、`ExtractedFacts`、`LlmAclCandidateFact`、
-`LlmAclExtractionItem`、`LlmAclExtractionResponse`
+统计口径说明：总迁移影响面为 **11 个**，但其中只有 **6 个**在 OpenAPI
+artifact（`openapi-baseline-v0.2.0.json` 的 `components.schemas`）中可见并被
+删除；另外 **5 个**只存在于基线的 Python/Pydantic schema 层
+（`app/schemas.py` 的 `model_json_schema()`），从未进入 OpenAPI artifact。
+因此不能声称 artifact 本身删除了 11 个组件。
+
+- OpenAPI artifact 中可见并删除（6 个）：`AclAnalysis`、
+  `AclCandidateAnalysis`、`AclCandidateComparison`、`ExtractedFacts`、
+  `LlmAclCandidateFact`、`LlmAclExtractionItem`
+- 仅存在于基线 Python/Pydantic schema 层（5 个）：
+  `AclCandidateEvidenceSource`、`AclCandidateFactType`、
+  `AclCandidateMergeStatus`、`AclRawResponse`、`LlmAclExtractionResponse`
 
 ## 5. 调用方迁移
 

@@ -11,7 +11,10 @@
     "README.md",
     "docs",
     "pyproject.toml",
-    "constraints.txt"
+    "constraints.txt",
+    "examples",
+    "inputs",
+    "run_results"
   ],
   "scan_tooling": {
     "$comment": "The scanner, its allowlist, and its precision test quote ACL identifiers in order to detect them; they are not ACL capabilities.",
@@ -36,6 +39,21 @@
       "id": "migration_doc",
       "paths": ["docs/**", "README.md"],
       "rationale": "Removal/migration documentation and historical audit archives."
+    },
+    {
+      "id": "legacy_run_archive",
+      "$comment": "Frozen pre-removal runtime output archives kept as historical evidence. Every file is enumerated exactly (no directory glob): a new file appearing in run_results/, examples/, or inputs/ with an ACL token is a violation, and these entries must never be widened.",
+      "paths": [
+        "run_results/network_requirement_results.json",
+        "run_results/real_area_relations_20260812T014150Z.json",
+        "run_results/real_model_canary_20260812-092505.json",
+        "run_results/real_model_canary_20260812-093003.json",
+        "run_results/real_model_canary_20260812-093319.json",
+        "run_results/real_model_canary_20260812-093457.json",
+        "run_results/real_model_canary_20260812-093619.json",
+        "run_results/real_model_canary_20260812-093737.json"
+      ],
+      "rationale": "Historical runtime outputs captured before the ACL removal; read-only evidence, not active code."
     }
   ],
   "active_code": {
